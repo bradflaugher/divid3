@@ -1,16 +1,76 @@
 {
-  "name": "Search Router",
-  "short_name": "Search",
-  "description": "Intelligent Search Auto-Router",
-  "start_url": "/index.html",
+  "id": "/",
+  "name": "divid3",
+  "short_name": "divid3",
+  "description": "A private, on-device search router that divides your query and sends it to the right search destination without tracking.",
+  "lang": "en-US",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "orientation": "any",
   "background_color": "#000000",
   "theme_color": "#000000",
+  "categories": ["productivity", "utilities", "privacy", "search"],
   "icons": [
     {
-      "src": "/favicon-144x144.png",
-      "sizes": "144x144",
-      "type": "image/png"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-monochrome-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "monochrome"
+    },
+    {
+      "src": "/icon-monochrome-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "monochrome"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "divid3 private search routing preview"
+    },
+    {
+      "src": "/og-image-square.png",
+      "sizes": "1200x1200",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "divid3 app icon and wordmark preview"
     }
   ]
 }

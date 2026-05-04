@@ -30,12 +30,16 @@
 /search-embeddings.json
   Cache-Control: public, max-age=3600, must-revalidate
 
-# Static visual assets
+# Static visual assets and install metadata
 /fonts/*
   Cache-Control: public, max-age=604800
 /*.png
   Cache-Control: public, max-age=604800
+/*.svg
+  Cache-Control: public, max-age=604800
 /favicon.ico
   Cache-Control: public, max-age=604800
 /search.webmanifest
+  Cache-Control: public, max-age=604800
+/browserconfig.xml
   Cache-Control: public, max-age=604800

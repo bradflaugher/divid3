@@ -135,7 +135,7 @@ test.describe('search router — bang shortcuts', () => {
         if (!c.host.test(u.hostname)) return false;
         const qs = u.searchParams.get(c.qParam) ?? '';
         return decodeURIComponent(qs).includes(c.qFragment);
-      }, { timeout: 15_000 });
+      }, { timeout: 15_000, waitUntil: 'commit' });
       await search.press('Enter');
       await navPromise;
     });
