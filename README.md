@@ -16,19 +16,9 @@ The search router lives at:
 https://divid3.com/?q=%s
 ```
 
-Use that URL as your browser's default search engine. Every query you type goes through a small classifier that picks the best destination:
+Use that URL as your browser's default search engine. Every query you type goes through a small classifier that picks the best destination.
 
-- "lofi beats" → **YouTube**
-- "react useEffect cleanup" → **GitHub** *(or Perplexity, depending on phrasing)*
-- "integral of x sin(x)" → **Wolfram Alpha**
-- "best USB-C cables" → **Amazon**
-- "coffee near me" → **Google Maps**
-- "github.com" → **direct link**, no engine
-- "what is a transformer model" → falls back to **DuckDuckGo**
-
-You don't have to remember which "bang" goes where. You don't even have to think about it. It just routes.
-
-### Safari on iOS / macOS
+#### Safari on iOS / macOS
 
 Safari doesn't let you change the default search engine natively. We recommend [**Customize Search Engine**](https://apps.apple.com/us/app/customize-search-engine/id6445840140) — a lightweight extension that lets you set any URL as your default search provider.
 
@@ -37,11 +27,60 @@ Safari doesn't let you change the default search engine natively. We recommend [
 3. Add `https://divid3.com/?q=%s` as your custom search URL
 4. Set it as the default
 
-### Other browsers
+#### Chrome / Edge / Firefox
 
-- **Chrome / Edge / Firefox**: Settings → Search engine → Manage search engines → Add site search → paste `https://divid3.com/?q=%s`
-- **Arc**: Settings → Search → Add search engine → paste the URL above
-- **DuckDuckGo Browser**: Settings → Default Search Engine → Other → paste the URL
+1. Settings → Search engine → Manage search engines
+2. Click **Add** (or "Site search")
+3. Name: `divid3`, Keyword: `d`, URL: `https://divid3.com/?q=%s`
+4. Set as default
+
+#### Arc
+
+Settings → Search → Add search engine → paste `https://divid3.com/?q=%s`
+
+#### DuckDuckGo Browser
+
+Settings → Default Search Engine → Other → paste `https://divid3.com/?q=%s`
+
+---
+
+## Bang shortcuts — instant routing without the model
+
+If you already know where you want to go, prefix your query with a bang. These are rule-based, instant, and never touch the embedding model.
+
+| Bang | Alias | Goes to | Example |
+|------|-------|---------|---------|
+| `!d` | `!ddg` | **DuckDuckGo** | `!d climate news` |
+| `!yt` | `!y` | **YouTube** | `!yt lofi hip hop` |
+| `!gh` | `!git` | **GitHub** | `!gh react hooks` |
+| `!w` | `!wa` | **Wolfram Alpha** | `!w integral of x^2` |
+| `!a` | `!amz` | **Amazon** | `!a usb-c cable` |
+| `!m` | `!map` | **Google Maps** | `!m coffee near me` |
+| `!i` | `!img` | **Bing Images** | `!i black hole` |
+| `!p` | `!px` | **Perplexity** | `!p explain quantum gravity` |
+| `!g` | `!gr` | **Grok** | `!g write a haiku` |
+
+**Direct URLs** also bypass the model: typing `github.com` or `localhost:3000` (no spaces) routes directly without any search engine.
+
+---
+
+## Semantic routing — let the model decide
+
+For everything else, divid3 embeds your query and compares it against ~50 example phrases per engine. The best match wins; if nothing scores above the confidence threshold, you fall back to DuckDuckGo.
+
+Some examples of what the model routes automatically:
+
+| Query | Routed to |
+|-------|-----------|
+| "lofi beats" | **YouTube** |
+| "react useEffect cleanup" | **GitHub** *(or Perplexity, depending on phrasing)* |
+| "integral of x sin(x)" | **Wolfram Alpha** |
+| "best USB-C cables" | **Amazon** |
+| "coffee near me" | **Google Maps** |
+| "github.com" | **Direct link** — no engine |
+| "what is a transformer model" | **DuckDuckGo** (fallback) |
+
+The scores panel in the bottom-left shows all candidate scores so you can see exactly *why* the router chose what it chose.
 
 ---
 
@@ -115,7 +154,7 @@ To preview locally:
 ```bash
 npm ci
 npx serve -l 3000 .
-# open http://localhost:3000/search.html
+# open http://localhost:3000/index.html
 ```
 
 You need [`serve.json`](./serve.json) on disk so the dev server doesn't 301-redirect `/search.html?q=…` and drop the query string in the process. Cloudflare Pages preserves it, but `serve` defaults don't.
@@ -162,7 +201,7 @@ CI runs the same suite on every PR via [`.github/workflows/search-tests.yml`](./
 
 iOS Safari is famously creative about caches: it can drop one resource from disk while keeping a paired one, or serve an immutable-cached asset across builds even after a server-side change. To keep the router working through those moods, the page does three things:
 
-1. **Versioned embeddings URL.** `search.html` requests `/search-embeddings.json?v=<EMBEDDINGS_VERSION>`. Bumping the constant invalidates every browser cache atomically. The [`_headers`](./_headers) file pins this URL to a 1-hour TTL with `must-revalidate` regardless, as a safety net.
+1. **Versioned embeddings URL.** `index.html` requests `/search-embeddings.json?v=<EMBEDDINGS_VERSION>`. Bumping the constant invalidates every browser cache atomically. The [`_headers`](./_headers) file pins this URL to a 1-hour TTL with `must-revalidate` regardless, as a safety net.
 2. **Never-rejecting init promise + fetch timeout.** If the embeddings fetch hangs (slow network, partial body) it aborts after 30 s; if the model itself errors, the page degrades to a DuckDuckGo pass-through instead of getting stuck on the loading overlay.
 3. **Self-service Retry.** A failed load shows an error banner with a **Retry** link. The handler clears `caches.*`, blasts every IndexedDB the origin owns (transformers.js parks the model there), and full-reloads. That's the recovery path you reach for when iOS serves a corrupted half-cache and nothing else helps.
 
@@ -181,7 +220,8 @@ iOS Safari anchors `position: fixed` to the layout viewport, not the visual view
 
 ```
 .
-├── search.html                      # The router (everything described above)
+├── index.html                       # The router (everything described above)
+├── privacy.html                     # Privacy policy
 ├── search-embeddings.json           # ~3.5 MB of pre-computed L2-normalized vectors
 ├── search.webmanifest               # PWA manifest
 ├── models/sentence-transformers/all-MiniLM-L6-v2/
@@ -217,7 +257,7 @@ print('all normalized')
 "
 ```
 
-**Then bump `EMBEDDINGS_VERSION` in `search.html`.** The page fetches `/search-embeddings.json?v=<EMBEDDINGS_VERSION>`, so without a bump clients can serve a stale cached copy alongside the new HTML.
+**Then bump `EMBEDDINGS_VERSION` in `index.html`.** The page fetches `/search-embeddings.json?v=<EMBEDDINGS_VERSION>`, so without a bump clients can serve a stale cached copy alongside the new HTML.
 
 ---
 
