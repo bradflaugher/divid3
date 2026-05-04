@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Privacy — divid3</title>
+<link href="/favicon-32x32.png" rel="icon" type="image/png"/>
+<meta content="#000000" name="theme-color"/>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #000000;
+    --text: #ffffff;
+    --text-muted: #666;
+    --accent: #ffffff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --text-muted: #999;
+      --accent: #000000;
+    }
+  }
+  html { overscroll-behavior: none; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: max(env(safe-area-inset-top), 3rem) 1.5rem max(env(safe-area-inset-bottom), 2rem) 1.5rem;
+    transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    line-height: 1.6;
+  }
+  .content {
+    width: 100%;
+    max-width: 560px;
+  }
+  h1 {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-weight: 200;
+    letter-spacing: -0.04em;
+    margin-bottom: 0.25rem;
+  }
+  .subtitle {
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+  }
+  h2 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-muted);
+  }
+  p {
+    font-size: 0.95rem;
+    font-weight: 300;
+    color: var(--text);
+    opacity: 0.85;
+    margin-bottom: 1rem;
+  }
+  ul {
+    margin-left: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  li {
+    font-size: 0.95rem;
+    font-weight: 300;
+    opacity: 0.85;
+    margin-bottom: 0.5rem;
+  }
+  a {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 0.3s ease;
+  }
+  a:hover { color: var(--text); }
+  .back {
+    margin-top: 3rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  .back:hover { color: var(--text); }
+  @media (min-width: 768px) {
+    body { padding: 4rem 2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="content">
+  <h1>Privacy</h1>
+  <div class="subtitle">What divid3 does — and doesn't do</div>
+
+  <h2>No server, no tracking</h2>
+  <p>divid3 is a single static HTML file served from Cloudflare Pages. There is no backend, no database, and no analytics endpoint. We don't log your queries, we don't fingerprint your browser, and we don't share anything with third parties.</p>
+
+  <h2>Everything stays on your device</h2>
+  <p>The embedding model (<a href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2" target="_blank" rel="noopener">sentence-transformers/all-MiniLM-L6-v2</a>, ~22 MB q8-quantized ONNX) runs entirely in your browser via <a href="https://github.com/huggingface/transformers.js" target="_blank" rel="noopener">@huggingface/transformers</a> v3. After the first load, the model is cached locally and all inference happens on-device. Your queries never leave your machine until the router decides which search engine to send you to.</p>
+
+  <h2>Where your query goes</h2>
+  <p>Once divid3 picks a destination, you are redirected to that search provider just like any normal link click. We don't proxy, modify, or intercept the request. Each provider has its own privacy policy:</p>
+  <ul>
+    <li><a href="https://duckduckgo.com/privacy" target="_blank" rel="noopener">DuckDuckGo Privacy Policy</a></li>
+    <li><a href="https://www.perplexity.ai/hub/legal/privacy-policy" target="_blank" rel="noopener">Perplexity Privacy Policy</a></li>
+    <li><a href="https://privacy.google.com/" target="_blank" rel="noopener">Google Privacy Policy</a> (Maps, YouTube)</li>
+    <li><a href="https://privacy.microsoft.com/" target="_blank" rel="noopener">Microsoft Privacy Policy</a> (Bing Images)</li>
+    <li><a href="https://www.amazon.com/gp/help/customer/display.html?nodeId=468496" target="_blank" rel="noopener">Amazon Privacy Notice</a></li>
+    <li><a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a></li>
+    <li><a href="https://www.wolfram.com/legal/privacy/wolfram-alpha/" target="_blank" rel="noopener">Wolfram Alpha Privacy Policy</a></li>
+    <li><a href="https://x.com/en/privacy" target="_blank" rel="noopener">X Privacy Policy</a> (Grok)</li>
+  </ul>
+
+  <h2>Cookies and local storage</h2>
+  <p>divid3 itself does not set cookies or use localStorage. The only persistent storage used is the browser's standard HTTP cache and IndexedDB, which transformers.js uses to store the downloaded model weights between visits. You can clear this at any time via your browser's developer tools or by tapping the <strong>Retry</strong> button on the main page, which wipes all application caches and reloads.</p>
+
+  <h2>Open source</h2>
+  <p>The full source code is available on <a href="https://github.com/bradflaugher/divid3" target="_blank" rel="noopener">GitHub</a> under the GNU AGPL v3. If you spot something wrong, open an issue or a pull request.</p>
+
+  <a class="back" href="/">← Back to divid3</a>
+</div>
+</body>
+</html>

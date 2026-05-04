@@ -1,0 +1,41 @@
+# Cache control for Cloudflare Pages.
+#
+# Rules below are evaluated in order; later rules override earlier ones for
+# the same header on a matching path. So put the catch-all first and
+# progressively narrower overrides afterwards.
+#
+# Goal:
+#   - HTML: always revalidate (so iOS Safari can't pin a stale page).
+#   - search-embeddings.json: short TTL + must-revalidate. The file is
+#     content-addressed via a `?v=…` query string in index.html, so a
+#     long TTL would otherwise be safe — but iOS sometimes serves stale
+#     immutable JSON across version bumps, so we explicitly keep this
+#     short to give us a ~hourly safety net.
+#   - Model weights / tokenizer files under /models/: immutable. Each is
+#     ~22 MB and effectively content-addressed by path; they never change
+#     in place.
+#   - Visual assets: 1 week is plenty.
+
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Long-lived immutable assets — model weights + tokenizer files.
+# Path is effectively content-addressed (we never mutate a file in place).
+/models/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Update-prone routing data. index.html appends `?v=…` to bust this on
+# real changes; the short max-age is a belt-and-suspenders defense
+# against iOS Safari's occasionally-creative cache behavior.
+/search-embeddings.json
+  Cache-Control: public, max-age=3600, must-revalidate
+
+# Static visual assets
+/fonts/*
+  Cache-Control: public, max-age=604800
+/*.png
+  Cache-Control: public, max-age=604800
+/favicon.ico
+  Cache-Control: public, max-age=604800
+/search.webmanifest
+  Cache-Control: public, max-age=604800

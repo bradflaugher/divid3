@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" name="viewport"/>
+<title>divid3</title>
+<link href="/search.webmanifest" rel="manifest"/>
+<link href="/favicon-32x32.png" rel="icon" type="image/png"/>
+<link href="/favicon-144x144.png" rel="apple-touch-icon"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="yes" name="mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="#000000" name="theme-color" id="theme-color"/>
+<meta name="robots" content="noindex"/>
+<meta name="referrer" content="no-referrer"/>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #000000;
+    --text: #ffffff;
+    --text-muted: #666;
+    --accent: #ffffff;
+    --engine-color: transparent;
+    --keyboard-inset: 0px;
+    /* Single source of truth for the "redirecting…" countdown. JS reads
+       this back via getPropertyValue when arming the route timer, so the
+       visual fill and the actual setTimeout always agree. */
+    --route-delay-ms: 1500ms;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --text-muted: #999;
+      --accent: #000000;
+    }
+  }
+  html {
+    /* Prevent pull-to-refresh and overscroll bounce on mobile */
+    overscroll-behavior: none;
+    height: 100%;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: max(env(safe-area-inset-top), 1.5rem) 1.25rem max(env(safe-area-inset-bottom), 1rem) 1.25rem;
+    transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    /* Prevent text selection on UI elements */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--engine-color);
+    opacity: 0.05;
+    pointer-events: none;
+    transition: background 0.8s ease;
+  }
+  .container {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 10;
+    /* Push input to a comfortable position: top-third on mobile, center on desktop */
+    margin-top: 15dvh;
+  }
+  @media (min-width: 768px) {
+    .container {
+      margin-top: 0;
+      align-self: center;
+    }
+    body {
+      justify-content: center;
+      padding: env(safe-area-inset-top) 2rem env(safe-area-inset-bottom) 2rem;
+    }
+  }
+  .input-wrap {
+    position: relative;
+  }
+  #search {
+    width: 100%;
+    padding: 1.25rem 0;
+    border: none;
+    border-bottom: 1px solid rgba(128,128,128,0.25);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text);
+    /* 16px minimum prevents iOS zoom on focus */
+    font-size: max(1.25rem, 16px);
+    font-weight: 300;
+    outline: none;
+    letter-spacing: -0.02em;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    /* Allow text selection in input */
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  #search::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+  #search:focus {
+    border-bottom-color: var(--text-muted);
+  }
+  @media (min-width: 768px) {
+    #search {
+      font-size: clamp(1.75rem, 4vw, 3rem);
+      font-weight: 200;
+      letter-spacing: -0.05em;
+      padding: 1.5rem 0;
+    }
+  }
+  .engine-hint {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .engine-hint.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .routing-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    text-align: center;
+    padding: 2rem;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .engine-name {
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: 100;
+    letter-spacing: -0.06em;
+    margin-bottom: 2rem;
+    word-break: break-word;
+  }
+  .cancel-btn {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    padding: 0.75rem 2.5rem;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    margin-top: 3rem;
+    transition: all 0.2s;
+    /* Larger tap target for mobile */
+    min-height: 44px;
+    min-width: 120px;
+    touch-action: manipulation;
+  }
+  .cancel-btn:hover, .cancel-btn:active {
+    color: var(--text);
+    border-color: var(--text);
+    background: rgba(255,255,255,0.05);
+  }
+  .progress-bar {
+    width: min(240px, 60vw);
+    height: 2px;
+    background: var(--text-muted);
+    position: relative;
+    overflow: hidden;
+    opacity: 0.25;
+    border-radius: 1px;
+  }
+  .progress-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 0%;
+    background: var(--text);
+    transition: width var(--route-delay-ms) linear;
+  }
+  /*
+   * --keyboard-inset is set from JS via the visualViewport API and reflects
+   * the height of the on-screen keyboard (or any other browser UI eating
+   * the bottom of the viewport). It's 0px on desktop and on browsers that
+   * support `interactive-widget=resizes-content` (which already shrinks
+   * the layout viewport for us).
+   */
+  .status-dot {
+    position: fixed;
+    bottom: calc(1.25rem + var(--keyboard-inset, 0px));
+    right: 1.25rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.3;
+    transition: background 0.3s, opacity 0.3s, bottom 0.2s ease;
+  }
+  .status-dot.ready {
+    background: #00ff00;
+    opacity: 0.6;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+  }
+  /* ── Scores panel: horizontal chips on mobile, vertical list on desktop ── */
+  .scores-panel {
+    position: fixed;
+    bottom: calc(1.25rem + var(--keyboard-inset, 0px));
+    left: 1.25rem;
+    right: 3rem; /* leave room for status dot */
+    font-size: 0.7rem;
+    font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+    color: var(--text-muted);
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                bottom 0.2s ease;
+    z-index: 50;
+    line-height: 1.5;
+    pointer-events: none;
+    max-width: calc(100vw - 5rem);
+    /* Horizontal scrollable chip layout on mobile */
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 0.25rem;
+  }
+  .scores-panel::-webkit-scrollbar { display: none; }
+  .scores-panel.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .scores-panel .score-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    background: rgba(128,128,128,0.08);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    pointer-events: auto;
+  }
+  .scores-panel .score-bar {
+    width: 32px;
+    height: 3px;
+    background: rgba(128,128,128,0.15);
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5px;
+  }
+  .scores-panel .score-fill {
+    height: 100%;
+    background: var(--text-muted);
+    transition: width 0.3s ease;
+    border-radius: 1.5px;
+  }
+  .scores-panel .score-fill.best {
+    background: var(--text);
+  }
+  .scores-panel .score-label {
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+  .scores-panel .score-val {
+    font-size: 0.65rem;
+    min-width: 22px;
+    text-align: right;
+  }
+  @media (min-width: 768px) {
+    .scores-panel {
+      left: 2rem;
+      right: auto;
+      bottom: calc(2rem + var(--keyboard-inset, 0px));
+      flex-direction: column;
+      flex-wrap: wrap;
+      gap: 0.15rem;
+      overflow-x: visible;
+      max-width: calc(100vw - 4rem);
+      padding-bottom: 0;
+    }
+    .scores-panel .score-row {
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      gap: 0.5rem;
+    }
+    .scores-panel .score-bar {
+      width: 60px;
+    }
+    .scores-panel .score-label {
+      /* Wide enough for "Wolfram Alpha" (13 chars) at 0.7rem mono. */
+      width: 95px;
+      text-align: right;
+      font-size: 0.7rem;
+    }
+    .scores-panel .score-val {
+      width: 35px;
+      font-size: 0.7rem;
+    }
+    .status-dot {
+      bottom: calc(2rem + var(--keyboard-inset, 0px));
+      right: 2rem;
+    }
+  }
+  .loading-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    text-align: center;
+    padding: 2rem;
+  }
+  .loading-overlay.active {
+    display: flex;
+  }
+  .loading-text {
+    font-size: 1rem;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+  }
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--text-muted);
+    border-top-color: var(--text);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status-dot.failed {
+    background: #ff3b30;
+    opacity: 0.8;
+    box-shadow: 0 0 10px rgba(255, 59, 48, 0.3);
+  }
+  .error-banner {
+    position: fixed;
+    top: max(env(safe-area-inset-top), 0.75rem);
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(90vw, 480px);
+    width: calc(100vw - 2.5rem);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: rgba(255, 59, 48, 0.12);
+    border: 1px solid rgba(255, 59, 48, 0.4);
+    color: #ff3b30;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: none;
+    z-index: 150;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .error-banner.active { display: block; }
+  .error-banner .retry-link {
+    display: inline-block;
+    margin-left: 0.4rem;
+    color: inherit;
+    background: transparent;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .error-banner .retry-link:focus-visible {
+    outline: 1px solid currentColor;
+    outline-offset: 2px;
+  }
+  .footer-links {
+    position: fixed;
+    bottom: calc(1.25rem + var(--keyboard-inset, 0px));
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    z-index: 60;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.5s ease, transform 0.5s ease, bottom 0.2s ease;
+    pointer-events: none;
+  }
+  .footer-links.visible {
+    opacity: 0.4;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .footer-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.3s ease, opacity 0.3s ease;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .footer-links a:hover {
+    color: var(--text);
+    opacity: 0.8;
+  }
+  @media (min-width: 768px) {
+    .footer-links {
+      bottom: calc(2rem + var(--keyboard-inset, 0px));
+      font-size: 0.75rem;
+      gap: 2rem;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="input-wrap">
+    <input autocomplete="off" autocorrect="off" autocapitalize="off"
+           spellcheck="false" enterkeyhint="search"
+           aria-label="Search query"
+           id="search" placeholder="Type to search..." type="text" autofocus/>
+    <div class="engine-hint" id="hint">DuckDuckGo</div>
+  </div>
+</div>
+
+<div class="routing-overlay" id="overlay">
+  <div class="engine-name" id="engine-display">DuckDuckGo</div>
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  <button class="cancel-btn" id="cancel">Cancel</button>
+</div>
+
+<div class="status-dot" id="status" data-state="loading" title="Embedding Model Loading..."></div>
+
+<div class="scores-panel" id="scores"></div>
+
+<div class="error-banner" id="error-banner" role="alert"></div>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading model...</div>
+</div>
+
+<div class="footer-links">
+  <a href="/privacy.html">Privacy</a>
+  <a href="https://github.com/bradflaugher/divid3" target="_blank" rel="noopener">Source</a>
+</div>
+
+<script type="module">
+  import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.4';
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Config
+  //
+  // We ship a single quantized ONNX file (model_quantized.onnx, ~22 MB).
+  // dtype: 'q8' tells transformers.js v3 to load that exact filename.
+  // Using any other dtype (e.g. 'fp32' → model.onnx) would 404; on
+  // Cloudflare Pages a 404 is served as HTML, which the ONNX runtime
+  // then tries to parse as protobuf and fails with the cryptic
+  // "Failed to load model because protobuf parsing failed" error.
+  // ───────────────────────────────────────────────────────────────────────
+  env.allowLocalModels = true;
+  env.allowRemoteModels = false;
+  env.localModelPath = '/models/';
+  env.useBrowserCache = true;
+
+  const MODEL_ID = 'sentence-transformers/all-MiniLM-L6-v2';
+  const MODEL_DTYPE = 'q8';
+  // Versioned URL: bump when search-embeddings.json content changes so
+  // any client (especially iOS Safari) can't serve a stale cached body
+  // alongside a freshly-fetched index.html. The number must match the
+  // committed file's content; see _headers for the fallback short TTL.
+  const EMBEDDINGS_VERSION = '1';
+  const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
+  const SIMILARITY_THRESHOLD = 0.30;   // below this, fall back to DuckDuckGo
+  const INPUT_DEBOUNCE_MS = 150;
+  const FETCH_TIMEOUT_MS = 30_000;     // give up on stalled embeddings fetch
+  // Read the route-delay countdown from CSS so the visual progress bar
+  // and the redirect setTimeout can never drift out of sync.
+  const ROUTE_DELAY_MS = (() => {
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue('--route-delay-ms').trim();
+    const n = parseFloat(v);
+    if (!Number.isFinite(n) || n <= 0) return 1500;
+    return v.endsWith('ms') ? n : n * 1000;       // s → ms
+  })();
+
+  const engines = {
+    'ddg':         { name: 'DuckDuckGo',    color: '#DE5833', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
+    'bing-images': { name: 'Bing Images',   color: '#008373', url: q => `https://www.bing.com/images/search?q=${q}` },
+    'perplexity':  { name: 'Perplexity',    color: '#20B2AA', url: q => `https://www.perplexity.ai/search?q=${q}` },
+    'grok':        { name: 'Grok',          color: '#ffffff', url: q => `https://grok.com/?q=${q}` },
+    'maps':        { name: 'Google Maps',   color: '#4285F4', url: q => `https://maps.google.com/maps?q=${q}` },
+    'youtube':     { name: 'YouTube',       color: '#FF0000', url: q => `https://www.youtube.com/results?search_query=${q}` },
+    'amazon':      { name: 'Amazon',        color: '#FF9900', url: q => `https://www.amazon.com/s?k=${q}` },
+    'github':      { name: 'GitHub',        color: '#333',    url: q => `https://github.com/search?q=${q}` },
+    'wolfram':     { name: 'Wolfram Alpha', color: '#DA0E1A', url: q => `https://www.wolframalpha.com/input/?i=${q}` },
+    'direct':      { name: 'Direct Link',   color: '#00ff00', url: q => q.startsWith('http') ? q : `https://${q}` }
+  };
+
+  // Bang shortcuts (always win over semantic routing)
+  const BANG_MAP = {
+    yt: 'youtube',     y: 'youtube',
+    a: 'amazon',       amz: 'amazon',
+    m: 'maps',         map: 'maps',
+    i: 'bing-images',  img: 'bing-images',
+    p: 'perplexity',   px: 'perplexity',
+    g: 'grok',         gr: 'grok',
+    gh: 'github',      git: 'github',
+    w: 'wolfram',      wa: 'wolfram',
+    d: 'ddg',          ddg: 'ddg'
+  };
+
+  const DOMAIN_RE    = /^[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,10}(:[0-9]{1,5})?(\/.*)?$/i;
+  const LOCALHOST_RE = /^localhost(:[0-9]{1,5})?(\/.*)?$/i;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // DOM
+  // ───────────────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const search         = $('search');
+  const hint           = $('hint');
+  const overlay        = $('overlay');
+  const display        = $('engine-display');
+  const progress       = $('progress');
+  const cancel         = $('cancel');
+  const statusDot      = $('status');
+  const loadingOverlay = $('loading');
+  const scoresPanel    = $('scores');
+  const errorBanner    = $('error-banner');
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Mobile keyboard awareness
+  //
+  // On iOS Safari (and older Chromes that don't honor
+  // `interactive-widget=resizes-content`), the soft keyboard does NOT
+  // shrink the layout viewport — `position: fixed` elements stay anchored
+  // to the layout viewport and end up hidden behind the keyboard.
+  //
+  // We use the visualViewport API to compute the obscured bottom inset
+  // and expose it as a CSS variable, which `.scores-panel` and
+  // `.status-dot` add to their `bottom` offset.
+  // ───────────────────────────────────────────────────────────────────────
+  const vv = window.visualViewport;
+  if (vv) {
+    const updateKeyboardInset = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--keyboard-inset', inset + 'px');
+    };
+    vv.addEventListener('resize', updateKeyboardInset);
+    vv.addEventListener('scroll', updateKeyboardInset);
+    updateKeyboardInset();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // State
+  // ───────────────────────────────────────────────────────────────────────
+  let extractor = null;
+  let routes = [];                                       // [{ key, vectors: Float32Array[] }]
+  let modelReady = false;
+  let modelFailed = false;
+  let routeTimer = null;
+  /** @type {Promise<boolean>}  Resolves true on success, false on failure;
+   *  never rejects. ?q= redirect awaits this instead of polling. */
+  let modelLoadPromise = null;
+  const qParam = new URLSearchParams(location.search).get('q');
+  const isRedirecting = qParam !== null;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Model + embeddings loader
+  //
+  // Returns a never-rejecting Promise<boolean> so callers can `await` it
+  // without try/catch. On failure, the page falls back to DuckDuckGo
+  // (every code path checks `modelReady` before reaching the embedder).
+  // ───────────────────────────────────────────────────────────────────────
+  async function fetchEmbeddings() {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const resp = await fetch(EMBEDDINGS_URL, {
+        signal: ctl.signal,
+        // Cache busting: rely on URL versioning + `_headers`; avoid
+        // `cache: 'no-store'` because that defeats the browser cache
+        // entirely and forces a 3.5 MB download on every visit.
+        cache: 'default',
+        credentials: 'omit',
+      });
+      if (!resp.ok) throw new Error(`embeddings HTTP ${resp.status}`);
+      const raw = await resp.json();
+      if (!Array.isArray(raw) || raw.length === 0) {
+        throw new Error('embeddings empty or malformed');
+      }
+      return raw;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function setStatus(state, title) {
+    statusDot.dataset.state = state;
+    statusDot.title = title;
+    statusDot.classList.toggle('ready', state === 'ready');
+    statusDot.classList.toggle('failed', state === 'failed');
+  }
+
+  function showError(message) {
+    // Build via DOM nodes (no innerHTML — message can include err.message).
+    errorBanner.replaceChildren();
+    errorBanner.appendChild(document.createTextNode(
+      'Semantic routing unavailable — Enter still works (DuckDuckGo). ' +
+      '(' + message + ') '
+    ));
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'retry-link';
+    retry.id = 'error-retry';
+    retry.textContent = 'Retry';
+    retry.addEventListener('click', retryModelLoad);
+    errorBanner.appendChild(retry);
+    errorBanner.classList.add('active');
+  }
+
+  function hideError() {
+    errorBanner.classList.remove('active');
+    errorBanner.replaceChildren();
+  }
+
+  /**
+   * Best-effort cache nuke. iOS Safari occasionally serves a half-cached
+   * model or stale embeddings; "Retry" clears every cache the page
+   * controls, then full-reloads. We can't blow away service-worker
+   * caches we don't own, but we don't have a SW so this is exhaustive.
+   */
+  async function clearAppCaches() {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) { console.warn('caches.keys()/delete failed', e); }
+    try {
+      if ('indexedDB' in window && indexedDB.databases) {
+        const dbs = await indexedDB.databases();
+        await Promise.all((dbs || []).map(db => new Promise(r => {
+          if (!db.name) return r(undefined);
+          const req = indexedDB.deleteDatabase(db.name);
+          req.onsuccess = req.onerror = req.onblocked = () => r(undefined);
+        })));
+      }
+    } catch (e) { console.warn('indexedDB.databases()/delete failed', e); }
+  }
+
+  async function retryModelLoad() {
+    hideError();
+    await clearAppCaches();
+    // Hard reload bypasses HTTP cache; the cleared caches/IDB above
+    // ensure transformers.js can't re-hydrate from a corrupt local copy.
+    location.reload();
+  }
+
+  function initModel() {
+    if (modelLoadPromise) return modelLoadPromise;
+    loadingOverlay.classList.add('active');
+    setStatus('loading', 'Embedding Model Loading…');
+    modelLoadPromise = (async () => {
+      try {
+        console.log('Search router: initializing…');
+        const [raw, model] = await Promise.all([
+          fetchEmbeddings(),
+          pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE }),
+        ]);
+        // Convert to typed arrays once. Vectors are L2-normalized at
+        // build time, so cosine == dot product (no per-query sqrt).
+        routes = raw.map(r => ({
+          key: r.key,
+          vectors: r.vectors.map(v => Float32Array.from(v)),
+        }));
+        extractor = model;
+        modelReady = true;
+        setStatus('ready', 'Embedding Model Ready');
+        const total = routes.reduce((n, r) => n + r.vectors.length, 0);
+        console.log(`Search router: ready (${routes.length} routes, ${total} vectors)`);
+        if (!isRedirecting) {
+          loadingOverlay.classList.remove('active');
+          document.querySelector('.footer-links').classList.add('visible');
+        }
+        updateHint();
+        return true;
+      } catch (err) {
+        modelFailed = true;
+        const msg = (err && err.message) || String(err);
+        setStatus('failed', 'Embedding Model Failed: ' + msg);
+        showError(msg);
+        console.error('Search router: init failed', err);
+        loadingOverlay.classList.remove('active');
+        document.querySelector('.footer-links').classList.add('visible');
+        return false;
+      }
+    })();
+    return modelLoadPromise;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Routing
+  // ───────────────────────────────────────────────────────────────────────
+
+  /**
+   * Dot product. Inputs MUST both be L2-normalized — then this equals
+   * cosine similarity. We assert that on the route side at load time
+   * (vectors come from a build-time pipeline with normalize=true) and
+   * on the query side via `normalize: true` in the extractor call.
+   */
+  function dot(a, b) {
+    const len = a.length;
+    let s = 0;
+    for (let i = 0; i < len; i++) s += a[i] * b[i];
+    return s;
+  }
+
+  /**
+   * Score a query against every route. Each route's score is the *max*
+   * similarity over its example vectors (nearest-neighbor pooling — more
+   * robust than averaging when example phrasings vary widely).
+   */
+  function scoreAll(qVec) {
+    const scores = new Array(routes.length);
+    for (let i = 0; i < routes.length; i++) {
+      const vecs = routes[i].vectors;
+      let best = -1;
+      for (let j = 0; j < vecs.length; j++) {
+        const s = dot(qVec, vecs[j]);
+        if (s > best) best = s;
+      }
+      scores[i] = { key: routes[i].key, score: best };
+    }
+    scores.sort((a, b) => b.score - a.score);
+    return scores;
+  }
+
+  function classifyRules(query) {
+    if (query.startsWith('!')) {
+      const cmd = query.split(' ', 1)[0].slice(1);
+      if (BANG_MAP[cmd]) return BANG_MAP[cmd];
+    }
+    if (!query.includes(' ') && (DOMAIN_RE.test(query) || LOCALHOST_RE.test(query))) {
+      return 'direct';
+    }
+    return null;
+  }
+
+  /**
+   * Returns { key, scores } where `scores` is sorted desc by similarity
+   * (or [] when classification was rule-based / model not ready).
+   * `staleCheck` is an optional () => boolean; if it ever returns true
+   * we abort and return null so the caller can drop a stale result.
+   */
+  async function classify(rawQuery, staleCheck) {
+    const q = rawQuery.toLowerCase().trim();
+    if (!q) return { key: 'ddg', scores: [] };
+
+    const ruleKey = classifyRules(q);
+    if (ruleKey) return { key: ruleKey, scores: [] };
+
+    if (!modelReady) return { key: 'ddg', scores: [] };
+
+    try {
+      const output = await extractor([q], { pooling: 'mean', normalize: true });
+      if (staleCheck && staleCheck()) return null;
+      const qVec = output.tolist()[0];
+      const scores = scoreAll(qVec);
+      const top = scores[0];
+      const key = top.score >= SIMILARITY_THRESHOLD ? top.key : 'ddg';
+      return { key, scores };
+    } catch (e) {
+      console.error('Inference error', e);
+      return { key: 'ddg', scores: [] };
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // UI updates (always cancellable; latest input wins)
+  // ───────────────────────────────────────────────────────────────────────
+  let hintSeq = 0;
+
+  function clearHint() {
+    hint.classList.remove('active');
+    document.documentElement.style.setProperty('--engine-color', 'transparent');
+    delete document.body.dataset.engine;
+    scoresPanel.classList.remove('active');
+    scoresPanel.replaceChildren();
+  }
+
+  function renderScores(result) {
+    if (!result.scores.length) {
+      scoresPanel.classList.remove('active');
+      scoresPanel.replaceChildren();
+      return;
+    }
+    // Build with DOM nodes (avoids innerHTML / XSS surface).
+    const frag = document.createDocumentFragment();
+    for (const s of result.scores) {
+      const pct = Math.round(s.score * 100);
+      const isBest = s.key === result.key;
+      const row = document.createElement('div');
+      row.className = 'score-row';
+      row.dataset.engine = s.key;
+      row.innerHTML =
+        `<span class="score-label">${engines[s.key].name}</span>` +
+        `<div class="score-bar"><div class="score-fill${isBest ? ' best' : ''}" style="width:${pct}%"></div></div>` +
+        `<span class="score-val">${pct}%</span>`;
+      frag.appendChild(row);
+    }
+    scoresPanel.replaceChildren(frag);
+    scoresPanel.classList.add('active');
+  }
+
+  async function updateHint() {
+    const q = search.value.trim();
+    const mySeq = ++hintSeq;
+    if (!q) { clearHint(); return; }
+
+    const result = await classify(q, () => mySeq !== hintSeq);
+    if (!result || mySeq !== hintSeq) return;       // a newer keystroke is in flight
+
+    const engine = engines[result.key];
+    hint.textContent = engine.name;
+    hint.classList.add('active');
+    document.documentElement.style.setProperty('--engine-color', engine.color);
+    document.body.dataset.engine = result.key;
+    renderScores(result);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Routing / redirect
+  // ───────────────────────────────────────────────────────────────────────
+  function buildTargetUrl(rawQuery, key) {
+    let q = rawQuery.trim();
+    if (q.startsWith('!')) {
+      const parts = q.split(/\s+/);
+      if (parts.length > 1) q = parts.slice(1).join(' ');
+    }
+    return key === 'direct'
+      ? engines.direct.url(q)
+      : engines[key].url(encodeURIComponent(q));
+  }
+
+  async function performRoute(rawQuery, immediate = false) {
+    if (!rawQuery || !rawQuery.trim()) return;
+    // Defensive: if a previous route was already armed (rapid double
+    // Enter, or Enter while a redirect is pending), cancel it first so
+    // we don't stack timers / redirect twice.
+    if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
+
+    const result = await classify(rawQuery);
+    const url = buildTargetUrl(rawQuery, result.key);
+
+    if (immediate) {
+      location.replace(url);
+      return;
+    }
+    display.textContent = engines[result.key].name;
+    overlay.style.display = 'flex';
+    search.blur();
+    // Reset width to 0 first so the transition has somewhere to go even
+    // if the bar was previously filled by a cancelled route.
+    progress.style.width = '0%';
+    requestAnimationFrame(() => { progress.style.width = '100%'; });
+    routeTimer = setTimeout(() => location.replace(url), ROUTE_DELAY_MS);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Event wiring
+  // ───────────────────────────────────────────────────────────────────────
+  let debounceTimer;
+  search.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(updateHint, INPUT_DEBOUNCE_MS);
+  });
+
+  search.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && search.value.trim()) performRoute(search.value);
+  });
+
+  function cancelRoute() {
+    if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
+    overlay.style.display = 'none';
+    progress.style.width = '0%';
+    search.focus();
+  }
+  cancel.addEventListener('click', cancelRoute);
+  // Escape while the redirect overlay is up should cancel it too. Plain
+  // keyboard accessibility — useful on desktop, no harm on mobile.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && overlay.style.display === 'flex') {
+      e.preventDefault();
+      cancelRoute();
+    }
+  });
+
+  // Rotating placeholder (decorative)
+  const placeholders = [
+    'Type to search...', '2 + 2 * 42', 'pizza near me', '!yt lofi hip hop',
+    'explain quantum gravity', 'github.com', 'image of a black hole',
+    'latest AI news', '!gh gemini-cli', 'integral of x^2', 'distance to moon'
+  ];
+  let pIdx = 0;
+  setInterval(() => {
+    if (!search.value && document.activeElement !== search) {
+      pIdx = (pIdx + 1) % placeholders.length;
+      search.placeholder = placeholders[pIdx];
+    }
+  }, 3000);
+
+  // ───────────────────────────────────────────────────────────────────────
+  // ?q=… auto-redirect entry point
+  //
+  // Order matters: we kick off `initModel()` immediately so the network
+  // fetch starts in parallel with the rest of script init, then await
+  // it from the redirect path. No polling — exactly one resolution.
+  // ───────────────────────────────────────────────────────────────────────
+  const initPromise = initModel();
+
+  if (qParam !== null) {
+    const trimmed = qParam.trim();
+    if (!trimmed) {
+      // Empty query → just show the page; nothing to redirect to.
+      loadingOverlay.classList.remove('active');
+    } else {
+      search.value = trimmed;
+      (async () => {
+        const ok = await initPromise;
+        if (ok) {
+          performRoute(trimmed, true);
+        } else {
+          console.warn('Search router: model failed, falling back to DuckDuckGo');
+          location.replace(engines.ddg.url(encodeURIComponent(trimmed)));
+        }
+      })();
+    }
+  }
+</script>
+</body>
+</html>
