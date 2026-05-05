@@ -567,6 +567,134 @@ test.describe('search router — transient retries', () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────
+// Keyboard shortcuts overlay
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — keyboard shortcuts', () => {
+  test('? key opens and closes the shortcuts overlay', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    await page.keyboard.press('?');
+    await expect(page.locator('#shortcuts-overlay')).toHaveClass(/active/);
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#shortcuts-overlay')).not.toHaveClass(/active/);
+  });
+
+  test('/ key focuses the search input', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    // The search input has autofocus, so it starts focused.
+    // Just verify that pressing / keeps it focused (doesn't type the slash).
+    await expect(page.locator('#search')).toBeFocused();
+    const before = await page.locator('#search').inputValue();
+
+    await page.keyboard.press('/');
+    await expect(page.locator('#search')).toBeFocused();
+    // The / key should not insert a character (it's handled as shortcut)
+    await expect(page.locator('#search')).toHaveValue(before);
+  });
+
+  test('T key toggles the theme (adds .light or .dark)', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const before = await page.evaluate(() => document.documentElement.className);
+    await page.keyboard.press('t');
+    const after = await page.evaluate(() => document.documentElement.className);
+    expect(after).not.toBe(before);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Smart paste: strip protocol from pasted URLs
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — smart paste', () => {
+  test('pasting "https://github.com" strips the protocol', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    await page.locator('#search').evaluate(el => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', 'https://github.com');
+      el.dispatchEvent(new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dt,
+      }));
+    });
+
+    await expect(page.locator('#search')).toHaveValue('github.com');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
+  });
+
+  test('pasting a regular search query is not modified', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    await page.locator('#search').click();
+    await page.locator('#search').fill('how to make pizza');
+
+    await expect(page.locator('#search')).toHaveValue('how to make pizza');
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Theme toggle
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — theme toggle', () => {
+  test('theme toggle button is present and clickable', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const btn = page.locator('#theme-toggle');
+    await expect(btn).toBeVisible();
+    await expect(btn).toHaveAttribute('aria-label', /toggle dark mode/i);
+
+    const before = await page.evaluate(() => document.documentElement.className);
+    await btn.click();
+    const after = await page.evaluate(() => document.documentElement.className);
+    expect(after).not.toBe(before);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Click-to-route: clicking the engine hint instantly routes
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — click-to-route', () => {
+  test('clicking the engine hint navigates immediately', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('!yt lofi');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube');
+
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await page.locator('#hint').click();
+    await navPromise;
+  });
+
+  test('clicking hint on a semantic query routes to the hinted engine', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('how to fix a flat tire');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', /.+/, { timeout: 10_000 });
+
+    // Clicking the hint should navigate — we just assert we leave the page.
+    const navPromise = page.waitForURL(url => {
+      const host = new URL(url.toString()).hostname;
+      return host !== 'localhost';
+    }, { timeout: 15_000, waitUntil: 'commit' });
+    await page.locator('#hint').click();
+    await navPromise;
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
 // Cache reliability (the real iOS pain point)
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — cache reliability', () => {

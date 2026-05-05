@@ -2,7 +2,7 @@
 
 A private, opinionated meta search engine. We divide your query and intelligently route it to the best search providers — so you get superior results without unnecessary tracking.
 
-Hosted at [https://divid3.com](https://divid3.com) on Cloudflare Pages.
+> **Privacy is a trade-off, not a binary.** We believe it's better to give your search queries to an on-device router that forgets them immediately than to give everything you type into the location bar to a single engine that builds a permanent profile. divid3 runs entirely in your browser — no server logs, no analytics, no query tracking. Your searches leave your device only when they reach the destination you chose.
 
 ---
 

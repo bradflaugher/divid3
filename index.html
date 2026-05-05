@@ -74,7 +74,29 @@
       --text: #000000;
       --text-muted: #999;
       --accent: #000000;
+      --code-bg: rgba(0,0,0,0.05);
+      --rule: rgba(128,128,128,0.3);
     }
+  }
+  html.light {
+    --bg: #ffffff;
+    --text: #000000;
+    --text-muted: #999;
+    --accent: #000000;
+    --code-bg: rgba(0,0,0,0.05);
+    --rule: rgba(128,128,128,0.3);
+  }
+  html.dark {
+    --bg: #000000;
+    --text: #ffffff;
+    --text-muted: #666;
+    --accent: #ffffff;
+    --code-bg: rgba(255,255,255,0.06);
+    --rule: rgba(128,128,128,0.25);
+  }
+  :root {
+    --code-bg: rgba(255,255,255,0.06);
+    --rule: rgba(128,128,128,0.25);
   }
   html {
     /* Prevent pull-to-refresh and overscroll bounce on mobile */
@@ -170,10 +192,16 @@
     opacity: 0;
     transform: translateY(4px);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
   }
   .engine-hint.active {
     opacity: 1;
     transform: translateY(0);
+  }
+  .engine-hint:hover {
+    color: var(--text);
   }
   .routing-overlay {
     position: fixed;
@@ -476,6 +504,97 @@
       gap: 2rem;
     }
   }
+  /* ── Keyboard-shortcuts help overlay ── */
+  .shortcuts-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 2rem;
+    animation: fadeIn 0.2s ease;
+  }
+  .shortcuts-overlay.active { display: flex; }
+  .shortcuts-panel {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .shortcuts-panel h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  .shortcuts-panel .sc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.85rem;
+    font-weight: 300;
+  }
+  .shortcuts-panel .sc-row:last-child { border-bottom: none; }
+  .shortcuts-panel kbd {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 0.75rem;
+    background: var(--code-bg);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.15rem 0.4rem;
+    min-width: 24px;
+    text-align: center;
+    display: inline-block;
+  }
+  .shortcuts-panel .sc-close {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  /* ── Theme toggle ── */
+  .theme-toggle {
+    position: fixed;
+    top: max(env(safe-area-inset-top), 0.75rem);
+    right: 0.75rem;
+    z-index: 70;
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s, border-color 0.2s;
+    min-height: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .theme-toggle:hover, .theme-toggle:focus {
+    color: var(--text);
+    border-color: var(--text);
+    outline: none;
+  }
+  @media (min-width: 768px) {
+    .theme-toggle {
+      top: max(env(safe-area-inset-top), 1rem);
+      right: 1.25rem;
+    }
+  }
 </style>
 </head>
 <body>
@@ -486,6 +605,7 @@
            aria-label="Search query"
            id="search" placeholder="Type to search..." type="text" autofocus/>
     <div class="engine-hint" id="hint">DuckDuckGo</div>
+
   </div>
 </div>
 
@@ -506,10 +626,23 @@
   <div class="loading-text">Loading model...</div>
 </div>
 
+<button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme (T)">◐</button>
+
 <div class="footer-links">
   <a href="/setup.html">Set as default</a>
   <a href="/privacy.html">Privacy</a>
   <a href="https://github.com/bradflaugher/divid3" target="_blank" rel="noopener">Source</a>
+</div>
+
+<div class="shortcuts-overlay" id="shortcuts-overlay">
+  <div class="shortcuts-panel">
+    <h2>Keyboard Shortcuts</h2>
+    <div class="sc-row"><span>Focus search</span><kbd>/</kbd></div>
+    <div class="sc-row"><span>Cancel redirect</span><kbd>Esc</kbd></div>
+    <div class="sc-row"><span>Toggle theme</span><kbd>T</kbd></div>
+    <div class="sc-row"><span>This help</span><kbd>?</kbd></div>
+    <div class="sc-close">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div>
+  </div>
 </div>
 
 <script type="module">
@@ -618,6 +751,8 @@
   const loadingOverlay = $('loading');
   const scoresPanel    = $('scores');
   const errorBanner    = $('error-banner');
+  const shortcutsOverlay = $('shortcuts-overlay');
+  const themeToggle    = $('theme-toggle');
 
   // ───────────────────────────────────────────────────────────────────────
   // Global error handlers
@@ -971,6 +1106,8 @@
     hint.classList.add('active');
     document.documentElement.style.setProperty('--engine-color', engine.color);
     document.body.dataset.engine = result.key;
+    // Store the current route key on the hint so click-to-route knows where to go
+    hint.dataset.routeKey = result.key;
     renderScores(result);
   }
 
@@ -1013,6 +1150,75 @@
   }
 
   // ───────────────────────────────────────────────────────────────────────
+  // Theme toggle (with localStorage persistence)
+  // ───────────────────────────────────────────────────────────────────────
+  const THEME_KEY = 'divid3-theme';
+  function applyTheme(theme) {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    }
+  }
+  function getSavedTheme() {
+    try {
+      const t = localStorage.getItem(THEME_KEY);
+      if (t === 'light' || t === 'dark') return t;
+    } catch (_) {}
+    return null;
+  }
+  function saveTheme(theme) {
+    try { localStorage.setItem(THEME_KEY, theme); } catch (_) {}
+  }
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.contains('light');
+    const next = isLight ? 'dark' : 'light';
+    applyTheme(next);
+    saveTheme(next);
+  }
+  // Initialise: saved preference wins over system default
+  const savedTheme = getSavedTheme();
+  if (savedTheme) applyTheme(savedTheme);
+  themeToggle.addEventListener('click', toggleTheme);
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Keyboard shortcuts overlay
+  // ───────────────────────────────────────────────────────────────────────
+  function showShortcuts() { shortcutsOverlay.classList.add('active'); }
+  function hideShortcuts() { shortcutsOverlay.classList.remove('active'); }
+  shortcutsOverlay.addEventListener('click', e => {
+    if (e.target === shortcutsOverlay) hideShortcuts();
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Smart paste: strip protocol from pasted URLs so "https://github.com"
+  // classifies as a direct link instead of a search query.
+  // ───────────────────────────────────────────────────────────────────────
+  search.addEventListener('paste', e => {
+    const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+    const trimmed = text.trim();
+    // If the clipboard contains only a URL with protocol, strip it.
+    if (/^https?:\/\//i.test(trimmed) && !trimmed.includes(' ')) {
+      const withoutProtocol = trimmed.replace(/^https?:\/\//i, '');
+      // Only strip if the result still looks like a domain (so we don't
+      // accidentally mangle search queries that happen to start with http).
+      if (DOMAIN_RE.test(withoutProtocol) || LOCALHOST_RE.test(withoutProtocol)) {
+        e.preventDefault();
+        const start = search.selectionStart || 0;
+        const end = search.selectionEnd || 0;
+        const val = search.value;
+        search.value = val.slice(0, start) + withoutProtocol + val.slice(end);
+        search.selectionStart = search.selectionEnd = start + withoutProtocol.length;
+        // Trigger the same flow as a normal input event
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(updateHint, INPUT_DEBOUNCE_MS);
+      }
+    }
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
   // Event wiring
   // ───────────────────────────────────────────────────────────────────────
   let debounceTimer;
@@ -1022,7 +1228,26 @@
   });
 
   search.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && search.value.trim()) performRoute(search.value);
+    if (e.key === 'Enter' && search.value.trim()) {
+      performRoute(search.value);
+      return;
+    }
+    // Global shortcuts (only when not typing in input with modifiers)
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      showShortcuts();
+      return;
+    }
+    if (e.key.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      toggleTheme();
+      return;
+    }
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      search.focus();
+      return;
+    }
   });
 
   function cancelRoute() {
@@ -1035,9 +1260,18 @@
   // Escape while the redirect overlay is up should cancel it too. Plain
   // keyboard accessibility — useful on desktop, no harm on mobile.
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && overlay.style.display === 'flex') {
-      e.preventDefault();
-      cancelRoute();
+    if (e.key === 'Escape') {
+      if (overlay.style.display === 'flex') {
+        e.preventDefault();
+        cancelRoute();
+        return;
+      }
+      if (shortcutsOverlay.classList.contains('active')) {
+        e.preventDefault();
+        hideShortcuts();
+        return;
+      }
+
     }
   });
 
@@ -1054,6 +1288,17 @@
       search.placeholder = placeholders[pIdx];
     }
   }, 3000);
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Click-to-route: clicking the engine hint instantly routes to that
+  // destination (or overrides the default if the model picked something
+  // the user disagrees with).
+  // ───────────────────────────────────────────────────────────────────────
+  hint.addEventListener('click', () => {
+    const key = hint.dataset.routeKey;
+    if (!key || !search.value.trim()) return;
+    performRoute(search.value, true);
+  });
 
   // ───────────────────────────────────────────────────────────────────────
   // ?q=… auto-redirect entry point
