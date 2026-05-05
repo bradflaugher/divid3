@@ -456,11 +456,13 @@ test.describe('search router — model load failure', () => {
   });
 
   test('Retry button reloads the page', async ({ page }) => {
-    // Fail once, then succeed: confirms Retry actually re-runs init.
+    // Exhaust the auto-retry path (3 attempts at 500), then succeed on
+    // the post-reload fresh init. Confirms Retry actually re-runs init.
     let calls = 0;
+    const FAIL_UP_TO = 3;
     await page.route('**/search-embeddings.json*', async (route: Route) => {
       calls += 1;
-      if (calls === 1) return route.fulfill({ status: 500, body: 'first call fails' });
+      if (calls <= FAIL_UP_TO) return route.fulfill({ status: 500, body: 'transient' });
       return route.continue();
     });
 
@@ -477,7 +479,90 @@ test.describe('search router — model load failure', () => {
     // Second load: model should now reach ready.
     await waitForModelReady(page);
     await expect(page.locator('#error-banner')).not.toHaveClass(/active/);
+    expect(calls).toBeGreaterThan(FAIL_UP_TO);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Browser registration / OpenSearch / setup page
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — browser registration', () => {
+  test('index.html advertises an OpenSearch description', async ({ page }) => {
+    await page.goto(PATH);
+    const link = page.locator('link[rel="search"][type="application/opensearchdescription+xml"]');
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute('href', '/opensearch.xml');
+    await expect(link).toHaveAttribute('title', /divid3/i);
+  });
+
+  test('opensearch.xml is reachable and well-formed', async ({ page, request }) => {
+    const resp = await request.get('/opensearch.xml');
+    expect(resp.ok(), `status ${resp.status()}`).toBeTruthy();
+    const ct = resp.headers()['content-type'] || '';
+    // Most static servers serve as text/xml or application/xml; either is fine.
+    expect(ct).toMatch(/xml/i);
+    const xml = await resp.text();
+    expect(xml).toMatch(/<OpenSearchDescription/);
+    expect(xml).toMatch(/<ShortName>divid3<\/ShortName>/);
+    // Required Url with template containing {searchTerms}.
+    expect(xml).toMatch(/template="[^"]*\{searchTerms\}[^"]*"/);
+    // No accidental remote tracking endpoints in the description.
+    expect(xml).not.toMatch(/google-analytics|facebook|doubleclick/i);
+  });
+
+  test('setup.html exposes the search URL and a working Copy button', async ({ page }) => {
+    // Grant clipboard permission so navigator.clipboard.writeText resolves.
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/setup.html');
+
+    const url = page.locator('#search-url');
+    await expect(url).toContainText('https://divid3.com/?q=%s');
+
+    await page.locator('#copy-url').click();
+    await expect(page.locator('#copy-url')).toHaveAttribute('data-state', 'copied');
+    await expect(page.locator('#copy-url')).toHaveText(/copied/i);
+
+    // At least one platform card should be open after the UA detector runs.
+    await expect(page.locator('details.platform-card[open]')).toHaveCount(1);
+  });
+
+  test('homepage footer links to the setup page', async ({ page }) => {
+    await page.goto(PATH);
+    const link = page.locator('.footer-links a', { hasText: /set as default/i });
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute('href', '/setup.html');
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Model load retry (transient failures recover automatically)
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — transient retries', () => {
+  test('a single transient 503 on embeddings is retried and recovers', async ({ page }) => {
+    let calls = 0;
+    await page.route('**/search-embeddings.json*', async (route: Route) => {
+      calls += 1;
+      if (calls === 1) return route.fulfill({ status: 503, body: 'transient' });
+      return route.continue();
+    });
+    await page.goto(PATH);
+    // Even though the first fetch failed, the retry path takes over and
+    // the model still ends up ready — no manual Retry click needed.
+    await waitForModelReady(page);
     expect(calls).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('#error-banner')).not.toHaveClass(/active/);
+  });
+
+  test('a deterministic 404 is NOT retried (would burn data plan)', async ({ page }) => {
+    let calls = 0;
+    await page.route('**/search-embeddings.json*', async (route: Route) => {
+      calls += 1;
+      return route.fulfill({ status: 404, body: 'not found' });
+    });
+    await page.goto(PATH);
+    await expect(page.locator('#status')).toHaveAttribute('data-state', 'failed', { timeout: 30_000 });
+    // Exactly one fetch attempt — no retry storm on a hard miss.
+    expect(calls).toBe(1);
   });
 });
 

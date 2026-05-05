@@ -43,3 +43,10 @@
   Cache-Control: public, max-age=604800
 /browserconfig.xml
   Cache-Control: public, max-age=604800
+
+# OpenSearch description: served as XML so Chromium / Firefox can
+# auto-discover divid3 as a search engine. Browsers refetch this rarely
+# (only when adding an engine), so 1 day is plenty.
+/opensearch.xml
+  Cache-Control: public, max-age=86400
+  Content-Type: application/opensearchdescription+xml; charset=utf-8

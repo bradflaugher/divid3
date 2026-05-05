@@ -16,7 +16,9 @@ The search router lives at:
 https://divid3.com/?q=%s
 ```
 
-Use that URL as your browser's default search engine. Every query you type goes through a small classifier that picks the best destination.
+The fastest path is to visit [**https://divid3.com/setup.html**](https://divid3.com/setup.html) — that page detects your browser, shows the right step-by-step instructions, and gives you a one-click copy of the URL.
+
+The page also serves an [OpenSearch description](opensearch.xml), so most modern browsers (Chrome, Edge, Brave, Arc, Opera, Firefox) will **auto-detect divid3** the first time you visit `divid3.com` and offer it under their search-engine settings.
 
 #### Safari on iOS / macOS
 
@@ -27,12 +29,20 @@ Safari doesn't let you change the default search engine natively. We recommend [
 3. Add `https://divid3.com/?q=%s` as your custom search URL
 4. Set it as the default
 
-#### Chrome / Edge / Firefox
+You can also tap the **Share** button on `divid3.com` and *Add to Home Screen* — that gives you an app-like icon that bypasses Safari's chrome and uses divid3 directly.
 
-1. Settings → Search engine → Manage search engines
-2. Click **Add** (or "Site search")
-3. Name: `divid3`, Keyword: `d`, URL: `https://divid3.com/?q=%s`
-4. Set as default
+#### Chrome / Edge / Brave / Opera
+
+1. Open `chrome://settings/searchEngines` (Edge: `edge://settings/searchEngines`).
+2. Under **Site search**, click **Add**.
+3. Name: `divid3`, Keyword: `d`, URL: `https://divid3.com/?q=%s`.
+4. Click the **⋮** next to the new entry → *Make default*.
+
+(With the keyword set to `d`, you can type `d`+<kbd>Tab</kbd> in the address bar to search divid3 without making it the default.)
+
+#### Firefox
+
+Firefox auto-detects divid3 via its OpenSearch description: visit [divid3.com](https://divid3.com), then *Settings → Search → Default Search Engine → divid3*. If the auto-detect didn't fire, *Search Shortcuts → Add* and paste the URL above.
 
 #### Arc
 
@@ -41,6 +51,11 @@ Settings → Search → Add search engine → paste `https://divid3.com/?q=%s`
 #### DuckDuckGo Browser
 
 Settings → Default Search Engine → Other → paste `https://divid3.com/?q=%s`
+
+#### Android (Chrome / Samsung Internet)
+
+Chrome: visit `divid3.com`, then *Settings → Search engine → Recently visited* → pick `divid3`.
+Samsung Internet: *Settings → Search engine → Add search engine* → paste the URL above.
 
 ---
 
@@ -165,7 +180,7 @@ The first page load downloads the ~22 MB model from the local server; subsequent
 
 ## Tests
 
-A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts), 40 specs) covers the whole stack:
+A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts), 45 specs) covers the whole stack:
 
 | Group                          | What it asserts                                                                  |
 | ------------------------------ | -------------------------------------------------------------------------------- |
@@ -177,6 +192,8 @@ A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts), 40 specs) 
 | cancel button                  | clicking cancel or pressing Escape stops the redirect, restores focus, preserves the query; rapid double-Enter doesn't stack timers |
 | mobile keyboard awareness      | a synthetic `visualViewport` resize lifts the scores panel above the keyboard    |
 | model load failure             | a 500 on `search-embeddings.json` flips status to `failed`, shows the error banner with a working **Retry**, falls back to DuckDuckGo on Enter and on `?q=…` |
+| transient retries              | a single 503 is silently retried and the model reaches `ready` without surfacing the error; deterministic 404s skip retries (no data-plan abuse) |
+| browser registration           | `index.html` exposes a `<link rel="search">`, `opensearch.xml` is served correctly, `setup.html` renders with a working Copy button, the homepage footer links to it |
 | cache reliability              | a second page load on the same context reuses the cached ONNX model              |
 
 Run them:
@@ -199,11 +216,15 @@ CI runs the same suite on every PR via [`.github/workflows/search-tests.yml`](./
 
 ## iOS reliability and caching
 
-iOS Safari is famously creative about caches: it can drop one resource from disk while keeping a paired one, or serve an immutable-cached asset across builds even after a server-side change. To keep the router working through those moods, the page does three things:
+iOS Safari is famously creative about caches: it can drop one resource from disk while keeping a paired one, or serve an immutable-cached asset across builds even after a server-side change. It also doesn't grant pages cross-origin isolation, so anything that needs `SharedArrayBuffer` (including ONNX worker threads) blows up in interesting ways. To keep the router working through those moods, the page does five things:
 
 1. **Versioned embeddings URL.** `index.html` requests `/search-embeddings.json?v=<EMBEDDINGS_VERSION>`. Bumping the constant invalidates every browser cache atomically. The [`_headers`](./_headers) file pins this URL to a 1-hour TTL with `must-revalidate` regardless, as a safety net.
-2. **Never-rejecting init promise + fetch timeout.** If the embeddings fetch hangs (slow network, partial body) it aborts after 30 s; if the model itself errors, the page degrades to a DuckDuckGo pass-through instead of getting stuck on the loading overlay.
-3. **Self-service Retry.** A failed load shows an error banner with a **Retry** link. The handler clears `caches.*`, blasts every IndexedDB the origin owns (transformers.js parks the model there), and full-reloads. That's the recovery path you reach for when iOS serves a corrupted half-cache and nothing else helps.
+2. **iOS-safe ONNX runtime tuning.** `env.backends.onnx.wasm.numThreads = 1` and `proxy = false` keep transformers.js on the main WASM execution path everywhere. iOS Safari can't spawn ONNX worker threads (no SAB without COOP/COEP); pinning to a single thread up-front removes a class of mid-init crashes that produced "protobuf parsing failed" reports from iOS users.
+3. **Auto-retry with exponential backoff.** Transient model-load failures (5xx responses, timeouts, network blips) are retried up to two times with 0.8 s → 1.6 s backoff before the error banner appears. Deterministic failures (404, hard parse errors) skip retries so we don't burn the user's data plan.
+4. **Never-rejecting init promise + fetch timeout.** If the embeddings fetch hangs (slow network, partial body) it aborts after 30 s; if the model itself errors after retries, the page degrades to a DuckDuckGo pass-through instead of getting stuck on the loading overlay.
+5. **Self-service Retry.** A failed load shows an error banner with a **Retry** link. The handler clears `caches.*`, blasts every IndexedDB the origin owns (transformers.js parks the model there), and full-reloads. That's the recovery path you reach for when iOS serves a corrupted half-cache and nothing else helps.
+
+Top-level `window.error` and `window.unhandledrejection` listeners log everything to the console (no network — privacy first) so power users can attach a screenshot of devtools when reporting issues.
 
 ---
 
@@ -221,13 +242,20 @@ iOS Safari anchors `position: fixed` to the layout viewport, not the visual view
 ```
 .
 ├── index.html                       # The router (everything described above)
+├── setup.html                       # Browser-aware "Set as default" instructions
 ├── privacy.html                     # Privacy policy
-├── search-embeddings.json           # ~3.5 MB of pre-computed L2-normalized vectors
+├── opensearch.xml                   # OpenSearch description for browser auto-discovery
+├── search-embeddings.json           # ~1.8 MB of pre-computed L2-normalized vectors
 ├── search.webmanifest               # PWA manifest
 ├── models/sentence-transformers/all-MiniLM-L6-v2/
 │   ├── config.json, tokenizer*.json, special_tokens_map.json
 │   └── onnx/model_quantized.onnx    # 22 MB, q8-quantized
-├── tests/search.spec.ts             # Playwright E2E test suite
+├── scripts/
+│   ├── search_phrases.json          # Source phrases for each route (curated)
+│   ├── generate_search_embeddings.py # Regenerate search-embeddings.json
+│   ├── generate_brand_assets.py     # Regenerate favicons / icons / OG images
+│   └── review_brand_assets.py       # Contact-sheet preview of brand assets
+├── tests/search.spec.ts             # Playwright E2E test suite (45 specs)
 ├── playwright.config.ts             # Test runner config
 ├── serve.json                       # `npx serve` config (cleanUrls: false)
 ├── package.json / package-lock.json # Dev deps only (Playwright, serve)
@@ -243,16 +271,28 @@ iOS Safari anchors `position: fixed` to the layout viewport, not the visual view
 
 ## Updating the embeddings
 
-The example phrases in `search-embeddings.json` are hand-curated — about 50 per route across 9 routes (461 vectors total, 384 dimensions each). To add or swap examples, regenerate the file with a Python script that loads `sentence-transformers/all-MiniLM-L6-v2` and calls `model.encode(phrases, normalize_embeddings=True)`. The output must keep all vectors L2-normalized, because the runtime relies on `cos(a, b) ≡ a · b` to skip the `sqrt`s.
+The example phrases in `search-embeddings.json` are hand-curated — ~50 per route across 9 routes (~480 vectors total, 384 dimensions each). They live as plain text in [`scripts/search_phrases.json`](./scripts/search_phrases.json) so they can be diffed and reviewed.
 
-If you regenerate the file, sanity-check it with:
+To regenerate the index after editing phrases, run:
+
+```bash
+# one-time:
+pip install onnxruntime tokenizers numpy
+
+# every time you change scripts/search_phrases.json:
+python3 scripts/generate_search_embeddings.py
+```
+
+The script loads the same q8-quantized ONNX model the browser uses (under `models/`), so the regenerated vectors are bit-identical to what transformers.js would produce client-side. It runs the standard `all-MiniLM-L6-v2` pipeline (WordPiece tokenize → BERT forward → mean-pool by attention mask → L2 normalize), trims floats to 6 digits to keep the JSON compact, and asserts every output vector is unit-length before writing.
+
+The runtime requires every vector to be L2-normalized — the dot-product fast path assumes `cos(a, b) ≡ a · b`. Sanity-check with:
 
 ```bash
 python3 -c "
 import json, math
 for r in json.load(open('search-embeddings.json')):
     for v in r['vectors']:
-        assert abs(math.sqrt(sum(x*x for x in v)) - 1) < 1e-6
+        assert abs(math.sqrt(sum(x*x for x in v)) - 1) < 1e-4
 print('all normalized')
 "
 ```

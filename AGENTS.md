@@ -16,6 +16,7 @@ A private, on-device meta search engine. Single HTML file with inline CSS/JS, st
 | `npm run serve` | Start dev server on `localhost:3000` |
 | `python3 scripts/generate_brand_assets.py` | Regenerate all favicons, icons, OG images |
 | `python3 scripts/review_brand_assets.py` | Generate contact sheet of key assets |
+| `python3 scripts/generate_search_embeddings.py` | Rebuild `search-embeddings.json` from `scripts/search_phrases.json` (uses local ONNX model) |
 
 No build step, no bundler, no transpilation. The app is `index.html` + static files served as-is.
 
@@ -58,17 +59,21 @@ User types → debounce 150 ms → classify() →
 
 ```
 ├── index.html                    # Entire app: HTML, CSS, JS module
+├── setup.html                    # "Set as default" instructions, browser-aware
 ├── privacy.html                  # Standalone privacy policy page
-├── search-embeddings.json        # ~3.5 MB pre-computed L2-normalized vectors
+├── opensearch.xml                # OpenSearch description for browser auto-discovery
+├── search-embeddings.json        # ~1.8 MB pre-computed L2-normalized vectors
 ├── search.webmanifest            # PWA manifest
 ├── serve.json                    # Dev-server config: cleanUrls=false (preserves ?q=)
 ├── _headers                      # Cloudflare Pages cache-control rules
 ├── models/sentence-transformers/all-MiniLM-L6-v2/
 │   ├── config.json, tokenizer*.json, special_tokens_map.json
 │   └── onnx/model_quantized.onnx    # 22 MB q8-quantized ONNX
-├── tests/search.spec.ts          # Playwright E2E suite (40 specs)
+├── tests/search.spec.ts          # Playwright E2E suite (45 specs)
 ├── playwright.config.ts          # Auto-starts dev server, workers=2 in CI
 ├── scripts/
+│   ├── search_phrases.json       # Source phrases for the semantic index (editable)
+│   ├── generate_search_embeddings.py # Rebuild search-embeddings.json from phrases
 │   ├── generate_brand_assets.py  # Regenerate favicons, icons, OG images
 │   └── review_brand_assets.py    # Contact-sheet reviewer
 └── favicon-*.png, icon-*.png, apple-touch-icon-*.png, og-image.png, …
@@ -122,6 +127,18 @@ If you change `MODEL_DTYPE` from `'q8'` to anything else, the fetch for the corr
 
 ### iOS cache recovery
 The **Retry** button in the error banner does a full cache nuke: clears all `caches.*`, deletes every IndexedDB database, then `location.reload()`. This is the escape hatch when iOS serves a corrupted half-cache.
+
+### iOS-safe ONNX threading
+`env.backends.onnx.wasm.numThreads = 1` and `proxy = false` are intentional. iOS Safari does not give pages cross-origin isolation (no `SharedArrayBuffer`), so the multi-threaded ONNX path either no-ops or crashes with a confusing "protobuf parsing failed". Keep the single-thread pin even if the desktop story improves — it's the iOS pain point.
+
+### Auto-retry only for transient failures
+`isTransientError()` whitelists `AbortError`, network/fetch/timeout messages, and HTTP 408/429/5xx. **Do not** add 4xx (other than 408/429) to that whitelist — a 404 means the URL is wrong, retrying just burns the user's data plan and never succeeds.
+
+### Bumping `EMBEDDINGS_VERSION` is mandatory
+Every change to `search-embeddings.json` (including via `scripts/generate_search_embeddings.py`) must be paired with a bump of `EMBEDDINGS_VERSION` in `index.html`. Without it iOS Safari can serve a stale cached body alongside a freshly-fetched HTML and routing silently breaks.
+
+### Source phrases live in `scripts/search_phrases.json`
+`search-embeddings.json` is a build artifact. Edit phrases in `scripts/search_phrases.json`, run `python3 scripts/generate_search_embeddings.py`, sanity-check with the L2-normalization snippet in the README, then bump `EMBEDDINGS_VERSION`.
 
 ### Mobile keyboard handling
 - Viewport meta includes `interactive-widget=resizes-content` (modern Chrome/Safari shrink layout viewport automatically).
