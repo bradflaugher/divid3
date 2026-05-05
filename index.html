@@ -831,14 +831,18 @@
   })();
 
   const engines = {
-    'ddg':         { name: 'DuckDuckGo',    color: '#DE5833', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
+    'ddg':         { name: 'DuckDuckGo (html)', color: '#DE5833', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
     'bing-images': { name: 'Bing Images',   color: '#008373', url: q => `https://www.bing.com/images/search?q=${q}` },
     'perplexity':  { name: 'Perplexity',    color: '#20B2AA', url: q => `https://www.perplexity.ai/search?q=${q}` },
     'grok':        { name: 'Grok',          color: '#ffffff', url: q => `https://grok.com/?q=${q}` },
     'maps':        { name: 'Google Maps',   color: '#4285F4', url: q => `https://maps.google.com/maps?q=${q}` },
     'youtube':     { name: 'YouTube',       color: '#FF0000', url: q => `https://www.youtube.com/results?search_query=${q}` },
-    'amazon':      { name: 'Amazon',        color: '#FF9900', url: q => `https://www.amazon.com/s?k=${q}` },
-    'github':      { name: 'GitHub',        color: '#333',    url: q => `https://github.com/search?q=${q}` },
+    'wirecutter':  { name: 'Wirecutter',    color: '#326891', url: q => `https://www.nytimes.com/wirecutter/search/?s=${q}` },
+    // Hacker News via Algolia. Default to past-month + popularity-sorted
+    // stories — that's the high-signal slice (front-page-grade discussion
+    // from the last 30 days), not the all-time firehose. Users who want
+    // the full archive can always tweak the filters on the destination.
+    'hn':          { name: 'Hacker News',   color: '#FF6600', url: q => `https://hn.algolia.com/?dateRange=pastMonth&page=0&prefix=false&query=${q}&sort=byPopularity&type=story` },
     'wolfram':     { name: 'Wolfram Alpha', color: '#DA0E1A', url: q => `https://www.wolframalpha.com/input/?i=${q}` },
     'direct':      { name: 'Direct Link',   color: '#00ff00', url: q => q.startsWith('http') ? q : `https://${q}` }
   };
@@ -846,12 +850,12 @@
   // Bang shortcuts (always win over semantic routing)
   const BANG_MAP = {
     yt: 'youtube',     y: 'youtube',
-    a: 'amazon',       amz: 'amazon',
+    wc: 'wirecutter',  nyt: 'wirecutter',
     m: 'maps',         map: 'maps',
     i: 'bing-images',  img: 'bing-images',
     p: 'perplexity',   px: 'perplexity',
     g: 'grok',         gr: 'grok',
-    gh: 'github',      git: 'github',
+    hn: 'hn',          h: 'hn',
     w: 'wolfram',      wa: 'wolfram',
     d: 'ddg',          ddg: 'ddg'
   };
@@ -889,20 +893,20 @@
     { engine: 'youtube', weight: 3, kw: ['lofi', 'beats', 'remix', 'edm mix', 'hip hop', 'mashup', 'concert footage', 'unboxing'] },
     { engine: 'youtube', weight: 1, kw: ['music', 'song', 'songs', 'video', 'videos', 'watch', 'concert', 'playlist', 'channel', 'episode', 'trailer', 'soundtrack', 'remixes', 'tiktok', 'shorts'] },
 
-    // ── github ──────────────────────────────────────────────────────
-    { engine: 'github', weight: 5, kw: ['pull request', 'open source', 'source code', 'code example', 'starter template', 'unit tests for', 'awesome list', 'monorepo'] },
-    { engine: 'github', weight: 3, kw: ['github', 'repo', 'repository', 'commit', 'merge conflict', 'fork', 'gist', 'codebase', 'cli tool'] },
-    { engine: 'github', weight: 2, kw: ['react', 'pytorch', 'tensorflow', 'nextjs', 'fastapi', 'transformers', 'langchain', 'llama.cpp', 'huggingface', 'rust crate', 'npm package', 'python library', 'sdk'] },
+    // ── hacker news ─────────────────────────────────────────────────
+    { engine: 'hn', weight: 5, kw: ['show hn', 'ask hn', 'hacker news', 'thoughts on', 'discussion of', 'is dead', 'is still relevant', 'y combinator', 'yc startup', 'show notes'] },
+    { engine: 'hn', weight: 3, kw: ['startup', 'founder', 'vc funding', 'open source project', 'engineering blog', 'post mortem', 'rfc', 'rant about', 'why we', 'we built', 'lessons learned'] },
+    { engine: 'hn', weight: 2, kw: ['react', 'pytorch', 'tensorflow', 'nextjs', 'fastapi', 'transformers', 'langchain', 'llama.cpp', 'huggingface', 'rust crate', 'npm package', 'python library', 'sdk'] },
 
     // ── wolfram ─────────────────────────────────────────────────────
     { engine: 'wolfram', weight: 5, kw: ['integral of', 'derivative of', 'limit of', 'solve for', 'taylor series', 'fourier transform', 'laplace transform', 'plot of', 'eigenvalues of', 'eigenvectors of', 'roots of', 'expand the', 'simplify the'] },
     { engine: 'wolfram', weight: 3, kw: ['integrate', 'differentiate', 'eigenvalue', 'eigenvector', 'theorem', 'simplify', 'factorize', 'mod arithmetic', 'partial derivative', 'definite integral'] },
     { engine: 'wolfram', weight: 2, kw: ['integral', 'derivative', 'sin(', 'cos(', 'tan(', 'log(', 'sqrt(', 'ln(', '^2', '^3', 'matrix', 'vector field', 'cross product', 'dot product'] },
 
-    // ── amazon ──────────────────────────────────────────────────────
-    { engine: 'amazon', weight: 5, kw: ['where to buy', 'best wireless', 'best mechanical', 'best budget', 'amazon basics', 'noise cancelling', 'standing desk', 'office chair', 'usb-c cable', 'usb c cable'] },
-    { engine: 'amazon', weight: 3, kw: ['buy', 'purchase', 'amazon', 'cheap', 'budget pick', 'price of'] },
-    { engine: 'amazon', weight: 2, kw: ['headphones', 'earbuds', 'mechanical keyboard', 'gaming mouse', 'monitor', 'webcam', 'mattress', 'hdmi cable', 'power bank', 'travel adapter', 'french press'] },
+    // ── wirecutter ──────────────────────────────────────────────────
+    { engine: 'wirecutter', weight: 5, kw: ['best wireless', 'best mechanical', 'best budget', 'best cheap', 'best of 2024', 'best of 2025', 'wirecutter pick', 'noise cancelling', 'standing desk', 'office chair', 'usb-c cable', 'usb c cable'] },
+    { engine: 'wirecutter', weight: 3, kw: ['where to buy', 'buy', 'purchase', 'wirecutter', 'budget pick', 'review of', 'recommendations for', 'gift guide'] },
+    { engine: 'wirecutter', weight: 2, kw: ['headphones', 'earbuds', 'mechanical keyboard', 'gaming mouse', 'monitor', 'webcam', 'mattress', 'hdmi cable', 'power bank', 'travel adapter', 'french press', 'air purifier', 'vacuum', 'humidifier'] },
 
     // ── maps ────────────────────────────────────────────────────────
     { engine: 'maps', weight: 5, kw: ['near me', 'nearby', 'directions to', 'how far is', 'distance to', 'gas stations', 'urgent care', 'open now', 'route to', 'driving directions'] },

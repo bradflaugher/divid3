@@ -60,11 +60,11 @@ If you already know where you want to go, prefix your query with a bang. These a
 
 | Bang | Alias | Goes to | Example |
 |------|-------|---------|---------|
-| `!d` | `!ddg` | **DuckDuckGo** | `!d climate news` |
+| `!d` | `!ddg` | **DuckDuckGo (html)** | `!d climate news` |
 | `!yt` | `!y` | **YouTube** | `!yt lofi hip hop` |
-| `!gh` | `!git` | **GitHub** | `!gh react hooks` |
+| `!hn` | `!h` | **Hacker News** *(past month, popularity-sorted)* | `!hn react server components` |
 | `!w` | `!wa` | **Wolfram Alpha** | `!w integral of x^2` |
-| `!a` | `!amz` | **Amazon** | `!a usb-c cable` |
+| `!wc` | `!nyt` | **Wirecutter** | `!wc usb-c cable` |
 | `!m` | `!map` | **Google Maps** | `!m coffee near me` |
 | `!i` | `!img` | **Bing Images** | `!i black hole` |
 | `!p` | `!px` | **Perplexity** | `!p explain quantum gravity` |
@@ -83,9 +83,9 @@ Some examples of what the model routes automatically:
 | Query | Routed to |
 |-------|-----------|
 | "lofi beats" | **YouTube** |
-| "react useEffect cleanup" | **GitHub** *(or Perplexity, depending on phrasing)* |
+| "react useEffect cleanup" | **Hacker News** *(or Perplexity, depending on phrasing)* |
 | "integral of x sin(x)" | **Wolfram Alpha** |
-| "best USB-C cables" | **Amazon** |
+| "best USB-C cables" | **Wirecutter** |
 | "coffee near me" | **Google Maps** |
 | "github.com" | **Direct link** — no engine |
 | "what is a transformer model" | **DuckDuckGo** (fallback) |
@@ -124,7 +124,7 @@ input ────────────────→ │ classifyRules │ 
                                                             └──────────────┘
 ```
 
-**Layer 1 — bangs.** DuckDuckGo-style shortcuts. `!yt cats` → YouTube, `!gh react` → GitHub, `!w sin(x)` → Wolfram, `!a usb-c` → Amazon, etc. Synchronous, no model needed, never gets it wrong.
+**Layer 1 — bangs.** DuckDuckGo-style shortcuts. `!yt cats` → YouTube, `!hn react` → Hacker News, `!w sin(x)` → Wolfram, `!wc usb-c` → Wirecutter, etc. Synchronous, no model needed, never gets it wrong.
 
 **Layer 2 — direct URL detection.** A regex catches things that look like domains (`github.com`, `news.ycombinator.com`) or `localhost:3000` and routes them as a literal URL instead of a search.
 
@@ -217,7 +217,7 @@ A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts) + [`tests/m
 | Group                          | What it asserts                                                                  |
 | ------------------------------ | -------------------------------------------------------------------------------- |
 | boot                           | model loads, status indicator reaches `ready`, no console errors, input is accessible, embeddings.json is requested with a `?v=…` cache-buster |
-| bang shortcuts                 | each `!x` (plus aliases `!y`, `!git`, `!ddg`, `!gr`) routes to the right host; bang-only (`!yt`) and unknown bang (`!nope foo`) don't crash |
+| bang shortcuts                 | each `!x` (plus aliases `!y`, `!nyt`, `!ddg`, `!gr`) routes to the right host; bang-only (`!yt`) and unknown bang (`!nope foo`) don't crash |
 | `?q=` redirect                 | `?q=!yt+lofi` auto-redirects; `?q=github.com` direct-links; `?q=how+to+make+pizza` waits for the model and routes semantically; empty / whitespace-only `?q=` stays on the page |
 | direct URL detection           | domains, `domain/path`, and `localhost:3000` classify as direct; phrases with spaces don't; Enter on `github.com` actually navigates |
 | semantic routing               | scores panel renders all 9 routes with exactly one `.best`; clearing input clears the UI; rapid-fire keystrokes settle on the latest query (`hintSeq` race) |
