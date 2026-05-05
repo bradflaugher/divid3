@@ -151,12 +151,18 @@ test.describe('search router — bang shortcuts', () => {
     await search.fill('!yt');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube');
 
-    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000 });
+    // waitUntil:'commit' matches as soon as the URL changes — we don't
+    // need to wait for the destination page to finish loading. Headless
+    // WebKit on Linux occasionally crashes mid-load on m.youtube.com,
+    // which would fail this test even though the redirect itself worked.
+    // Same approach used in the parametrized bang tests above.
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
     await search.press('Enter');
     await navPromise;
   });
 
-  test('unknown bang ("!nope foo") falls back to semantic / DDG', async ({ page }) => {
+  test('unknown bang ("!nope foo") falls back to semantic / DDG', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile defers semantic classification to Enter; this test asserts the live preview path');
     await page.goto(PATH);
     await waitForModelReady(page);
     await page.locator('#search').fill('!nope foo');
@@ -171,7 +177,9 @@ test.describe('search router — bang shortcuts', () => {
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — query parameter redirect', () => {
   test('?q=!yt+lofi auto-redirects to YouTube', async ({ page }) => {
-    const navPromise = page.waitForURL(/youtube\.com/, { timeout: MODEL_TIMEOUT });
+    // waitUntil:'commit' — see comment in the bang-shortcut test at L148.
+    // The redirect is what we're asserting, not YouTube's load behavior.
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: MODEL_TIMEOUT, waitUntil: 'commit' });
     await page.goto(`${PATH}?q=!yt+lofi`);
     // Loading overlay should be visible while the model is fetched.
     await expect(page.locator('#loading')).toHaveClass(/active/);
@@ -259,7 +267,14 @@ test.describe('search router — direct URL detection', () => {
 // Semantic routing
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — semantic routing', () => {
-  test('"how to fix a flat tire" routes to a non-default engine and shows scores', async ({ page }) => {
+  // The whole live semantic-routing UX is desktop-only by policy: on
+  // mobile, hint + scores never light up during typing because the model
+  // doesn't run until Enter. Skip these tests on the mobile project; the
+  // mobile-specific behavior is covered in mobile-and-webkit.spec.ts.
+
+  test('"how to fix a flat tire" routes to a non-default engine and shows scores', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live inference is desktop-only; mobile policy covered separately');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -282,7 +297,9 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#hint')).toHaveText(expectedName!.trim());
   });
 
-  test('clearing input hides the hint and scores', async ({ page }) => {
+  test('clearing input hides the hint and scores', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live inference is desktop-only');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -296,7 +313,9 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('body')).not.toHaveAttribute('data-engine', /.+/);
   });
 
-  test('changing the query updates the engine (no stale UI)', async ({ page }) => {
+  test('changing the query updates the engine (no stale UI)', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live inference is desktop-only');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -310,8 +329,9 @@ test.describe('search router — semantic routing', () => {
     expect(first).not.toBe('github');
   });
 
-  test('rapid-fire keystrokes settle on the latest query (hintSeq race fix)', async ({ page }) => {
-    // Type four queries back-to-back faster than the 150 ms debounce;
+  test('rapid-fire keystrokes settle on the latest query (hintSeq race fix)', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live inference is desktop-only — race fix only applies to live typing');
+    // Type four queries back-to-back faster than the 220 ms debounce;
     // the final settled engine must reflect the LAST query, not any
     // older one whose inference resolved later.
     await page.goto(PATH);
@@ -458,24 +478,31 @@ test.describe('search router — model load failure', () => {
     });
   }
 
-  test('embeddings 500 → status=failed, error banner with Retry button', async ({ page }) => {
+  test('embeddings 500 → status=keyword, error banner with Retry button', async ({ page }) => {
     await breakEmbeddings(page);
     await page.goto(PATH);
 
-    await expect(page.locator('#status')).toHaveAttribute('data-state', 'failed', { timeout: 30_000 });
-    await expect(page.locator('#status')).toHaveClass(/failed/);
+    // After retries are exhausted, we transition to keyword mode (purple
+    // dot) rather than the previous "failed → DDG-only" state. The
+    // banner now describes keyword routing instead of a DDG fallback.
+    await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', { timeout: 30_000 });
+    await expect(page.locator('#status')).toHaveClass(/keyword/);
     await expect(page.locator('#error-banner')).toHaveClass(/active/);
-    await expect(page.locator('#error-banner')).toContainText(/DuckDuckGo/);
+    await expect(page.locator('#error-banner')).toContainText(/keyword/i);
     await expect(page.locator('#error-retry')).toBeVisible();
     await expect(page.locator('#loading')).not.toHaveClass(/active/);
   });
 
-  test('Enter still routes to DDG when the model failed to load', async ({ page }) => {
+  test('Enter on a no-keyword-match query routes to DDG when the model failed', async ({ page }) => {
     await breakEmbeddings(page);
     await page.goto(PATH);
-    await expect(page.locator('#status')).toHaveAttribute('data-state', 'failed', { timeout: 30_000 });
+    await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', { timeout: 30_000 });
 
     const search = page.locator('#search');
+    // "what is a transformer model" doesn't strongly match any keyword
+    // rule (transformers.js would route to GitHub, but the bare word
+    // "transformer" doesn't match the 'transformers' keyword on word-
+    // boundary). So it correctly falls through to the DDG default.
     await search.fill('what is a transformer model');
 
     const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 15_000 });
@@ -483,9 +510,9 @@ test.describe('search router — model load failure', () => {
     await navPromise;
   });
 
-  test('?q=… falls back to DuckDuckGo when the model failed to load', async ({ page }) => {
+  test('?q=… falls back to DuckDuckGo when the model failed and no keyword matches', async ({ page }) => {
     await breakEmbeddings(page);
-    const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 30_000 });
+    const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 30_000, waitUntil: 'commit' });
     await page.goto(`${PATH}?q=what+is+a+transformer`);
     await navPromise;
     expect(page.url()).toMatch(/q=what/);
@@ -602,7 +629,9 @@ test.describe('search router — transient retries', () => {
       return route.fulfill({ status: 404, body: 'not found' });
     });
     await page.goto(PATH);
-    await expect(page.locator('#status')).toHaveAttribute('data-state', 'failed', { timeout: 30_000 });
+    // After deterministic failure (no retries) we transition straight to
+    // keyword mode. Same end-state as 5xx exhaust + retry, just faster.
+    await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', { timeout: 30_000 });
     // Exactly one fetch attempt — no retry storm on a hard miss.
     expect(calls).toBe(1);
   });
@@ -739,7 +768,9 @@ test.describe('search router — click-to-route', () => {
     await navPromise;
   });
 
-  test('clicking hint on a semantic query routes to the hinted engine', async ({ page }) => {
+  test('clicking hint on a semantic query routes to the hinted engine', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile shows no hint for semantic queries (live inference is desktop-only)');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -756,7 +787,9 @@ test.describe('search router — click-to-route', () => {
     await navPromise;
   });
 
-  test('clicking a score chip OVERRIDES the model and routes there', async ({ page }) => {
+  test('clicking a score chip OVERRIDES the model and routes there', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile shows no scores during typing (live inference is desktop-only)');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -775,7 +808,9 @@ test.describe('search router — click-to-route', () => {
     expect(new URL(page.url()).hostname).toMatch(/amazon\.com$/);
   });
 
-  test('every score chip is keyboard-activatable as a real <button>', async ({ page }) => {
+  test('every score chip is keyboard-activatable as a real <button>', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile shows no scores during typing (live inference is desktop-only)');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -795,7 +830,9 @@ test.describe('search router — click-to-route', () => {
     expect(labels.every(l => /Route to .+ \(\d+% match\)/.test(l))).toBe(true);
   });
 
-  test('keyboard Enter on a focused score chip overrides the route', async ({ page }) => {
+  test('keyboard Enter on a focused score chip overrides the route', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile shows no scores during typing (live inference is desktop-only)');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -833,5 +870,206 @@ test.describe('search router — cache reliability', () => {
     // We don't assert modelHits === 0 because the served-from-cache
     // request might still register; we just assert it stays small.
     expect(modelHits).toBeLessThanOrEqual(1);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Keyword-only routing mode (the low-memory / model-disabled fallback)
+//
+// Activated by:
+//   - `?lite=1` URL parameter (explicit user opt-in / deep link)
+//   - Crash-loop guard (≥ 2 unfinished cold loads in a row)
+//   - Model load failure after retries
+//
+// In this mode the embedding model is never loaded. classify() routes
+// via deterministic keyword rules (~ 100 phrase patterns across 9
+// engines, weighted by specificity), with DDG as the no-match fallback.
+//
+// The status dot turns purple to signal the mode visually. Bangs and
+// direct URL detection still work — they were always rule-based.
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — keyword mode (low-memory fallback)', () => {
+  /**
+   * Boot the page in keyword mode and wait for it to settle. We use the
+   * `?lite=1` URL param as the canonical activation path; the per-engine
+   * routing assertions don't care WHY we ended up in keyword mode, only
+   * that the routing works deterministically once we're there.
+   */
+  async function bootKeywordMode(page: Page) {
+    await page.goto(`${PATH}?lite=1`);
+    await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', {
+      timeout: 10_000,
+    });
+  }
+
+  test('?lite=1 URL parameter activates keyword mode (purple dot, no model load)', async ({ page }) => {
+    // Track whether the embeddings JSON was requested. In keyword mode
+    // we should skip both the embeddings fetch AND the ONNX download.
+    let embeddingsHits = 0;
+    let modelHits = 0;
+    await page.route('**/search-embeddings.json*', (route: Route) => {
+      embeddingsHits += 1;
+      return route.continue();
+    });
+    await page.route('**/model_quantized.onnx', (route: Route) => {
+      modelHits += 1;
+      return route.continue();
+    });
+
+    await bootKeywordMode(page);
+
+    await expect(page.locator('#status')).toHaveClass(/keyword/);
+    // Loading overlay never came up.
+    await expect(page.locator('#loading')).not.toHaveClass(/active/);
+    // Footer becomes visible after init resolves.
+    await expect(page.locator('.footer-links')).toHaveClass(/visible/);
+
+    // Give any stray fetch a moment to surface.
+    await page.waitForTimeout(500);
+    expect(embeddingsHits, 'embeddings.json should not be fetched in keyword mode').toBe(0);
+    expect(modelHits, 'ONNX model should not be downloaded in keyword mode').toBe(0);
+  });
+
+  // ── Per-engine routing table ─────────────────────────────────────
+  //
+  // For each engine we pick a query that should match the keyword
+  // rules deterministically and assert performRoute (Enter) goes there.
+  // These assertions are stable: keyword classification is pure regex,
+  // no model nondeterminism, no thresholds to drift past.
+  const cases: { query: string; engine: string; host: RegExp; qFragment: string }[] = [
+    { query: 'lofi beats',                    engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qFragment: 'lofi' },
+    { query: 'github react examples',         engine: 'github',      host: /(^|\.)github\.com$/,       qFragment: 'react' },
+    { query: 'integral of x^2',               engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qFragment: 'integral' },
+    { query: 'buy usb-c cable',               engine: 'amazon',      host: /(^|\.)amazon\.com$/,       qFragment: 'usb' },
+    { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
+    { query: 'image of saturn',               engine: 'bing-images', host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
+    { query: 'explain quantum mechanics',     engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qFragment: 'quantum' },
+    { query: 'write a haiku about cats',      engine: 'grok',        host: /(^|\.)grok\.com$/,         qFragment: 'haiku' },
+  ];
+
+  for (const c of cases) {
+    test(`keyword routing: "${c.query}" → ${c.engine}`, async ({ page }) => {
+      await bootKeywordMode(page);
+
+      const search = page.locator('#search');
+      await search.fill(c.query);
+
+      const navPromise = page.waitForURL(url => {
+        return c.host.test(new URL(url.toString()).hostname);
+      }, { timeout: 15_000, waitUntil: 'commit' });
+      await search.press('Enter');
+      await navPromise;
+      // Make sure the user's query actually rode along on the redirect.
+      expect(decodeURIComponent(page.url())).toMatch(new RegExp(c.qFragment, 'i'));
+    });
+  }
+
+  test('keyword routing: a query with no matching keywords falls through to DDG', async ({ page }) => {
+    await bootKeywordMode(page);
+
+    const search = page.locator('#search');
+    // No bang, no domain, and no rule keyword — should land on DDG.
+    await search.fill('current population of japan');
+    const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await navPromise;
+  });
+
+  test('keyword routing: bangs still take precedence (rule-based, untouched by mode)', async ({ page }) => {
+    await bootKeywordMode(page);
+
+    const search = page.locator('#search');
+    // "!w sin x" — Wolfram bang. Without the bang, "sin x" would also
+    // match wolfram via keywords, so we use a bang that DOESN'T match
+    // the natural keyword routing target: "!a usb cable" → Amazon (the
+    // bang). Without the bang, "buy usb cable" routes to amazon via
+    // keywords too, so let's use "!yt cake recipe" — without the bang
+    // "cake recipe" matches no keyword and would land on DDG, but with
+    // the bang it must go to YouTube.
+    await search.fill('!yt cake recipe');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube');
+
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await navPromise;
+  });
+
+  test('keyword routing: direct URL detection still works (rule-based)', async ({ page }) => {
+    await bootKeywordMode(page);
+
+    const search = page.locator('#search');
+    await search.fill('github.com');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
+    await expect(page.locator('#hint')).toHaveText('Direct Link');
+  });
+
+  test('keyword routing: ?q= URL parameter routes via keywords on a fresh boot', async ({ page }) => {
+    // The `?q=` redirect path runs through performRoute → classify,
+    // which respects keywordMode the same way Enter does. So a
+    // ?q=lofi+beats&lite=1 visit should redirect to YouTube without
+    // ever loading the model.
+    let modelHits = 0;
+    await page.route('**/model_quantized.onnx', (route: Route) => {
+      modelHits += 1;
+      return route.continue();
+    });
+
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    // page.goto's default waitUntil is 'load' — but our redirect lands
+    // on m.youtube.com, whose full load occasionally crashes headless
+    // WebKit on Linux. We only care that the redirect committed; use
+    // 'commit' here just like the navPromise above.
+    await page.goto(`${PATH}?q=lofi+beats&lite=1`, { waitUntil: 'commit' });
+    await navPromise;
+    expect(decodeURIComponent(page.url())).toMatch(/lofi/i);
+    expect(modelHits, 'model should not have been fetched').toBe(0);
+  });
+
+  test('keyword routing: model-load failure also activates keyword mode', async ({ page }) => {
+    // Break the embeddings fetch — initModel will fail after retries
+    // and flip to keywordMode automatically (without needing ?lite=1).
+    await page.route('**/search-embeddings.json*', (route: Route) => {
+      route.fulfill({ status: 500, body: 'simulated failure' });
+    });
+
+    await page.goto(PATH);
+
+    await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', {
+      timeout: 30_000,
+    });
+    await expect(page.locator('#status')).toHaveClass(/keyword/);
+
+    // Routing should still work via keywords even though the model
+    // never loaded. Pick a query with a strong keyword signal.
+    const search = page.locator('#search');
+    await search.fill('integral of sin(x)');
+    const navPromise = page.waitForURL(/wolframalpha\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await navPromise;
+  });
+
+  test('keyword routing: case insensitive matching', async ({ page }) => {
+    await bootKeywordMode(page);
+
+    const search = page.locator('#search');
+    // SHOUTING shouldn't break the rules.
+    await search.fill('LOFI BEATS');
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await navPromise;
+  });
+
+  test('keyword routing: word boundaries — "decode" does NOT match the github "code" rules', async ({ page }) => {
+    // Defensive test against future regressions. If a contributor adds
+    // a bare 'code' keyword to the github rules, queries containing
+    // "decode" / "encoded" would silently misroute. Word-boundary
+    // matching is what prevents that — assert it stays correct.
+    await bootKeywordMode(page);
+
+    const search = page.locator('#search');
+    await search.fill('decode this string');
+    const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await navPromise;
   });
 });

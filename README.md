@@ -18,44 +18,39 @@ https://divid3.com/?q=%s
 
 The fastest path is to visit [**https://divid3.com/setup.html**](https://divid3.com/setup.html) — that page detects your browser, shows the right step-by-step instructions, and gives you a one-click copy of the URL.
 
-The page also serves an [OpenSearch description](opensearch.xml), so most modern browsers (Chrome, Edge, Brave, Arc, Opera, Firefox) will **auto-detect divid3** the first time you visit `divid3.com` and offer it under their search-engine settings.
+The page also serves an [OpenSearch description](opensearch.xml), so most modern browsers will **auto-detect divid3** the first time you visit `divid3.com` and offer it in their search-engine settings.
 
-#### Safari on iOS / macOS
+There are really only three flavors of browser engine to deal with here: Chromium (everybody except Firefox and Safari), Gecko (Firefox), and WebKit (Safari). Pick whichever section matches.
 
-Safari doesn't let you change the default search engine natively. We recommend [**Customize Search Engine**](https://apps.apple.com/us/app/customize-search-engine/id6445840140) — a lightweight extension that lets you set any URL as your default search provider.
+#### Chromium-based browsers — Chrome, Edge, Brave, Arc, Opera, Vivaldi, DuckDuckGo on macOS, etc.
 
-1. Install the app from the App Store
-2. Open Safari → Settings → Extensions → Enable "Customize Search Engine"
-3. Add `https://divid3.com/?q=%s` as your custom search URL
-4. Set it as the default
+They all share the same engine and the same search-engine UI under the hood:
 
-You can also tap the **Share** button on `divid3.com` and *Add to Home Screen* — that gives you an app-like icon that bypasses Safari's chrome and uses divid3 directly.
-
-#### Chrome / Edge / Brave / Opera
-
-1. Open `chrome://settings/searchEngines` (Edge: `edge://settings/searchEngines`).
+1. Open `chrome://settings/searchEngines` (or the equivalent `<browser>://` URL — `edge://`, `brave://`, etc.). Arc and Vivaldi expose the same panel via *Settings → Search*.
 2. Under **Site search**, click **Add**.
-3. Name: `divid3`, Keyword: `d`, URL: `https://divid3.com/?q=%s`.
-4. Click the **⋮** next to the new entry → *Make default*.
+3. Name `divid3`, Keyword `d`, URL `https://divid3.com/?q=%s`.
+4. **⋮** next to the new entry → *Make default*.
 
-(With the keyword set to `d`, you can type `d`+<kbd>Tab</kbd> in the address bar to search divid3 without making it the default.)
+If you don't want to change your default, leave the keyword as `d` — `d`+<kbd>Tab</kbd> in the address bar searches divid3 directly without committing to anything.
 
 #### Firefox
 
-Firefox auto-detects divid3 via its OpenSearch description: visit [divid3.com](https://divid3.com), then *Settings → Search → Default Search Engine → divid3*. If the auto-detect didn't fire, *Search Shortcuts → Add* and paste the URL above.
+Firefox auto-discovers divid3 via OpenSearch. Visit [divid3.com](https://divid3.com), then *Settings → Search → Default Search Engine → divid3*. If the auto-detect didn't fire, *Search Shortcuts → Add* and paste `https://divid3.com/?q=%s`.
 
-#### Arc
+#### Safari (iOS / macOS)
 
-Settings → Search → Add search engine → paste `https://divid3.com/?q=%s`
+Safari doesn't expose a native "use any URL as default search" setting, so you need an extension. The cleanest option is [**Customize Search Engine**](https://apps.apple.com/us/app/customize-search-engine/id6445840140):
 
-#### DuckDuckGo Browser
+1. Install from the App Store.
+2. Safari → Settings → Extensions → enable *Customize Search Engine*.
+3. Add `https://divid3.com/?q=%s` as your custom search URL.
+4. Set it as the default.
 
-Settings → Default Search Engine → Other → paste `https://divid3.com/?q=%s`
+On iOS you can also tap **Share → Add to Home Screen** on `divid3.com` for an app-like launcher that bypasses Safari's chrome entirely — useful as a no-extension fallback.
 
-#### Android (Chrome / Samsung Internet)
+#### Android
 
-Chrome: visit `divid3.com`, then *Settings → Search engine → Recently visited* → pick `divid3`.
-Samsung Internet: *Settings → Search engine → Add search engine* → paste the URL above.
+Chromium variants (Chrome, Brave, Edge, etc.): visit `divid3.com`, then *Settings → Search engine → Recently visited* → pick `divid3`. Samsung Internet wants the URL explicitly: *Settings → Search engine → Add search engine* → paste `https://divid3.com/?q=%s`.
 
 ---
 
@@ -261,7 +256,11 @@ CI runs the same suite on every PR via [`.github/workflows/search-tests.yml`](./
 
 ## iOS reliability and caching
 
-iOS Safari is famously creative about caches: it can drop one resource from disk while keeping a paired one, or serve an immutable-cached asset across builds even after a server-side change. It also doesn't grant pages cross-origin isolation, so anything that needs `SharedArrayBuffer` (including ONNX worker threads) blows up in interesting ways. And when the WebContent process crashes three times in a row on the same URL, Safari permanently shows the "**A problem repeatedly occurred**" interstitial — effectively blacklisting your site from that user's session until they reset Safari. To keep the router working through all those moods, the page does eight things:
+iOS Safari is famously creative about caches: it can drop one resource from disk while keeping a paired one, or serve an immutable-cached asset across builds even after a server-side change. It also doesn't grant pages cross-origin isolation, so anything that needs `SharedArrayBuffer` (including ONNX worker threads) blows up in interesting ways. And when the WebContent process crashes three times in a row on the same URL, Safari permanently shows the "**A problem repeatedly occurred**" interstitial — effectively blacklisting your site from that user's session until they reset Safari.
+
+The single biggest source of pain on iOS isn't the cold model load — it's *cumulative* main-thread inference during typing. The 22 MB ONNX model and its WASM runtime live on the page's main thread; running a fresh inference on every keystroke incrementally grows the WASM heap, and after enough typing the tab crosses the WebContent memory ceiling and gets killed. The `?q=…` redirect path runs inference exactly once and never crashes; the live-typing loop runs it dozens of times per query and eventually does. So we treat live and committed inference as two separate problems:
+
+### Cold-load defenses
 
 1. **Versioned embeddings URL.** `index.html` requests `/search-embeddings.json?v=<EMBEDDINGS_VERSION>`. Bumping the constant invalidates every browser cache atomically. The [`_headers`](./_headers) file pins this URL to a 1-hour TTL with `must-revalidate` regardless, as a safety net.
 2. **iOS-safe ONNX runtime tuning.** `env.backends.onnx.wasm.numThreads = 1` and `proxy = false` keep transformers.js on the main WASM execution path everywhere. iOS Safari can't spawn ONNX worker threads (no SAB without COOP/COEP); pinning to a single thread up-front removes a class of mid-init crashes that produced "protobuf parsing failed" reports from iOS users.
@@ -271,6 +270,34 @@ iOS Safari is famously creative about caches: it can drop one resource from disk
 6. **Auto-retry with exponential backoff.** Transient model-load failures (5xx responses, timeouts, network blips) are retried up to two times with 0.8 s → 1.6 s backoff before the error banner appears. Deterministic failures (404, hard parse errors) skip retries so we don't burn the user's data plan.
 7. **Never-rejecting init promise + fetch timeout.** If the embeddings fetch hangs (slow network, partial body) it aborts after 30 s; if the model itself errors after retries, the page degrades to a DuckDuckGo pass-through instead of getting stuck on the loading overlay.
 8. **Self-service Retry.** A failed load shows an error banner with a **Retry** link. The handler clears `caches.*`, blasts every IndexedDB the origin owns (transformers.js parks the model there), wipes the crash-loop sentinel + counter, and full-reloads. That's the recovery path you reach for when iOS serves a corrupted half-cache and nothing else helps.
+
+### Steady-state defenses (the real iOS killer)
+
+9. **No live inference on mobile.** Below 768 px viewport, `updateHint` only runs the *rule-based* classifier (bangs, direct URLs) during typing. Semantic queries show no preview until the user commits with Enter — at which point `performRoute` runs the model exactly once, the same single-shot path the `?q=…` redirect uses. This eliminates the cumulative-inference failure mode entirely on the platform that's most sensitive to it. Desktop keeps the original live-typing loop because it has the headroom.
+10. **220 ms debounce + min-char gate (desktop).** The desktop live loop debounces input at 220 ms (was 150) and skips inference for 1-character queries. Together these cut typical inference frequency by roughly 50 %.
+11. **Single-flight inference.** A new keystroke arriving while a previous inference is mid-flight is dropped, not queued. Without this, fast typers stack concurrent WASM allocations and inflate peak memory.
+12. **Tensor disposal.** After each inference we call `output.dispose()` and read the embedding via `output.data` (the underlying `Float32Array`) rather than `tolist()` (which would copy into a boxed JS Array first). Both reduce per-call allocation pressure.
+13. **Periodic pipeline recycle.** After every 40 inferences the page schedules a dispose-and-reload of the extractor on idle. The model file is read from IndexedDB cache (no network), so it's a ~100 ms reset that resets any drift in the WASM heap's high-water mark.
+14. **Background-tab dispose + lazy silent reload.** When `visibilitychange` reports the tab as hidden for >5 s, the extractor is disposed and `modelReady` flips to false. iOS prioritizes evicting the tabs with the largest footprints under memory pressure, so dropping the model makes us a less attractive target. On `visibilitychange` back to visible (or on the next semantic query), `silentReload()` re-creates the pipeline from cache without showing the loading UI again.
+15. **bfcache `pageshow` recovery.** If iOS Safari restores a `divid3.com/?q=foo` page from bfcache (e.g. swiping back from a hung destination), the script doesn't re-run; the user sees a frozen overlay. The `pageshow` handler detects the restore (`event.persisted === true`), aborts any pending redirect IIFE via the `pendingRedirectAborted` flag, hides the overlays, drops `?q=` from the URL via `history.replaceState`, and surfaces the original query in the input — turning a stale-redirect trap into a fresh search box with the query pre-filled.
+
+### Keyword-only mode (the low-memory backup)
+
+When the model can't be used at all — repeated cold-load crashes on a memory-constrained iPhone, a hard 4xx on the embeddings file, an explicit `?lite=1` opt-in — the page enters **keyword mode**. The status dot turns **purple**, the model never loads, and `classify()` routes via a deterministic table of ~100 weighted keyword patterns across the 9 destination engines.
+
+Keyword mode is the *third* layer of resilience under the model:
+
+- **Bangs and direct URLs** still preview live and route instantly (they were never model-dependent).
+- **Keyword phrases** like `lofi beats`, `buy usb-c cable`, `integral of x^2`, `coffee shops near me`, `image of saturn`, `explain quantum mechanics`, `write a haiku` route to YouTube, Amazon, Wolfram, Maps, Bing Images, Perplexity, Grok respectively — without ever loading the model. Multi-word phrases score higher than single words; a minimum score gates ambiguous matches into a DDG fallback.
+- **Word-boundary matching** prevents single-word keywords from misfiring inside larger words (`code` doesn't match `decode`).
+
+Activation paths:
+
+- **`?lite=1` URL param** — explicit opt-in. Useful as a deep link from a "this site keeps crashing on my phone" support reply, or for power users who don't want a 22 MB model on their data plan. Skips embeddings + ONNX downloads entirely.
+- **Crash-loop guard** — the existing `sessionStorage` sentinel that detected ≥ 2 unfinished cold loads now flips to keyword mode instead of the previous DDG-only fallback. Same trigger, much smarter routing.
+- **Model-load failure after retries** — if the `embeddings.json` fetch deterministically fails (4xx) or transient retries are exhausted, the page transitions to keyword mode and shows the error banner with a working **Retry** link.
+
+The status-dot palette: grey (loading), green (ready / model running), purple (keyword mode / model intentionally not running). There is no red "failed" state anymore — every failure mode now has a working router behind it.
 
 Top-level `window.error` and `window.unhandledrejection` listeners log everything to the console (no network — privacy first) so power users can attach a screenshot of devtools when reporting issues.
 

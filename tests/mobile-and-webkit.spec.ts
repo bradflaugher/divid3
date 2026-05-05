@@ -114,11 +114,19 @@ test.describe('theme stability while typing', () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────
-// Mobile layout: scores must not overlap the footer / status dot
+// Mobile inference policy: NO live semantic inference during typing
+//
+// The 22 MB ONNX model runs on the main thread; running it once per
+// keystroke grows the iOS WASM heap until WebContent gets killed and
+// the user sees the "A problem repeatedly occurred" interstitial. The
+// fix: on mobile, only rule-based hints (bangs, direct URLs) render
+// during typing. Pressing Enter runs the model exactly once via
+// performRoute — same path as the `?q=` redirect, which iOS users
+// already report as reliable.
 // ───────────────────────────────────────────────────────────────────────
-test.describe('mobile layout — scores panel placement', () => {
-  test('scores panel renders inline beneath the input on mobile', async ({ page, isMobile }) => {
-    test.skip(!isMobile, 'mobile-only layout invariant');
+test.describe('mobile inference policy', () => {
+  test('typing a semantic query does NOT run inference / show scores on mobile', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'mobile-only policy');
 
     await page.goto(PATH);
     await waitForModelReady(page);
@@ -126,22 +134,78 @@ test.describe('mobile layout — scores panel placement', () => {
     const search = page.locator('#search');
     await search.click();
     await search.pressSequentially('youtube videos');
-    await expect(page.locator('#scores .score-row').first()).toBeVisible({ timeout: 5_000 });
 
-    // Inline placement: the scores panel should live inside .input-wrap.
-    const insideWrap = await page.locator('#scores').evaluate(el => {
-      return !!el.closest('.input-wrap');
-    });
-    expect(insideWrap).toBe(true);
+    // Give the debounce + any stray inference plenty of time to settle.
+    await page.waitForTimeout(800);
 
-    // And its computed `position` should be `static` (the inline default).
-    const position = await page.locator('#scores').evaluate(el =>
-      getComputedStyle(el).position,
-    );
-    expect(position).toBe('static');
+    // No score chips render — the semantic-routing path is gated off on
+    // mobile. The scores panel must stay collapsed.
+    await expect(page.locator('#scores')).not.toHaveClass(/active/);
+    await expect(page.locator('#scores .score-row')).toHaveCount(0);
+
+    // The engine hint also stays cleared (no rule match, no inference).
+    await expect(page.locator('#hint')).not.toHaveClass(/active/);
   });
 
-  test('scores panel does not overlap any footer link', async ({ page }) => {
+  test('typing a bang shortcut DOES show the rule-based hint on mobile', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'mobile-only policy');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.click();
+    await search.pressSequentially('!yt cats');
+
+    // Bangs are pure regex — they preview live regardless of platform.
+    await expect(page.locator('#hint')).toHaveText('YouTube', { timeout: 3_000 });
+    await expect(page.locator('#hint')).toHaveClass(/active/);
+  });
+
+  test('pressing Enter on mobile runs the model once and shows the routing overlay', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'mobile-only policy');
+
+    // Stub the route-delay setTimeout so navigation doesn't fire while
+    // we're asserting against the overlay.
+    await page.addInitScript(() => {
+      const origSetTimeout = window.setTimeout;
+      // @ts-ignore
+      window.setTimeout = (fn: any, ms?: number, ...rest: any[]) => {
+        if (ms === 1500) return 0 as any;       // freeze the redirect
+        return origSetTimeout(fn, ms, ...rest);
+      };
+    });
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.click();
+    await search.pressSequentially('lofi hip hop beats');
+    await search.press('Enter');
+
+    // The routing overlay should appear with a real engine name (not
+    // empty), proving the model ran via performRoute on commit.
+    const overlay = page.locator('#overlay');
+    await expect(overlay).toBeVisible({ timeout: 5_000 });
+    const engineName = await page.locator('#engine-display').textContent();
+    expect(engineName, 'overlay should show a routed engine name').toBeTruthy();
+    expect(engineName!.trim().length).toBeGreaterThan(0);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Desktop scores-panel layout: must not collide with footer / status dot
+//
+// These were originally written to cover the mobile scores panel but
+// the live-inference loop is now desktop-only, so the assertions only
+// make sense there. Mobile-specific cases are above in 'mobile
+// inference policy'.
+// ───────────────────────────────────────────────────────────────────────
+test.describe('desktop layout — scores panel placement', () => {
+  test('scores panel does not overlap any footer link', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile no longer runs live inference; layout test is desktop-only');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -183,7 +247,9 @@ test.describe('mobile layout — scores panel placement', () => {
     }
   });
 
-  test('scores panel does not overlap the status dot rectangle', async ({ page }) => {
+  test('scores panel does not overlap the status dot rectangle', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile no longer runs live inference; layout test is desktop-only');
+
     await page.goto(PATH);
     await waitForModelReady(page);
 
@@ -229,12 +295,12 @@ test.describe('mobile layout — scores panel placement', () => {
 // Crash-loop guard
 // ───────────────────────────────────────────────────────────────────────
 test.describe('iOS crash-loop guard', () => {
-  test('boot after two unfinished loads enters lite mode and shows banner', async ({ page }) => {
+  test('boot after two unfinished loads enters keyword mode (purple) and shows banner', async ({ page }) => {
     // Pre-seed sessionStorage as if the previous load crashed once and
     // another attempt is still "in progress" — that's exactly the state
     // the page would find itself in after iOS killed an earlier tab.
     // The boot sequence will detect the in-progress flag, increment to
-    // 2, and short-circuit into lite mode.
+    // 2, and short-circuit into keyword mode (the post-crash fallback).
     await page.addInitScript(() => {
       sessionStorage.setItem('divid3-crash-count', '1');
       sessionStorage.setItem('divid3-loading', '1');
@@ -242,9 +308,10 @@ test.describe('iOS crash-loop guard', () => {
 
     await page.goto(PATH);
 
-    await expect(page.locator('#status')).toHaveAttribute('data-state', 'failed', {
+    await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', {
       timeout: 10_000,
     });
+    await expect(page.locator('#status')).toHaveClass(/keyword/);
     await expect(page.locator('#error-banner')).toHaveClass(/active/);
 
     // Bangs and Enter still work — verify by typing a bang.
