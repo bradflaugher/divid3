@@ -95,7 +95,7 @@ Some examples of what the model routes automatically:
 | "github.com" | **Direct link** — no engine |
 | "what is a transformer model" | **DuckDuckGo** (fallback) |
 
-The scores panel in the bottom-left shows all candidate scores so you can see exactly *why* the router chose what it chose.
+The scores panel in the bottom-left shows all candidate scores so you can see exactly *why* the router chose what it chose. **Every chip is clickable** — if the model picks YouTube but you actually wanted Wolfram Alpha for "integral of x sin(x)", just click the Wolfram chip and you go there instead. The chips are real `<button>` elements, so keyboard users can Tab to them and hit <kbd>Enter</kbd> to override too. The model gets the first guess; you get the final say.
 
 ---
 
@@ -135,7 +135,7 @@ input ────────────────→ │ classifyRules │ 
 
 **Layer 3 — semantic routing.** For everything else, embed the query and compare against pre-computed embeddings of ~50 example phrases per engine. Pick the engine with the highest similarity, or fall back to DuckDuckGo if even the winner is below the confidence threshold.
 
-The scores panel in the bottom-left shows all 9 candidate scores so you can see exactly *why* the router chose what it chose. It's a debugger masquerading as a UI element.
+The scores panel in the bottom-left shows all 9 candidate scores so you can see exactly *why* the router chose what it chose. It's a debugger masquerading as a UI element — and every score is also a clickable button, so you can override the model's pick with a single tap.
 
 #### 3. The embedding-comparison details actually matter
 
@@ -160,6 +160,43 @@ There's also a sequence-token race fix (`hintSeq`) so that if you type fast and 
 
 ---
 
+## How divid3 differs from other "private" search options
+
+There's a whole spectrum of tools that bill themselves as privacy-respecting alternatives to Google, and each makes a different bargain. It's worth being honest about where divid3 sits in that landscape — and where the rest of the genre quietly cuts corners.
+
+### Proxy-scrapers: SearXNG, Searx, Whoogle
+
+[**SearXNG**](https://github.com/searxng/searxng) (and its predecessor Searx, and the more focused [**Whoogle**](https://github.com/benbusby/whoogle-search)) work by running a server that takes your query, **scrapes the actual Google / Bing / DuckDuckGo / Brave SERPs on your behalf**, strips the trackers, merges the results, and shows them to you. The upstream engines see *the SearXNG instance's IP*, not yours. That's the privacy story.
+
+It's a clever trick, and it does work — for the user. But it has three real costs that the marketing doesn't always lead with:
+
+1. **You are now trusting whoever runs the instance.** Self-hosting fixes that, but the convenience-win evaporates: you've replaced "Google sees my queries" with "I run a Linux server, keep it patched, and notice when its IP gets rate-limited by Google at 3am." Most people who say they use SearXNG actually use a stranger's public instance, which is exactly as private as that stranger feels like making it. Public instances *can* log everything you type — the same threat model SearXNG is supposed to defeat — and you have no way to verify they don't.
+
+2. **It depends on scraping behavior the upstream engines explicitly forbid.** Google's, Bing's, and DDG's terms of service all prohibit automated scraping. SearXNG works only because the engines tolerate a certain amount of breakage from low-volume scrapers; when an instance gets popular, it starts hitting CAPTCHAs and silently degrades. The whole architecture is parasitic on infrastructure other people pay for and explicitly told you not to use this way. Reasonable people disagree about whether that's *theft* in a meaningful sense — you're consuming the index, not the ads that fund it — but it isn't quite the clean ethical position the README front pages suggest. It's more like "I jaywalk because the crosswalk is far away."
+
+3. **The engines fight back, and the user feels it.** SearXNG instances break constantly. Engines change their HTML, ship new bot-detection, or just block the IP range. The fix is always "use a different instance" or "wait for an upstream parser update". From the user's seat, "private search" turns into "search that sometimes works".
+
+### Hosted alternatives: Kagi, Brave Search, Mojeek, Marginalia
+
+[**Kagi**](https://kagi.com), [**Brave Search**](https://search.brave.com), [**Mojeek**](https://www.mojeek.com), and [**Marginalia**](https://marginalia-search.com) take a different bet: build (or license) an actual web index, charge money or run small ads, and don't track users. These are the most honest options on the privacy axis — there's no scraping someone else's work — but you're paying ($10/month for Kagi) or accepting a smaller / weirder index (Mojeek, Marginalia) or trusting Brave's separate ad business model. That's a perfectly defensible trade; it's just a different one.
+
+### Where divid3 fits
+
+divid3 isn't a search engine. **We don't have an index, we don't crawl the web, we don't scrape anybody.** We're a 22 MB neural network that runs in your browser and decides *which existing engine* to send each query to — and then sends you straight to that engine's normal results page. Your query reaches Google / YouTube / GitHub *exactly* the way it would have if you'd typed it into their search box directly: same TLS connection, same IP, same observable behavior on their side. We add no privacy on the destination side.
+
+What we *do* add:
+
+- **Better default routing.** Most generalist queries don't belong on a generalist engine. "lofi beats" is a YouTube question. "useEffect cleanup" is a GitHub or Perplexity question. "integral of x sin(x)" is a Wolfram Alpha question. The model is a tiny dispatcher that catches the worst routing mistake everyone makes — typing every query into the same box.
+- **No middleman.** No public instance, no admin, no rate limit, no CAPTCHAs. Nothing degrades when a result-page HTML structure changes upstream because we never look at result pages.
+- **No ToS violations.** We only do what every browser already does: redirect to a URL the user effectively asked for. Each destination gets to run its business model exactly the way it intended. That feels like the right ethical seat — we're respecting upstream engines, not freeloading on their infrastructure.
+- **No server, no logs, no operator to trust.** divid3 is a static page on Cloudflare Pages plus a model that runs on-device. There is no `divid3.com` backend that processes queries because there's no backend at all. We genuinely cannot see what you typed; the JS code is all there, in plain sight, in `index.html`.
+
+So the divid3 pitch isn't "we hide you from Google" — it's "we send you to a *better default* than Google for most of what you type, without ever seeing what you typed." That's a smaller privacy claim than SearXNG's, but it's one we can actually keep.
+
+If you want full upstream-side privacy, run a Tor SearXNG instance or pay Kagi. If you want to stop wasting clicks on the wrong search engine — without giving anything new to anyone — divid3 is for you. The two approaches stack: divid3 is happy to redirect you to a SearXNG instance you trust if you set DuckDuckGo's `ddg_url` example phrases to point there.
+
+---
+
 ## Build / run / serve
 
 There is no build step. The page is a single HTML file with inline CSS and an ES-module script tag. Static files only.
@@ -180,7 +217,7 @@ The first page load downloads the ~22 MB model from the local server; subsequent
 
 ## Tests
 
-A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts), 45 specs) covers the whole stack:
+A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts) + [`tests/mobile-and-webkit.spec.ts`](./tests/mobile-and-webkit.spec.ts), 70 specs) runs against **four browser projects** — chromium, firefox, webkit (desktop Safari engine), and mobile-safari (iPhone 13 / WebKit) — for a total of 280 test cases. Each project gets its own browser context so coverage of cache + IndexedDB + visualViewport behavior is real, not mocked.
 
 | Group                          | What it asserts                                                                  |
 | ------------------------------ | -------------------------------------------------------------------------------- |
@@ -189,8 +226,14 @@ A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts), 45 specs) 
 | `?q=` redirect                 | `?q=!yt+lofi` auto-redirects; `?q=github.com` direct-links; `?q=how+to+make+pizza` waits for the model and routes semantically; empty / whitespace-only `?q=` stays on the page |
 | direct URL detection           | domains, `domain/path`, and `localhost:3000` classify as direct; phrases with spaces don't; Enter on `github.com` actually navigates |
 | semantic routing               | scores panel renders all 9 routes with exactly one `.best`; clearing input clears the UI; rapid-fire keystrokes settle on the latest query (`hintSeq` race) |
+| click-to-route                 | hint click navigates immediately; chip click overrides the model's pick; chips are real `<button>`s with accessible names; <kbd>Enter</kbd> on a focused chip routes |
 | cancel button                  | clicking cancel or pressing Escape stops the redirect, restores focus, preserves the query; rapid double-Enter doesn't stack timers |
-| mobile keyboard awareness      | a synthetic `visualViewport` resize lifts the scores panel above the keyboard    |
+| keyboard shortcuts             | `?` opens the overlay, `/` focuses the input, `t` toggles theme — but **only when the search input doesn't have focus** (the typing-`t`-flips-the-theme regression has a permanent test) |
+| smart paste                    | pasting `https://github.com` strips the protocol and routes as direct; pasting a regular query is left untouched |
+| theme stability while typing   | typing queries containing `t`, `/`, `?` does NOT trigger any shortcut; theme-color meta is updated when the user toggles |
+| mobile layout                  | scores panel renders inline beneath the input on mobile; doesn't overlap any footer link or the status dot; footer hides when keyboard is up |
+| iOS crash-loop guard           | two unfinished model loads in a row enters lite mode and shows the recovery banner; a successful load clears the counter and sentinel |
+| mobile keyboard awareness      | `visualViewport` resize sets `body[data-keyboard="open"]` and the keyboard inset variable; footer links fade out while keyboard is up |
 | model load failure             | a 500 on `search-embeddings.json` flips status to `failed`, shows the error banner with a working **Retry**, falls back to DuckDuckGo on Enter and on `?q=…` |
 | transient retries              | a single 503 is silently retried and the model reaches `ready` without surfacing the error; deterministic 404s skip retries (no data-plan abuse) |
 | browser registration           | `index.html` exposes a `<link rel="search">`, `opensearch.xml` is served correctly, `setup.html` renders with a working Copy button, the homepage footer links to it |
@@ -199,30 +242,35 @@ A Playwright suite ([`tests/search.spec.ts`](./tests/search.spec.ts), 45 specs) 
 Run them:
 
 ```bash
-npm ci                                          # one-time
-npx playwright install --with-deps chromium    # one-time
-npm test                                        # full suite, ~90s
-npm run test:ci                                 # CI mode (retries=1, html report)
-npx playwright test -g "bang"                  # one describe block
-npx playwright test -g "cancel" --headed       # watch it run
-npm run test:report                             # open last HTML report
+npm ci                                                    # one-time
+npx playwright install --with-deps chromium firefox webkit  # one-time
+npm test                                                  # full suite, ~10 min across 4 projects
+npm run test:ci                                           # CI mode (retries=1, html report)
+npx playwright test --project=chromium                    # just one engine, ~90s
+npx playwright test --project=mobile-safari -g "mobile"   # mobile suite only
+npx playwright test -g "click-to-route"                   # one describe block
+npx playwright test -g "cancel" --headed                  # watch it run
+npm run test:report                                       # open last HTML report
 ```
 
 The `webServer` block in [`playwright.config.ts`](./playwright.config.ts) auto-starts the dev server, so you don't have to.
 
-CI runs the same suite on every PR via [`.github/workflows/search-tests.yml`](./.github/workflows/search-tests.yml), caches the Playwright browsers, and uploads the HTML report as an artifact when something fails.
+CI runs the same suite on every PR via [`.github/workflows/search-tests.yml`](./.github/workflows/search-tests.yml), installs all three browser engines (chromium + firefox + webkit, the last of which also covers mobile-safari), caches the Playwright browsers, and uploads the HTML report as an artifact when something fails.
 
 ---
 
 ## iOS reliability and caching
 
-iOS Safari is famously creative about caches: it can drop one resource from disk while keeping a paired one, or serve an immutable-cached asset across builds even after a server-side change. It also doesn't grant pages cross-origin isolation, so anything that needs `SharedArrayBuffer` (including ONNX worker threads) blows up in interesting ways. To keep the router working through those moods, the page does five things:
+iOS Safari is famously creative about caches: it can drop one resource from disk while keeping a paired one, or serve an immutable-cached asset across builds even after a server-side change. It also doesn't grant pages cross-origin isolation, so anything that needs `SharedArrayBuffer` (including ONNX worker threads) blows up in interesting ways. And when the WebContent process crashes three times in a row on the same URL, Safari permanently shows the "**A problem repeatedly occurred**" interstitial — effectively blacklisting your site from that user's session until they reset Safari. To keep the router working through all those moods, the page does eight things:
 
 1. **Versioned embeddings URL.** `index.html` requests `/search-embeddings.json?v=<EMBEDDINGS_VERSION>`. Bumping the constant invalidates every browser cache atomically. The [`_headers`](./_headers) file pins this URL to a 1-hour TTL with `must-revalidate` regardless, as a safety net.
 2. **iOS-safe ONNX runtime tuning.** `env.backends.onnx.wasm.numThreads = 1` and `proxy = false` keep transformers.js on the main WASM execution path everywhere. iOS Safari can't spawn ONNX worker threads (no SAB without COOP/COEP); pinning to a single thread up-front removes a class of mid-init crashes that produced "protobuf parsing failed" reports from iOS users.
-3. **Auto-retry with exponential backoff.** Transient model-load failures (5xx responses, timeouts, network blips) are retried up to two times with 0.8 s → 1.6 s backoff before the error banner appears. Deterministic failures (404, hard parse errors) skip retries so we don't burn the user's data plan.
-4. **Never-rejecting init promise + fetch timeout.** If the embeddings fetch hangs (slow network, partial body) it aborts after 30 s; if the model itself errors after retries, the page degrades to a DuckDuckGo pass-through instead of getting stuck on the loading overlay.
-5. **Self-service Retry.** A failed load shows an error banner with a **Retry** link. The handler clears `caches.*`, blasts every IndexedDB the origin owns (transformers.js parks the model there), and full-reloads. That's the recovery path you reach for when iOS serves a corrupted half-cache and nothing else helps.
+3. **Pinned `device: 'wasm'`.** transformers.js v3 defaults to `device: 'auto'`, which probes WebGPU first. On Safari (where WebGPU is gated and buggy as of 2025) that probe has been observed to crash the WebContent process. We bypass it.
+4. **Sequential model + embeddings download.** The two largest assets (~22 MB ONNX, ~1.8 MB embeddings JSON) load one after the other instead of in `Promise.all`, so we don't peak at ~24 MB of concurrent in-flight allocation on a memory-pressured iPhone.
+5. **Crash-loop guard.** A `sessionStorage` sentinel is set before model load and cleared on success. When a fresh boot still sees the sentinel, we know the previous tab crashed mid-load and bump a counter. After two unfinished attempts the page enters **"lite mode"** automatically: no model load, status dot turns red, the error banner suggests Retry, and bangs / Enter still route via DuckDuckGo. This is the actual mitigation for the "A problem repeatedly occurred" screen — by the time Safari would have shown it, we've already given the user a usable page.
+6. **Auto-retry with exponential backoff.** Transient model-load failures (5xx responses, timeouts, network blips) are retried up to two times with 0.8 s → 1.6 s backoff before the error banner appears. Deterministic failures (404, hard parse errors) skip retries so we don't burn the user's data plan.
+7. **Never-rejecting init promise + fetch timeout.** If the embeddings fetch hangs (slow network, partial body) it aborts after 30 s; if the model itself errors after retries, the page degrades to a DuckDuckGo pass-through instead of getting stuck on the loading overlay.
+8. **Self-service Retry.** A failed load shows an error banner with a **Retry** link. The handler clears `caches.*`, blasts every IndexedDB the origin owns (transformers.js parks the model there), wipes the crash-loop sentinel + counter, and full-reloads. That's the recovery path you reach for when iOS serves a corrupted half-cache and nothing else helps.
 
 Top-level `window.error` and `window.unhandledrejection` listeners log everything to the console (no network — privacy first) so power users can attach a screenshot of devtools when reporting issues.
 
@@ -230,10 +278,11 @@ Top-level `window.error` and `window.unhandledrejection` listeners log everythin
 
 ## Mobile keyboard handling
 
-iOS Safari anchors `position: fixed` to the layout viewport, not the visual viewport, so the soft keyboard happily covers any bottom-anchored UI. The page handles this two ways:
+iOS Safari anchors `position: fixed` to the layout viewport, not the visual viewport, so the soft keyboard happily covers any bottom-anchored UI. The page handles this three ways:
 
 1. **`interactive-widget=resizes-content`** in the viewport meta tag — modern Chrome and Safari shrink the layout viewport itself when the keyboard appears (no JS needed there).
-2. **`visualViewport` listener** (the fallback) — JavaScript computes the obscured bottom inset and writes it to a `--keyboard-inset` CSS variable that `.scores-panel` and `.status-dot` add to their `bottom` offset. Works on older iOS too.
+2. **`visualViewport` listener** (the fallback) — JavaScript computes the obscured bottom inset and writes it to a `--keyboard-inset` CSS variable that the desktop scores panel and the status dot add to their `bottom` offset. Works on older iOS too.
+3. **Different layout entirely on mobile.** Below 768 px, the scores panel is hoisted **into the input wrapper** and renders inline as wrapping pill chips directly under the search field — no longer competing with the soft keyboard for the bottom edge. The footer links and status dot fade out whenever the keyboard is detected (`body[data-keyboard="open"]`), reappearing the moment the input loses focus. Desktop keeps the original bottom-left list.
 
 ---
 
@@ -255,8 +304,10 @@ iOS Safari anchors `position: fixed` to the layout viewport, not the visual view
 │   ├── generate_search_embeddings.py # Regenerate search-embeddings.json
 │   ├── generate_brand_assets.py     # Regenerate favicons / icons / OG images
 │   └── review_brand_assets.py       # Contact-sheet preview of brand assets
-├── tests/search.spec.ts             # Playwright E2E test suite (45 specs)
-├── playwright.config.ts             # Test runner config
+├── tests/
+│   ├── search.spec.ts               # Core E2E suite (~57 specs / project)
+│   └── mobile-and-webkit.spec.ts    # Safari + iOS regression suite (13 specs / project)
+├── playwright.config.ts             # 4 projects: chromium, firefox, webkit, mobile-safari
 ├── serve.json                       # `npx serve` config (cleanUrls: false)
 ├── package.json / package-lock.json # Dev deps only (Playwright, serve)
 ├── _headers                         # Cloudflare Pages cache headers

@@ -55,7 +55,11 @@ jobs:
           restore-keys: ${{ runner.os }}-playwright-
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+        # We run four projects: chromium, firefox, webkit (desktop
+        # Safari engine), and mobile-safari (iPhone 13 / WebKit).
+        # mobile-safari rides on the same webkit binary, so installing
+        # chromium + firefox + webkit covers all four.
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Run Playwright tests
         run: npx playwright test

@@ -286,47 +286,72 @@
     opacity: 0.6;
     box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
   }
-  /* ── Scores panel: horizontal chips on mobile, vertical list on desktop ── */
+  /* ── Scores panel ──
+   *
+   * Mobile: rendered inline beneath the input (inside `.input-wrap`),
+   * as a wrapping grid of pill-shaped chips. This keeps it visually
+   * attached to the input and away from the footer links + status dot
+   * at the bottom of the viewport, which on mobile were colliding with
+   * each other once the soft keyboard pushed everything up.
+   *
+   * Desktop (≥ 768px): repositioned via `position: fixed` to bottom-left
+   * as a vertical list — that's the original desktop layout and there
+   * is plenty of room for it on a wide viewport.
+   */
   .scores-panel {
-    position: fixed;
-    bottom: calc(1.25rem + var(--keyboard-inset, 0px));
-    left: 1.25rem;
-    right: 3rem; /* leave room for status dot */
+    margin-top: 1rem;
     font-size: 0.7rem;
     font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
     color: var(--text-muted);
-    opacity: 0;
-    transform: translateY(5px);
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                bottom 0.2s ease;
-    z-index: 50;
-    line-height: 1.5;
-    pointer-events: none;
-    max-width: calc(100vw - 5rem);
-    /* Horizontal scrollable chip layout on mobile */
+    line-height: 1.4;
     display: flex;
-    flex-wrap: nowrap;
-    gap: 0.5rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    padding-bottom: 0.25rem;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.5rem;
+    opacity: 0;
+    transform: translateY(4px);
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                max-height 0.25s ease;
   }
-  .scores-panel::-webkit-scrollbar { display: none; }
   .scores-panel.active {
     opacity: 1;
     transform: translateY(0);
+    /* Generous cap; with ~10 routes wrapping into rows of chips this
+       comfortably fits even on the smallest phone we care about. */
+    max-height: 12rem;
   }
   .scores-panel .score-row {
+    /* Real <button> reset — drop browser defaults, keep our chip look. */
     display: flex;
     align-items: center;
     gap: 0.35rem;
     flex-shrink: 0;
     background: rgba(128,128,128,0.08);
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    pointer-events: auto;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    /* Disable the iOS double-tap zoom delay so the override feels snappy. */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease,
+                color 0.15s ease, transform 0.05s ease;
+  }
+  .scores-panel .score-row:hover {
+    background: rgba(128,128,128,0.16);
+    color: var(--text);
+  }
+  .scores-panel .score-row:active {
+    transform: scale(0.97);
+  }
+  .scores-panel .score-row:focus-visible {
+    outline: none;
+    border-color: var(--text);
+    color: var(--text);
   }
   .scores-panel .score-bar {
     width: 32px;
@@ -355,22 +380,37 @@
     text-align: right;
   }
   @media (min-width: 768px) {
+    /* On desktop, lift the scores back out of the document flow into
+       a fixed bottom-left vertical list (the original desktop look). */
     .scores-panel {
-      left: 2rem;
-      right: auto;
+      position: fixed;
       bottom: calc(2rem + var(--keyboard-inset, 0px));
+      left: 2rem;
+      margin-top: 0;
+      max-height: none;
+      overflow: visible;
       flex-direction: column;
       flex-wrap: wrap;
       gap: 0.15rem;
-      overflow-x: visible;
       max-width: calc(100vw - 4rem);
-      padding-bottom: 0;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .scores-panel.active {
+      max-height: none;
     }
     .scores-panel .score-row {
+      /* Desktop look: not a chip — just a row of text with a tiny
+         bar. Keep it visually quiet but still hoverable / clickable
+         so power users can override the routing decision. */
       background: transparent;
-      padding: 0;
-      border-radius: 0;
+      padding: 0.05rem 0.25rem;
+      border-radius: 4px;
       gap: 0.5rem;
+      pointer-events: auto;
+    }
+    .scores-panel .score-row:hover {
+      background: rgba(128,128,128,0.10);
     }
     .scores-panel .score-bar {
       width: 60px;
@@ -465,7 +505,7 @@
   }
   .footer-links {
     position: fixed;
-    bottom: calc(3.25rem + var(--keyboard-inset, 0px));
+    bottom: calc(1.25rem + var(--keyboard-inset, 0px));
     left: 0;
     right: 0;
     display: flex;
@@ -478,13 +518,39 @@
     text-transform: uppercase;
     opacity: 0;
     transform: translateY(4px);
-    transition: opacity 0.5s ease, transform 0.5s ease, bottom 0.2s ease;
+    transition: opacity 0.3s ease, transform 0.3s ease, bottom 0.2s ease;
     pointer-events: none;
   }
   .footer-links.visible {
     opacity: 0.4;
     transform: translateY(0);
     pointer-events: auto;
+  }
+  /* On mobile, the soft keyboard pushes the footer links right up
+     against the input. Hide them whenever the keyboard is present —
+     the user is in the middle of typing a query, not browsing
+     about-pages. The status dot is also hidden to maximize breathing
+     room around the input. */
+  body[data-keyboard="open"] .footer-links {
+    opacity: 0;
+    pointer-events: none;
+  }
+  body[data-keyboard="open"] .status-dot {
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (min-width: 768px) {
+    /* On desktop the keyboard concept doesn't apply; always show the
+       footer links and status dot regardless of focus state. */
+    body[data-keyboard="open"] .footer-links,
+    body[data-keyboard="open"] .status-dot {
+      opacity: unset;
+      pointer-events: unset;
+    }
+    body[data-keyboard="open"] .footer-links.visible {
+      opacity: 0.4;
+      pointer-events: auto;
+    }
   }
   .footer-links a {
     color: var(--text-muted);
@@ -605,7 +671,11 @@
            aria-label="Search query"
            id="search" placeholder="Type to search..." type="text" autofocus/>
     <div class="engine-hint" id="hint">DuckDuckGo</div>
-
+    <!-- Scores live inside the input-wrap so they sit *under the input*
+         on mobile (where the bottom of the screen is occupied by the
+         keyboard, the footer links, and the status dot). On desktop CSS
+         repositions them to fixed bottom-left. -->
+    <div class="scores-panel" id="scores"></div>
   </div>
 </div>
 
@@ -616,8 +686,6 @@
 </div>
 
 <div class="status-dot" id="status" data-state="loading" title="Embedding Model Loading..."></div>
-
-<div class="scores-panel" id="scores"></div>
 
 <div class="error-banner" id="error-banner" role="alert"></div>
 
@@ -786,10 +854,23 @@
   // `.status-dot` add to their `bottom` offset.
   // ───────────────────────────────────────────────────────────────────────
   const vv = window.visualViewport;
+  /* Mark the body as `data-keyboard="open"` whenever something (the
+     soft keyboard, the iOS find-bar, etc.) is eating non-trivial space
+     at the bottom of the viewport. CSS uses this to hide the footer
+     links on mobile so they don't crash into the inline scores chips. */
+  function setKeyboardOpen(isOpen) {
+    if (isOpen) {
+      document.body.dataset.keyboard = 'open';
+    } else {
+      delete document.body.dataset.keyboard;
+    }
+  }
   if (vv) {
+    const KEYBOARD_INSET_THRESHOLD_PX = 120;
     const updateKeyboardInset = () => {
       const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       document.documentElement.style.setProperty('--keyboard-inset', inset + 'px');
+      setKeyboardOpen(inset > KEYBOARD_INSET_THRESHOLD_PX);
     };
     vv.addEventListener('resize', updateKeyboardInset);
     vv.addEventListener('scroll', updateKeyboardInset);
@@ -896,6 +977,13 @@
 
   async function retryModelLoad() {
     hideError();
+    // Clear the crash-loop sentinel and counter so the user explicitly
+    // opting in to "Retry" gets a fresh attempt rather than landing in
+    // lite-mode again.
+    try {
+      sessionStorage.removeItem(CRASH_FLAG_KEY);
+      sessionStorage.removeItem(CRASH_COUNT_KEY);
+    } catch (_) {}
     await clearAppCaches();
     // Hard reload bypasses HTTP cache; the cleared caches/IDB above
     // ensure transformers.js can't re-hydrate from a corrupt local copy.
@@ -919,19 +1007,111 @@
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  /** Run the model + embeddings load once. Throws on any failure. */
+  // ───────────────────────────────────────────────────────────────────────
+  // Crash-loop detection (iOS Safari "A problem repeatedly occurred")
+  //
+  // iOS Safari shows a hostile "A problem repeatedly occurred on …" page
+  // and effectively blacklists the URL once the WebContent process
+  // crashes ~3 times in a row. Loading a 22 MB ONNX model + WASM runtime
+  // on a memory-pressured iPhone is the most likely trigger.
+  //
+  // We defend against this with a session-storage sentinel:
+  //   1. Before model load starts, we set `divid3-loading=1`. If the tab
+  //      is killed mid-init, the flag survives the reload (sessionStorage
+  //      persists across crashes/reloads of the same tab).
+  //   2. On the *next* boot, if the flag is still set we know the
+  //      previous attempt didn't complete cleanly, and we bump a
+  //      crash-count counter.
+  //   3. Once the crash count reaches MAX_CRASHES_BEFORE_FALLBACK we
+  //      stop trying to load the model entirely and fall back to a
+  //      rule-based "DDG plus bangs" mode. The user keeps a working
+  //      search engine; iOS stops killing the tab.
+  // ───────────────────────────────────────────────────────────────────────
+  const CRASH_FLAG_KEY  = 'divid3-loading';
+  const CRASH_COUNT_KEY = 'divid3-crash-count';
+  const MAX_CRASHES_BEFORE_FALLBACK = 2;
+
+  function readCrashCount() {
+    try { return parseInt(sessionStorage.getItem(CRASH_COUNT_KEY) || '0', 10) || 0; }
+    catch (_) { return 0; }
+  }
+  function writeCrashCount(n) {
+    try { sessionStorage.setItem(CRASH_COUNT_KEY, String(n)); } catch (_) {}
+  }
+  function markLoadStart() {
+    try { sessionStorage.setItem(CRASH_FLAG_KEY, '1'); } catch (_) {}
+  }
+  function markLoadEnd() {
+    try { sessionStorage.removeItem(CRASH_FLAG_KEY); } catch (_) {}
+  }
+  /** Returns the crash count detected at boot, after recording any new
+   *  unfinished-load. Call exactly once on startup. */
+  function detectAndRecordCrash() {
+    let wasInProgress = false;
+    try { wasInProgress = sessionStorage.getItem(CRASH_FLAG_KEY) === '1'; }
+    catch (_) {}
+    let count = readCrashCount();
+    if (wasInProgress) {
+      count += 1;
+      writeCrashCount(count);
+      // Clear the in-progress flag now that we've counted it.
+      markLoadEnd();
+      console.warn(`Search router: detected unfinished previous load (crash count: ${count})`);
+    }
+    return count;
+  }
+  const crashCount = detectAndRecordCrash();
+  const skipModelDueToCrashes = crashCount >= MAX_CRASHES_BEFORE_FALLBACK;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Safer pipeline config for iOS Safari:
+  //
+  // - WebGPU on Safari is gated/buggy as of 2025. transformers.js v3's
+  //   `device: 'auto'` will probe WebGPU first, which on iOS has been
+  //   observed to crash the WebContent process. Pinning to 'wasm'
+  //   forces the well-trodden ONNX-WASM path everywhere — slightly
+  //   slower on a fast desktop, but predictable on Safari.
+  // - We could narrow this to a UA sniff, but the WASM path is fast
+  //   enough for a 22 MB MiniLM and avoids a whole class of cross-
+  //   browser flake. Keep it simple.
+  // ───────────────────────────────────────────────────────────────────────
+  const PIPELINE_OPTS = { dtype: MODEL_DTYPE, device: 'wasm' };
+
+  /** Run the model + embeddings load once. Throws on any failure.
+   *  Loads sequentially (embeddings first, then model) so we don't peak
+   *  at ~24 MB of concurrent downloads on a memory-pressured iPhone. */
   async function loadModelOnce() {
-    const [raw, model] = await Promise.all([
-      fetchEmbeddings(),
-      pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE }),
-    ]);
+    const raw = await fetchEmbeddings();
+    const model = await pipeline('feature-extraction', MODEL_ID, PIPELINE_OPTS);
     return { raw, model };
   }
 
   function initModel() {
     if (modelLoadPromise) return modelLoadPromise;
+
+    // If the previous one or two boots crashed mid-load, don't try
+    // again — fall straight through to rule-based routing. This
+    // prevents the iOS "A problem repeatedly occurred" lockout.
+    if (skipModelDueToCrashes) {
+      console.warn(
+        `Search router: skipping model load after ${crashCount} unfinished attempts; ` +
+        'falling back to rule-based routing (bangs + DDG).'
+      );
+      modelFailed = true;
+      setStatus('failed', 'Lite mode (model disabled after repeated crashes)');
+      showError(
+        'Lite mode active after a previous load failed. ' +
+        'Bangs and Enter still route correctly.'
+      );
+      loadingOverlay.classList.remove('active');
+      document.querySelector('.footer-links').classList.add('visible');
+      modelLoadPromise = Promise.resolve(false);
+      return modelLoadPromise;
+    }
+
     loadingOverlay.classList.add('active');
     setStatus('loading', 'Embedding Model Loading…');
+    markLoadStart();
     modelLoadPromise = (async () => {
       let lastErr = null;
       for (let attempt = 0; attempt <= MODEL_LOAD_RETRIES; attempt++) {
@@ -953,6 +1133,11 @@
           }));
           extractor = model;
           modelReady = true;
+          // We made it — clear the in-progress flag and reset the
+          // crash counter so the next visit boots normally even if
+          // there were transient failures earlier in the session.
+          markLoadEnd();
+          writeCrashCount(0);
           setStatus('ready', 'Embedding Model Ready');
           const total = routes.reduce((n, r) => n + r.vectors.length, 0);
           console.log(`Search router: ready (${routes.length} routes, ${total} vectors)`);
@@ -968,6 +1153,9 @@
           if (!isTransientError(err)) break;
         }
       }
+      // Controlled failure path (we caught the error). Clear the
+      // in-progress flag so we don't false-positive a "crash" next boot.
+      markLoadEnd();
       modelFailed = true;
       const msg = (lastErr && lastErr.message) || String(lastErr);
       setStatus('failed', 'Embedding Model Failed: ' + msg);
@@ -1075,14 +1263,20 @@
       scoresPanel.replaceChildren();
       return;
     }
-    // Build with DOM nodes (avoids innerHTML / XSS surface).
+    // Build with DOM nodes (avoids innerHTML / XSS surface). Each row
+    // is rendered as a real <button> so it's keyboard-focusable and
+    // the click-to-override behavior is announced correctly to screen
+    // readers — pressing Enter/Space on a chip routes to that engine
+    // exactly as a click does.
     const frag = document.createDocumentFragment();
     for (const s of result.scores) {
       const pct = Math.round(s.score * 100);
       const isBest = s.key === result.key;
-      const row = document.createElement('div');
+      const row = document.createElement('button');
+      row.type = 'button';
       row.className = 'score-row';
       row.dataset.engine = s.key;
+      row.setAttribute('aria-label', `Route to ${engines[s.key].name} (${pct}% match)`);
       row.innerHTML =
         `<span class="score-label">${engines[s.key].name}</span>` +
         `<div class="score-bar"><div class="score-fill${isBest ? ' best' : ''}" style="width:${pct}%"></div></div>` +
@@ -1125,21 +1319,39 @@
       : engines[key].url(encodeURIComponent(q));
   }
 
-  async function performRoute(rawQuery, immediate = false) {
+  /**
+   * @param {string}  rawQuery  the user's text
+   * @param {boolean} immediate true → navigate without showing the
+   *                            "redirecting…" overlay (used when the
+   *                            user explicitly clicks a destination)
+   * @param {string?} overrideKey  if provided, route to this engine
+   *                            *instead* of asking the model to
+   *                            classify. This is how the engine-hint
+   *                            click-to-route and the score-chip
+   *                            click-to-override paths bypass the
+   *                            usual semantic decision.
+   */
+  async function performRoute(rawQuery, immediate = false, overrideKey = null) {
     if (!rawQuery || !rawQuery.trim()) return;
     // Defensive: if a previous route was already armed (rapid double
     // Enter, or Enter while a redirect is pending), cancel it first so
     // we don't stack timers / redirect twice.
     if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
 
-    const result = await classify(rawQuery);
-    const url = buildTargetUrl(rawQuery, result.key);
+    let key;
+    if (overrideKey && engines[overrideKey]) {
+      key = overrideKey;
+    } else {
+      const result = await classify(rawQuery);
+      key = result.key;
+    }
+    const url = buildTargetUrl(rawQuery, key);
 
     if (immediate) {
       location.replace(url);
       return;
     }
-    display.textContent = engines[result.key].name;
+    display.textContent = engines[key].name;
     overlay.style.display = 'flex';
     search.blur();
     // Reset width to 0 first so the transition has somewhere to go even
@@ -1161,6 +1373,14 @@
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light');
     }
+    // Keep the iOS Safari status-bar / Android browser-chrome color in
+    // sync with the user's chosen theme. Without this, toggling the
+    // theme leaves the toolbar painted in whatever the OS-level
+    // `prefers-color-scheme` says — which on iOS can flip mid-session
+    // (e.g. when the device crosses an Auto-mode threshold) and looks
+    // like the page itself "randomly" changing modes.
+    const tc = document.getElementById('theme-color');
+    if (tc) tc.setAttribute('content', theme === 'light' ? '#ffffff' : '#000000');
   }
   function getSavedTheme() {
     try {
@@ -1227,26 +1447,41 @@
     debounceTimer = setTimeout(updateHint, INPUT_DEBOUNCE_MS);
   });
 
+  // Enter routes the current query. Other shortcuts are intentionally
+  // handled at the document level (below) — registering them here was a
+  // long-standing bug: pressing `t`, `?` or `/` while typing in the
+  // search input would `preventDefault` the keystroke and (for `t`)
+  // silently flip the theme. That's why some users reported the page
+  // "randomly turning to light mode when typing a query".
   search.addEventListener('keydown', e => {
     if (e.key === 'Enter' && search.value.trim()) {
       performRoute(search.value);
-      return;
     }
-    // Global shortcuts (only when not typing in input with modifiers)
-    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  });
+
+  /** True when the keyboard event originated inside an editable element. */
+  function isTypingTarget(target) {
+    if (!target) return false;
+    const tag = target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (target.isContentEditable) return true;
+    return false;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // Don't hijack characters the user is typing into the input.
+    if (isTypingTarget(e.target)) return;
+
+    if (e.key === '?') {
       e.preventDefault();
       showShortcuts();
-      return;
-    }
-    if (e.key.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    } else if (e.key.toLowerCase() === 't') {
       e.preventDefault();
       toggleTheme();
-      return;
-    }
-    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    } else if (e.key === '/') {
       e.preventDefault();
       search.focus();
-      return;
     }
   });
 
@@ -1290,14 +1525,34 @@
   }, 3000);
 
   // ───────────────────────────────────────────────────────────────────────
-  // Click-to-route: clicking the engine hint instantly routes to that
-  // destination (or overrides the default if the model picked something
-  // the user disagrees with).
+  // Click-to-route
+  //
+  //  - Clicking the engine hint instantly routes to the engine the
+  //    model already picked (a one-tap confirmation).
+  //  - Clicking ANY score chip overrides the model's pick and routes
+  //    to that engine instead. The chips are real <button>s so
+  //    keyboard users get Enter/Space for free; a native click event
+  //    fires for both pointer and keyboard activations.
+  //
+  // Both paths use `performRoute(query, immediate=true, overrideKey)`,
+  // which skips the "redirecting…" overlay because the user has just
+  // told us exactly where to go.
   // ───────────────────────────────────────────────────────────────────────
   hint.addEventListener('click', () => {
     const key = hint.dataset.routeKey;
     if (!key || !search.value.trim()) return;
-    performRoute(search.value, true);
+    performRoute(search.value, true, key);
+  });
+
+  // Event delegation: one listener on the panel survives every
+  // re-render of its children. `closest('.score-row')` lets the user
+  // click anywhere inside the chip (label, bar, percentage).
+  scoresPanel.addEventListener('click', e => {
+    const row = e.target.closest('.score-row');
+    if (!row || !scoresPanel.contains(row)) return;
+    const key = row.dataset.engine;
+    if (!key || !search.value.trim()) return;
+    performRoute(search.value, true, key);
   });
 
   // ───────────────────────────────────────────────────────────────────────
