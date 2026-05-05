@@ -140,15 +140,56 @@ The **Retry** button in the error banner does a full cache nuke: clears all `cac
 ### Pipeline pinned to `device: 'wasm'`
 `pipeline('feature-extraction', MODEL_ID, { dtype: 'q8', device: 'wasm' })` deliberately bypasses transformers.js v3's `device: 'auto'` probe. The auto-probe tries WebGPU first; on Safari (where WebGPU is gated/buggy as of 2025) this has been observed to crash the WebContent process. The WASM path is fast enough for a 22 MB MiniLM and predictable across browsers.
 
-### Crash-loop guard (the "A problem repeatedly occurred" page)
+### Mobile = NO live semantic inference (the iOS reliability fix)
+On viewports `(max-width: 767px)`, `updateHint()` only runs `classifyRules()` (bangs, direct URLs). Semantic queries get **no live preview** — the engine hint stays cleared until the user presses Enter, at which point `performRoute()` runs the model exactly once. Equivalent to the `?q=` redirect path, which iOS users already report as reliable. The cumulative-inference WASM-heap drift that used to crash mobile Safari tabs is eliminated, not mitigated.
+
+Desktop keeps the live-typing loop. Don't restore live inference on mobile — that's the regression that brought the "A problem repeatedly occurred" reports back. If you need to render scores on mobile, render them on the routing overlay after Enter, not during typing.
+
+### Single-flight inference
+The classify path tracks `inferenceInflight`; a keystroke arriving while a previous inference is running is dropped (returns `null` to `updateHint`, which does nothing). The next debounced tick will run with the latest input. Without this, fast typers stack concurrent WASM allocations on the desktop live loop.
+
+### Tensor disposal + typed-array path
+`extractor([q], …)` returns a v3 `Tensor`. Read the embedding via `output.data` (the underlying `Float32Array`), not `output.tolist()[0]` (which copies into a boxed JS Array first). After reading, call `output.dispose()` to free the WASM-side buffer. Both reduce per-call allocation pressure on iOS.
+
+### Periodic pipeline recycle
+Every `INFERENCES_PER_RECYCLE` inferences (40), `scheduleRecycle()` queues a dispose-and-reload of the extractor on a 1.5 s idle delay. Reload reads from IndexedDB cache, so it's ~100 ms with no network. The recycle path uses `disposeExtractor()` + `silentReload()`, deliberately bypassing `initModel()` so the crash-loop sentinel and loading overlay stay quiet — those exist for *cold-boot* failures, not deliberate recycles. Don't route the recycle through `initModel()`.
+
+### Visibility-aware dispose + silent reload
+`visibilitychange` to hidden + 5 s timer → `disposeExtractor()` (so iOS picks a different tab to evict under memory pressure). On return to visible, `silentReload()` re-creates the pipeline from cache. The 5 s delay protects quick tab-switches; iOS usually freezes JS before it fires for longer backgrounding, in which case nothing happens (the page is suspended anyway). `pagehide` also disposes as a defensive teardown for bfcache transitions.
+
+### bfcache `pageshow` handler — `pendingRedirectAborted`
+If iOS restores a `?q=` page from bfcache, the script does NOT re-run, but the original `?q=` IIFE may still resolve and call `performRoute` after the user has visibly come back to the page. The `pageshow` handler with `event.persisted` sets the `pendingRedirectAborted` flag, hides overlays, strips `?q=` from the URL, and pre-fills the input with the query. The `?q=` IIFE checks the flag right before calling `performRoute()` and bails. Don't remove the flag check — without it, the page bounces the user out again right after they came back.
+
+### Crash-loop guard (the "A problem repeatedly occurred" page) → keyword mode
 iOS Safari shows a hostile "A problem repeatedly occurred on https://divid3.com/" interstitial after the WebContent process crashes ~3 times in a row, and effectively blacklists the URL. We defend against this with a session-storage sentinel:
 
 - `divid3-loading=1` is set before model load starts; cleared on success or on a *caught* failure.
 - On boot, if the flag is still set we know the previous attempt didn't return; we increment `divid3-crash-count`.
-- After `MAX_CRASHES_BEFORE_FALLBACK` (= 2) unfinished loads, `initModel()` short-circuits to "lite mode": no model load attempted, status dot goes red, error banner suggests Retry, and bangs/Enter still route correctly.
+- After `MAX_CRASHES_BEFORE_FALLBACK` (= 2) unfinished loads, `initModel()` short-circuits to **keyword mode** — no model load attempted, status dot turns purple, error banner offers Retry, and bangs/Enter still route correctly.
 - The Retry button explicitly clears both keys (plus caches + IndexedDB) before reloading.
 
 Embeddings + model are loaded **sequentially** (`await fetchEmbeddings(); await pipeline(...)`) rather than in `Promise.all`, so we don't peak at ~24 MB of concurrent downloads on a memory-pressured iPhone.
+
+### Keyword mode = the model-disabled fallback
+`keywordMode` (state variable) gates whether `classify()` ever touches the model. When `true`:
+- `initModel()` early-returns (no embeddings fetch, no ONNX download).
+- `classify()` short-circuits to `classifyKeywords(q) || 'ddg'`.
+- Status dot is purple (`.status-dot.keyword`).
+- The error banner explains the mode if it was activated by a failure.
+
+Activation paths (each independently sets `keywordMode = true`):
+- `?lite=1` URL param at boot.
+- Crash-loop sentinel detects ≥ `MAX_CRASHES_BEFORE_FALLBACK` unfinished loads.
+- `initModel()` exhausts retries on a transient failure or hits a deterministic 4xx.
+
+`KEYWORD_RULES` is the source of truth: a flat list of `{ engine, weight, kw: [...] }` rules. Each rule contributes its `weight` to the engine's score if ANY of its `kw` strings match the query. Highest-scoring engine wins, with `MIN_KEYWORD_SCORE` (= 2) gating ambiguous matches into the DDG fallback. Single bare words match on word boundaries (`code` doesn't match `decode`); multi-word phrases match as substrings.
+
+When *adding* a new keyword:
+- Multi-word phrases (`pull request`, `buy usb-c cable`) are stable — pretty much always specific enough.
+- Single words need a sanity check: would adding ` foo ` falsely match a query like `comfort` or `foothold`? If yes, prefer a longer phrase form, or accept the false positive only if the engine is a reasonable destination for the false-match query anyway.
+- The `cases[]` table in `tests/search.spec.ts > keyword mode (low-memory fallback)` has 8 per-engine routing assertions — add a case there for any new engine destination, and the word-boundary regression test catches accidental bare-word matches.
+
+The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 
 ### Single-letter shortcuts must NOT fire while the search input has focus
 The `?`, `/`, and `t` shortcuts live on `document` and short-circuit when `event.target` is an `<input>` / `<textarea>` / `contentEditable` element via the `isTypingTarget()` helper. Attaching them to the `#search` element directly was a long-standing bug: typing any query containing `t` would `preventDefault` the keystroke and silently flip the theme, which users perceived as the page "randomly turning to light mode". Keep the document-level handler; never re-add per-input shortcuts.
@@ -164,8 +205,10 @@ CSS resets the button's user-agent appearance (`border: 1px solid transparent; c
 ### `performRoute(query, immediate, overrideKey)` — the third arg is the override
 `performRoute` accepts an optional `overrideKey`. When provided, the function **skips `classify()` entirely** and routes to that engine directly. This is how both the engine-hint click and the score-chip click bypass the model's pick. If you ever need to re-introduce a "manual route" code path, use this signature — don't add another routing function and don't temporarily mutate the engine-selection state.
 
-### Mobile layout: scores live inside `.input-wrap`
+### Mobile layout: scores live inside `.input-wrap` (currently unused on mobile)
 On mobile (`<768px`), `#scores` renders inline beneath the input as wrapping pill-chips (`position: static`, `flex-wrap: wrap`). On desktop (`≥768px`), CSS lifts it back into a fixed bottom-left vertical list. The DOM ordering matters — `#scores` must be the last child of `.input-wrap` so it sits between the engine hint and the bottom-fixed footer. Don't move it back to the page-level layout: the previous fixed-bottom horizontal-scroll strip overlapped the footer links + status dot once the soft keyboard pushed everything up.
+
+Note: mobile no longer renders `#scores` during typing (no live semantic inference) so the inline-chip CSS is currently dormant on mobile. It's kept because the `(max-width: 767px)` matcher includes desktop browsers in narrow windows — they get the inline layout if scores ever do render — and because a future "scores on the routing overlay" change could bring it back to use.
 
 ### Footer links + status dot hide when keyboard is up (mobile only)
 JS sets `body[data-keyboard="open"]` whenever `visualViewport` reports an inset > 120 px. CSS uses that to fade out `.footer-links` and `.status-dot` on viewports `<768px`. Desktop explicitly opts out via a `min-width: 768px` reset so the footer + dot stay visible regardless of focus state.

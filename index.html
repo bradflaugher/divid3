@@ -466,6 +466,17 @@
     opacity: 0.8;
     box-shadow: 0 0 10px rgba(255, 59, 48, 0.3);
   }
+  /* Purple = keyword-only mode. The model isn't running on this
+     device (low memory, repeated cold-load crashes, or explicit
+     ?lite=1 opt-in). Routing still works via the deterministic
+     keyword classifier — bangs, direct URLs, and ~100 phrase patterns
+     across the 9 destination engines. The user-visible signal is
+     "this page is healthy, just not running the model right now." */
+  .status-dot.keyword {
+    background: #b46cff;
+    opacity: 0.7;
+    box-shadow: 0 0 10px rgba(180, 108, 255, 0.35);
+  }
   .error-banner {
     position: fixed;
     top: max(env(safe-area-inset-top), 0.75rem);
@@ -762,10 +773,53 @@
   const EMBEDDINGS_VERSION = '2';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   const SIMILARITY_THRESHOLD = 0.30;   // below this, fall back to DuckDuckGo
-  const INPUT_DEBOUNCE_MS = 150;
+  // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
+  // hint feels live to a typist, slow enough that a fast typist generates
+  // ~2 inferences for a 10-char query instead of ~10. Each WASM inference
+  // briefly grows the WASM heap; reducing call count was the single biggest
+  // lever for the iOS "tab dies after typing for a minute" reports.
+  const INPUT_DEBOUNCE_MS = 220;
+  // Skip the model entirely for ultra-short queries — 0–1 chars never
+  // match a route confidently, and we'd just be allocating WASM tensors
+  // for no signal. Bangs and direct-URL detection still run normally
+  // (they're rule-based and free).
+  const MIN_QUERY_LEN_FOR_MODEL = 2;
   const FETCH_TIMEOUT_MS = 30_000;     // give up on stalled embeddings fetch
   const MODEL_LOAD_RETRIES = 2;        // transient init failures only
   const MODEL_LOAD_RETRY_BASE_MS = 800;
+  // After this many query inferences, dispose + recreate the pipeline.
+  // Each ONNX inference can grow the WASM heap a few KB; without this,
+  // a long session of typing slowly drifts the page toward the iOS
+  // WebContent memory ceiling. Recreation reads the model from
+  // IndexedDB cache (no network), so it's a ~100 ms reset, scheduled
+  // during idle so the user never feels it.
+  const INFERENCES_PER_RECYCLE = 40;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Mobile / desktop split: live inference only on desktop.
+  //
+  // The 22 MB ONNX model + WASM runtime live on the main thread. Each
+  // keystroke during typing fires a fresh inference, which incrementally
+  // grows the WASM heap on iOS Safari. After enough inferences the tab
+  // crosses the WebContent memory ceiling and gets killed (the source
+  // of the "A problem repeatedly occurred" interstitial).
+  //
+  // The simplest, most decisive fix: on mobile, never run semantic
+  // inference during typing. Bang shortcuts (`!yt`) and direct-URL
+  // detection (`github.com`) still match live because they're cheap
+  // rule-based regex. Pressing Enter still runs the model exactly
+  // once and routes — matching the `?q=` redirect path that users
+  // already report as reliable on iOS.
+  //
+  // Desktop keeps the original live-typing loop: it has the headroom,
+  // and the immediate route preview is the on-device-ML demo's
+  // headline UX.
+  //
+  // The matcher is consulted at call-time, not cached, so a desktop
+  // user dragging their browser narrow (or rotating an iPad) is
+  // routed through whichever experience matches their current layout.
+  // ───────────────────────────────────────────────────────────────────────
+  const mobileMedia = window.matchMedia('(max-width: 767px)');
   // Read the route-delay countdown from CSS so the visual progress bar
   // and the redirect setTimeout can never drift out of sync.
   const ROUTE_DELAY_MS = (() => {
@@ -804,6 +858,106 @@
 
   const DOMAIN_RE    = /^[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,10}(:[0-9]{1,5})?(\/.*)?$/i;
   const LOCALHOST_RE = /^localhost(:[0-9]{1,5})?(\/.*)?$/i;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Keyword routing rules
+  //
+  // Used as a fallback when the embedding model isn't available
+  // (low-memory device, repeated cold-load crashes, explicit ?lite=1
+  // opt-in). Routes by deterministic keyword matching — no model, no
+  // WASM heap, no network beyond static page load.
+  //
+  // Each rule contributes its `weight` to the engine's score if ANY of
+  // its `kw` strings matches the query. The engine with the highest
+  // total wins; ties go to the rule earlier in the list (engines
+  // declared first); below MIN_KEYWORD_SCORE we fall back to DDG.
+  //
+  // Single-word `kw` entries match on word boundaries (so "code"
+  // doesn't match "decode"). Phrases with spaces or special chars
+  // (`sin(`, `near me`, `pull request`) match as substrings — already
+  // specific enough that false positives are rare.
+  //
+  // Each rule's keywords share one weight: matching three keywords from
+  // one rule gives the same score as matching one. The escalation comes
+  // from declaring multiple rules per engine at different specificity
+  // levels (a 4-weight phrase rule plus a 2-weight noun rule plus a
+  // 1-weight common-word rule).
+  // ───────────────────────────────────────────────────────────────────────
+  const KEYWORD_RULES = [
+    // ── youtube ─────────────────────────────────────────────────────
+    { engine: 'youtube', weight: 5, kw: ['music video', 'official video', 'official audio', 'full album', 'live concert', 'live stream', 'lyric video', 'cover song', 'guitar tutorial'] },
+    { engine: 'youtube', weight: 3, kw: ['lofi', 'beats', 'remix', 'edm mix', 'hip hop', 'mashup', 'concert footage', 'unboxing'] },
+    { engine: 'youtube', weight: 1, kw: ['music', 'song', 'songs', 'video', 'videos', 'watch', 'concert', 'playlist', 'channel', 'episode', 'trailer', 'soundtrack', 'remixes', 'tiktok', 'shorts'] },
+
+    // ── github ──────────────────────────────────────────────────────
+    { engine: 'github', weight: 5, kw: ['pull request', 'open source', 'source code', 'code example', 'starter template', 'unit tests for', 'awesome list', 'monorepo'] },
+    { engine: 'github', weight: 3, kw: ['github', 'repo', 'repository', 'commit', 'merge conflict', 'fork', 'gist', 'codebase', 'cli tool'] },
+    { engine: 'github', weight: 2, kw: ['react', 'pytorch', 'tensorflow', 'nextjs', 'fastapi', 'transformers', 'langchain', 'llama.cpp', 'huggingface', 'rust crate', 'npm package', 'python library', 'sdk'] },
+
+    // ── wolfram ─────────────────────────────────────────────────────
+    { engine: 'wolfram', weight: 5, kw: ['integral of', 'derivative of', 'limit of', 'solve for', 'taylor series', 'fourier transform', 'laplace transform', 'plot of', 'eigenvalues of', 'eigenvectors of', 'roots of', 'expand the', 'simplify the'] },
+    { engine: 'wolfram', weight: 3, kw: ['integrate', 'differentiate', 'eigenvalue', 'eigenvector', 'theorem', 'simplify', 'factorize', 'mod arithmetic', 'partial derivative', 'definite integral'] },
+    { engine: 'wolfram', weight: 2, kw: ['integral', 'derivative', 'sin(', 'cos(', 'tan(', 'log(', 'sqrt(', 'ln(', '^2', '^3', 'matrix', 'vector field', 'cross product', 'dot product'] },
+
+    // ── amazon ──────────────────────────────────────────────────────
+    { engine: 'amazon', weight: 5, kw: ['where to buy', 'best wireless', 'best mechanical', 'best budget', 'amazon basics', 'noise cancelling', 'standing desk', 'office chair', 'usb-c cable', 'usb c cable'] },
+    { engine: 'amazon', weight: 3, kw: ['buy', 'purchase', 'amazon', 'cheap', 'budget pick', 'price of'] },
+    { engine: 'amazon', weight: 2, kw: ['headphones', 'earbuds', 'mechanical keyboard', 'gaming mouse', 'monitor', 'webcam', 'mattress', 'hdmi cable', 'power bank', 'travel adapter', 'french press'] },
+
+    // ── maps ────────────────────────────────────────────────────────
+    { engine: 'maps', weight: 5, kw: ['near me', 'nearby', 'directions to', 'how far is', 'distance to', 'gas stations', 'urgent care', 'open now', 'route to', 'driving directions'] },
+    { engine: 'maps', weight: 3, kw: ['downtown', 'closest', 'best restaurants in', 'restaurants in', 'cafes in', 'gyms in'] },
+    { engine: 'maps', weight: 1, kw: ['restaurant', 'restaurants', 'cafe', 'gym', 'mall', 'airport', 'pharmacy', 'hospital', 'park', 'museum', 'station', 'pizzeria', 'sushi'] },
+
+    // ── bing-images ─────────────────────────────────────────────────
+    { engine: 'bing-images', weight: 5, kw: ['image of', 'photo of', 'picture of', 'screenshot of', 'wallpaper of', 'high resolution photo', 'high res image'] },
+    { engine: 'bing-images', weight: 3, kw: ['wallpaper', 'wallpapers', 'lockscreen', 'background image', 'desktop background', 'phone wallpaper'] },
+    { engine: 'bing-images', weight: 1, kw: ['image', 'images', 'photo', 'photos', 'picture', 'pictures', 'gif', 'meme'] },
+
+    // ── perplexity ──────────────────────────────────────────────────
+    { engine: 'perplexity', weight: 5, kw: ['pros and cons', 'tradeoffs between', 'difference between', 'comparison of', 'detailed comparison', 'literature review', 'research the', 'in depth analysis', 'overview of', 'history of'] },
+    { engine: 'perplexity', weight: 3, kw: ['explain', 'summarize', 'tldr', 'tl;dr', 'compare', 'how does', 'why does', 'why is', 'walk me through', 'breakdown of'] },
+
+    // ── grok ────────────────────────────────────────────────────────
+    { engine: 'grok', weight: 5, kw: ['write a', 'write me a', 'tell me a joke', 'tell me a story', 'compose a', 'roast my', 'in the style of', 'dad joke', 'knock knock joke', 'pretend you are'] },
+    { engine: 'grok', weight: 3, kw: ['haiku', 'limerick', 'sonnet', 'poem about', 'rap about', 'roleplay as', 'witty tweet'] },
+  ];
+  /** Below this score, fall back to DDG. Tuned so that a single
+   *  weight-1 match isn't enough to commit; you need a strong
+   *  signal (one weight-2+ rule, or two weight-1 rules). */
+  const MIN_KEYWORD_SCORE = 2;
+
+  /** True when the keyword passed to KEYWORD_RULES is a bare word —
+   *  needs word-boundary anchoring so "code" doesn't match "decode". */
+  const _BARE_WORD_RE = /^[a-z0-9]+$/i;
+
+  /**
+   * Score `query` against the keyword rules and return the best engine
+   * key, or null if no rule scored at or above MIN_KEYWORD_SCORE.
+   * Used by `classify()` whenever the model isn't usable (loading, in
+   * keyword-mode fallback, or load-failed).
+   */
+  function classifyKeywords(query) {
+    if (!query) return null;
+    const padded = ' ' + query.toLowerCase().trim() + ' ';
+    /** @type {Map<string, number>} */
+    const scores = new Map();
+    for (const rule of KEYWORD_RULES) {
+      let matched = false;
+      for (const kw of rule.kw) {
+        const needle = _BARE_WORD_RE.test(kw) ? ` ${kw} ` : kw.toLowerCase();
+        if (padded.indexOf(needle) >= 0) { matched = true; break; }
+      }
+      if (matched) {
+        scores.set(rule.engine, (scores.get(rule.engine) || 0) + rule.weight);
+      }
+    }
+    let bestKey = null, bestScore = 0;
+    for (const [engine, score] of scores) {
+      if (score > bestScore) { bestScore = score; bestKey = engine; }
+    }
+    return bestScore >= MIN_KEYWORD_SCORE ? bestKey : null;
+  }
 
   // ───────────────────────────────────────────────────────────────────────
   // DOM
@@ -888,8 +1042,45 @@
   /** @type {Promise<boolean>}  Resolves true on success, false on failure;
    *  never rejects. ?q= redirect awaits this instead of polling. */
   let modelLoadPromise = null;
-  const qParam = new URLSearchParams(location.search).get('q');
+  /** Latches true the first time the model finishes loading. Subsequent
+   *  reloads (visibility-shown re-init, periodic pipeline recycle) gate
+   *  on this so they stay silent — no loading overlay, no error banner,
+   *  no crash-loop sentinel churn. The user already paid the loading UI
+   *  cost on cold boot; they don't need to see it again. */
+  let modelEverLoaded = false;
+  /** Set true by the bfcache pageshow handler so the pending `?q=`
+   *  redirect IIFE doesn't fire after we've already cleared the URL
+   *  and surfaced the input to the user. Set once, never reset. */
+  let pendingRedirectAborted = false;
+  /** Keyword-only mode. When true, classify() never runs the model;
+   *  every non-rule query goes through `classifyKeywords()` and falls
+   *  back to DDG when nothing matches. The status dot turns purple.
+   *
+   *  Activation policy (any one is sufficient):
+   *    1. `?lite=1` URL param — explicit user opt-in or deep link
+   *       from a "this site keeps crashing on my phone" support reply.
+   *    2. `navigator.deviceMemory <= 1` — proactive bail-out on
+   *       Android Go-class devices (≤ 1 GB RAM). Doesn't fire on iOS
+   *       (Safari doesn't expose `deviceMemory`); iOS relies on (3).
+   *    3. Crash-loop guard — ≥ 2 unfinished cold loads in the same
+   *       session. Catches us 1 strike before iOS's "A problem
+   *       repeatedly occurred" interstitial would fire (~3 strikes).
+   *    4. Model-load failure after retries — `initModel()` exhausts
+   *       transient retries or hits a deterministic 4xx.
+   *
+   *  Never auto-deactivates — once the page is in keyword mode, it
+   *  stays until the user explicitly Retries or reloads. */
+  let keywordMode = false;
+  const _params = new URLSearchParams(location.search);
+  const qParam = _params.get('q');
   const isRedirecting = qParam !== null;
+  if (_params.get('lite') === '1') {
+    keywordMode = true;
+    console.log('Search router: keyword mode (?lite=1 opt-in)');
+  } else if (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 1) {
+    keywordMode = true;
+    console.log(`Search router: keyword mode (low-memory device, ${navigator.deviceMemory} GB)`);
+  }
 
   // ───────────────────────────────────────────────────────────────────────
   // Model + embeddings loader
@@ -926,13 +1117,15 @@
     statusDot.title = title;
     statusDot.classList.toggle('ready', state === 'ready');
     statusDot.classList.toggle('failed', state === 'failed');
+    statusDot.classList.toggle('keyword', state === 'keyword');
   }
 
   function showError(message) {
     // Build via DOM nodes (no innerHTML — message can include err.message).
     errorBanner.replaceChildren();
     errorBanner.appendChild(document.createTextNode(
-      'Semantic routing unavailable — Enter still works (DuckDuckGo). ' +
+      'Model unavailable — keyword routing active. Bangs, direct URLs, ' +
+      'and most queries still route correctly. ' +
       '(' + message + ') '
     ));
     const retry = document.createElement('button');
@@ -1089,19 +1282,33 @@
   function initModel() {
     if (modelLoadPromise) return modelLoadPromise;
 
+    // Explicit `?lite=1` opt-in: the user (or a deep link) asked for
+    // keyword-only routing. Skip the model entirely.
+    if (keywordMode) {
+      console.log('Search router: keyword mode (?lite=1) — skipping model load');
+      setStatus('keyword', 'Keyword routing (lite mode)');
+      loadingOverlay.classList.remove('active');
+      document.querySelector('.footer-links').classList.add('visible');
+      modelLoadPromise = Promise.resolve(false);
+      return modelLoadPromise;
+    }
+
     // If the previous one or two boots crashed mid-load, don't try
-    // again — fall straight through to rule-based routing. This
-    // prevents the iOS "A problem repeatedly occurred" lockout.
+    // again — switch to keyword routing instead of attempting another
+    // model load. This is the actual mitigation for the iOS "A problem
+    // repeatedly occurred" lockout: by the time Safari would have shown
+    // it, we've already given the user a usable, smart router.
     if (skipModelDueToCrashes) {
       console.warn(
         `Search router: skipping model load after ${crashCount} unfinished attempts; ` +
-        'falling back to rule-based routing (bangs + DDG).'
+        'falling back to keyword routing.'
       );
+      keywordMode = true;
       modelFailed = true;
-      setStatus('failed', 'Lite mode (model disabled after repeated crashes)');
+      setStatus('keyword', 'Keyword routing (model disabled after repeated crashes)');
       showError(
-        'Lite mode active after a previous load failed. ' +
-        'Bangs and Enter still route correctly.'
+        'Keyword routing active after a previous load failed. ' +
+        'Bangs, Enter, and most queries still route correctly.'
       );
       loadingOverlay.classList.remove('active');
       document.querySelector('.footer-links').classList.add('visible');
@@ -1112,7 +1319,7 @@
     loadingOverlay.classList.add('active');
     setStatus('loading', 'Embedding Model Loading…');
     markLoadStart();
-    modelLoadPromise = (async () => {
+    const loadPromise = (async () => {
       let lastErr = null;
       for (let attempt = 0; attempt <= MODEL_LOAD_RETRIES; attempt++) {
         try {
@@ -1133,6 +1340,7 @@
           }));
           extractor = model;
           modelReady = true;
+          modelEverLoaded = true;
           // We made it — clear the in-progress flag and reset the
           // crash counter so the next visit boots normally even if
           // there were transient failures earlier in the session.
@@ -1155,17 +1363,213 @@
       }
       // Controlled failure path (we caught the error). Clear the
       // in-progress flag so we don't false-positive a "crash" next boot.
+      // Switch to keyword routing — same code path the crash-loop
+      // guard uses. The Retry button still works if the user wants
+      // to re-attempt the model load (clears caches + reload).
       markLoadEnd();
       modelFailed = true;
+      keywordMode = true;
       const msg = (lastErr && lastErr.message) || String(lastErr);
-      setStatus('failed', 'Embedding Model Failed: ' + msg);
+      setStatus('keyword', 'Keyword routing (model load failed: ' + msg + ')');
       showError(msg);
       loadingOverlay.classList.remove('active');
       document.querySelector('.footer-links').classList.add('visible');
       return false;
     })();
-    return modelLoadPromise;
+    modelLoadPromise = loadPromise;
+    // After the load settles, drop the cached promise so a subsequent
+    // dispose+reload (visibility-restore, periodic recycle) sees a
+    // clear "no init in flight" signal. Without this, modelLoadPromise
+    // stays truthy forever and silentReload's "real init is already
+    // running" guard locks us out of the silent-reload path.
+    loadPromise.finally(() => {
+      if (modelLoadPromise === loadPromise) modelLoadPromise = null;
+    });
+    return loadPromise;
   }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // iOS heap-pressure mitigations (no-worker design)
+  //
+  // The ONNX runtime + 22 MB MiniLM live on the main thread alongside
+  // the page. On iOS Safari, the WebContent process has a hard memory
+  // ceiling per tab (~280–384 MB depending on the device); when the
+  // page approaches it, iOS kills the tab and ~3 such kills produce
+  // the user-hostile "A problem repeatedly occurred" interstitial.
+  //
+  // Two failure modes we defend against here:
+  //
+  //   - Background reclaim. iOS evicts large backgrounded tabs first.
+  //     If we drop the model when the tab is hidden, we're a much less
+  //     attractive target and survive longer in the background.
+  //
+  //   - Heap drift. ONNX-WASM allocates per-call buffers; over a
+  //     long typing session the heap creeps upward even though
+  //     individual tensors get GC'd. Periodically disposing the
+  //     pipeline and reloading from IDB cache resets the high-water
+  //     mark to the model's intrinsic footprint.
+  //
+  // Both paths reload silently (no overlay, no banner) so the only
+  // observable effect is a brief routing fallback to DDG while a fresh
+  // pipeline finishes initializing. crash-loop sentinels are
+  // intentionally untouched — they exist for *cold-boot* WebContent
+  // crashes, not for our own deliberate dispose-and-reload cycles.
+  // ───────────────────────────────────────────────────────────────────────
+
+  /** Free the extractor and mark not-ready. Does NOT touch the crash
+   *  sentinel or modelEverLoaded — this is a recoverable disposal, not
+   *  a failure. */
+  function disposeExtractor() {
+    try { extractor && extractor.dispose && extractor.dispose(); } catch (_) {}
+    extractor = null;
+    modelReady = false;
+  }
+
+  /** Silent reload from IDB cache. Used by the visibility-shown handler
+   *  and the periodic recycle. Doesn't fight with cold-boot init. */
+  let silentReloadInflight = false;
+  async function silentReload() {
+    if (silentReloadInflight) return;
+    if (!modelEverLoaded || modelReady || modelFailed) return;
+    if (modelLoadPromise) return;     // a real init is already running
+    silentReloadInflight = true;
+    try {
+      const fresh = await pipeline('feature-extraction', MODEL_ID, PIPELINE_OPTS);
+      extractor = fresh;
+      modelReady = true;
+      setStatus('ready', 'Embedding Model Ready');
+    } catch (e) {
+      console.warn('Search router: silent reload failed; will retry on next inference', e);
+    } finally {
+      silentReloadInflight = false;
+    }
+  }
+
+  // Periodic pipeline recycle ─ called by classify() after every
+  // INFERENCES_PER_RECYCLE inferences. Defers the actual dispose+reload
+  // by ~1.5 s so we don't compete with the user's current typing burst.
+  let recycleScheduled = false;
+  function scheduleRecycle() {
+    if (recycleScheduled || !modelEverLoaded) return;
+    recycleScheduled = true;
+    setTimeout(async () => {
+      recycleScheduled = false;
+      // Skip if the user typed again very recently, the page is hidden
+      // (visibility handler will reload on return), or an inference is
+      // mid-flight. Bail-on-conflict is correct here; we'll get another
+      // chance the next time the counter rolls over.
+      if (!modelReady || inferenceInflight) return;
+      if (document.visibilityState === 'hidden') return;
+      console.log('Search router: recycling pipeline to reset WASM heap');
+      disposeExtractor();
+      await silentReload();
+    }, 1500);
+  }
+
+  // Visibility-aware cleanup ─ release the model when the tab is
+  // backgrounded so iOS picks a different tab to reclaim under memory
+  // pressure. The 5 s delay is intentional: short tab-switches (copying
+  // a link, glancing at another tab) shouldn't pay the reload cost. If
+  // iOS suspends our JS before the timer fires (it usually does for
+  // tabs hidden longer than a few seconds), we never dispose — but in
+  // that frozen state iOS isn't billing us memory the same way either.
+  let hiddenDisposeTimer = null;
+  const HIDDEN_DISPOSE_DELAY_MS = 5_000;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      clearTimeout(hiddenDisposeTimer);
+      hiddenDisposeTimer = setTimeout(() => {
+        if (document.visibilityState === 'hidden' && modelReady && !inferenceInflight) {
+          console.log('Search router: tab hidden, disposing extractor to ease iOS memory pressure');
+          disposeExtractor();
+        }
+      }, HIDDEN_DISPOSE_DELAY_MS);
+    } else {
+      clearTimeout(hiddenDisposeTimer);
+      hiddenDisposeTimer = null;
+      // Lazy reload if we'd disposed while hidden. classify() will also
+      // request this on demand if the user types before we finish — the
+      // silentReloadInflight guard makes both paths idempotent.
+      silentReload();
+    }
+  });
+
+  // pagehide is a more reliable teardown signal than unload on iOS
+  // (fires for bfcache moves and tab close). Best-effort dispose so the
+  // tab's memory footprint drops before iOS reclaims it.
+  window.addEventListener('pagehide', () => {
+    clearTimeout(hiddenDisposeTimer);
+    disposeExtractor();
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // bfcache restore for `?q=` pages
+  //
+  // When a user navigates to `divid3.com/?q=foo`, we redirect them to
+  // the destination engine via location.replace. The redirect leaves
+  // no entry in history — pressing Back from the destination skips
+  // divid3 entirely. Good.
+  //
+  // BUT iOS Safari's bfcache occasionally restores the `?q=foo` page
+  // anyway (back-tap from a hung destination, gesture-driven swipes
+  // mid-redirect, or a server that prefetched divid3 on hover). The
+  // script doesn't re-run on bfcache restore — the user sees whatever
+  // visual state the page was in at navigation time, often a stuck
+  // "Loading model..." overlay or the routing countdown frozen in
+  // place. That's the "current behavior is odd" case.
+  //
+  // Fix: detect bfcache restore (pageshow.persisted), reset the
+  // overlays, drop `?q=` from the URL via history.replaceState, and
+  // surface the original query in the input box so the user can
+  // edit/re-submit. Effectively turns "stuck on a stale redirect"
+  // into "fresh divid3 page with your query pre-filled."
+  // ───────────────────────────────────────────────────────────────────────
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted) return;       // fresh load — script just ran, nothing to reset
+
+    // Stop the original `?q=` IIFE from completing its redirect once
+    // initPromise eventually resolves (it may still be in flight if
+    // the user backed out mid-load).
+    pendingRedirectAborted = true;
+
+    // Cancel any pending route timer that might fire after the user
+    // already navigated away and back.
+    if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
+
+    // Hide overlays that may have been mid-animation when we left.
+    overlay.style.display = 'none';
+    progress.style.width = '0%';
+    loadingOverlay.classList.remove('active');
+
+    // If we landed here via a `?q=` URL, restore the user's query into
+    // the input and strip the parameter so the page doesn't try to
+    // redirect again on the next interaction.
+    const url = new URL(location.href);
+    const qOnRestore = url.searchParams.get('q');
+    if (qOnRestore !== null) {
+      const trimmed = qOnRestore.trim();
+      if (trimmed) {
+        search.value = trimmed;
+        // Trigger the hint update so rule-based engines (bangs / direct
+        // URLs) preview correctly without waiting for the user to type.
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(updateHint, 0);
+      }
+      url.searchParams.delete('q');
+      history.replaceState(null, '', url.toString());
+    }
+
+    // Re-show the footer if the model is ready (or re-trigger lazy
+    // reload if we had disposed on pagehide).
+    if (modelReady) {
+      document.querySelector('.footer-links').classList.add('visible');
+    } else if (modelEverLoaded) {
+      silentReload();
+    }
+
+    // Restore focus to the input so the user can immediately type.
+    try { search.focus(); } catch (_) {}
+  });
 
   // ───────────────────────────────────────────────────────────────────────
   // Routing
@@ -1217,23 +1621,67 @@
 
   /**
    * Returns { key, scores } where `scores` is sorted desc by similarity
-   * (or [] when classification was rule-based / model not ready).
+   * (or [] when classification was rule-based / model not ready / call
+   * dropped due to in-flight inference).
    * `staleCheck` is an optional () => boolean; if it ever returns true
    * we abort and return null so the caller can drop a stale result.
+   * `options.allowInference` (default true) — set false on the typing
+   * path to skip the model for ultra-short queries.
    */
-  async function classify(rawQuery, staleCheck) {
+  let inferenceInflight = false;
+  let inferenceCount = 0;
+  async function classify(rawQuery, staleCheck, options = {}) {
     const q = rawQuery.toLowerCase().trim();
     if (!q) return { key: 'ddg', scores: [] };
 
     const ruleKey = classifyRules(q);
     if (ruleKey) return { key: ruleKey, scores: [] };
 
-    if (!modelReady) return { key: 'ddg', scores: [] };
+    // Keyword-mode short-circuit: when the page is in low-memory /
+    // model-unavailable mode, never touch the model. Classification is
+    // deterministic keyword matching with a DDG fallback for queries
+    // that don't match any rule.
+    if (keywordMode) {
+      return { key: classifyKeywords(q) || 'ddg', scores: [] };
+    }
 
+    if (!modelReady) {
+      // Either the model never loaded, or we released it on
+      // visibilitychange / periodic recycle. Kick off a background
+      // reload so the *next* keystroke can use it; this one routes
+      // via keywords (smarter than blanket DDG). Prefer silentReload
+      // (no overlay) when we've already had a successful load — that's
+      // the recycle / visibility-shown case. Cold-boot still goes
+      // through initModel for the loading UX and crash-loop sentinel.
+      if (!modelFailed && !modelLoadPromise) {
+        if (modelEverLoaded) silentReload();
+        else initModel();
+      }
+      return { key: classifyKeywords(q) || 'ddg', scores: [] };
+    }
+
+    // Caller opts in to inference; typing path passes false for very
+    // short queries to keep the WASM heap idle. Even on the no-inference
+    // path, a keyword match is free routing intelligence.
+    if (options.allowInference === false) {
+      return { key: classifyKeywords(q) || 'ddg', scores: [] };
+    }
+
+    // Single-flight: if a previous inference is still running, drop this
+    // call. The next debounced tick (or the user pausing for >220 ms)
+    // will trigger another classify with the latest input. Without this,
+    // fast typers stack concurrent WASM allocations.
+    if (inferenceInflight) return null;
+    inferenceInflight = true;
+    let output = null;
     try {
-      const output = await extractor([q], { pooling: 'mean', normalize: true });
+      output = await extractor([q], { pooling: 'mean', normalize: true });
       if (staleCheck && staleCheck()) return null;
-      const qVec = output.tolist()[0];
+      // `output.data` is the underlying Float32Array (length 384 for one
+      // query). Use it directly — `tolist()` would copy into a boxed
+      // JS Array first, wasted work + allocation. dot() is faster on a
+      // Float32Array anyway.
+      const qVec = output.data;
       const scores = scoreAll(qVec);
       const top = scores[0];
       const key = top.score >= SIMILARITY_THRESHOLD ? top.key : 'ddg';
@@ -1241,6 +1689,20 @@
     } catch (e) {
       console.error('Inference error', e);
       return { key: 'ddg', scores: [] };
+    } finally {
+      // Free the WASM-backed tensor before returning. v3 Tensor has a
+      // dispose() method but we guard with optional chaining in case a
+      // future runtime returns a non-disposable view.
+      try { output && output.dispose && output.dispose(); } catch (_) {}
+      inferenceInflight = false;
+      inferenceCount++;
+      // Periodically recycle the pipeline to bound long-session heap
+      // drift. Scheduled, not awaited — the next keystroke continues
+      // routing on the existing extractor until the recycle completes.
+      if (inferenceCount >= INFERENCES_PER_RECYCLE) {
+        inferenceCount = 0;
+        scheduleRecycle();
+      }
     }
   }
 
@@ -1292,7 +1754,44 @@
     const mySeq = ++hintSeq;
     if (!q) { clearHint(); return; }
 
-    const result = await classify(q, () => mySeq !== hintSeq);
+    // Mobile: rule-based hints only during typing. Bangs, direct URLs,
+    // localhost — all the cheap classifications still preview live.
+    // Semantic queries show no preview; the destination only appears on
+    // the routing overlay after Enter, which runs the model once. This
+    // matches the `?q=` redirect path and is the iOS-safe shape.
+    //
+    // EXCEPTION: in keyword mode, the model isn't running anyway. The
+    // keyword classifier is a few regex scans — no WASM, no heap drift,
+    // so the rationale for "no live preview" doesn't apply. Showing
+    // keyword-based hints on mobile in keyword mode is a free UX win.
+    if (mobileMedia.matches) {
+      let key = classifyRules(q);
+      if (mySeq !== hintSeq) return;
+      if (!key && keywordMode) {
+        key = classifyKeywords(q);
+      }
+      if (key) {
+        const engine = engines[key];
+        hint.textContent = engine.name;
+        hint.classList.add('active');
+        document.documentElement.style.setProperty('--engine-color', engine.color);
+        document.body.dataset.engine = key;
+        hint.dataset.routeKey = key;
+      } else {
+        clearHint();
+      }
+      // No scores panel render path on mobile. clearHint() above already
+      // hides it for non-rule queries; rule hits never showed scores
+      // anyway (rules return scores: []).
+      return;
+    }
+
+    // Desktop: live semantic inference. Typing path skips the model
+    // for ultra-short queries; performRoute() does NOT pass this flag,
+    // so committing with Enter still runs the model on a 1-char query
+    // if that's what the user wants.
+    const allowInference = q.length >= MIN_QUERY_LEN_FOR_MODEL;
+    const result = await classify(q, () => mySeq !== hintSeq, { allowInference });
     if (!result || mySeq !== hintSeq) return;       // a newer keystroke is in flight
 
     const engine = engines[result.key];
@@ -1573,12 +2072,19 @@
       search.value = trimmed;
       (async () => {
         const ok = await initPromise;
-        if (ok) {
-          performRoute(trimmed, true);
-        } else {
-          console.warn('Search router: model failed, falling back to DuckDuckGo');
-          location.replace(engines.ddg.url(encodeURIComponent(trimmed)));
-        }
+        // Bail if bfcache restore (or any other reset) flagged the
+        // pending redirect as cancelled. Without this check, the
+        // user could land on a stale `?q=` page via bfcache, the
+        // pageshow handler would clear the URL and overlays — and
+        // then this awaited redirect would fire moments later and
+        // bounce them right back out, undoing the fix.
+        if (pendingRedirectAborted) return;
+        // Whether the model loaded or we're in keyword mode, route
+        // through performRoute. classify() handles the fallbacks
+        // internally — bangs/direct URL/keyword/DDG. Previously this
+        // path hard-coded DDG on model failure; keyword mode gives
+        // us much smarter offline routing for free.
+        performRoute(trimmed, true);
       })();
     }
   }
