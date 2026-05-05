@@ -547,15 +547,14 @@ test.describe('search router — browser registration', () => {
   });
 
   test('setup.html exposes the search URL and a working Copy button', async ({ page, browserName }) => {
-    // WebKit's Playwright build doesn't expose `clipboard-write` as a
-    // grantable permission — calling grantPermissions throws there.
-    // Real WebKit browsers prompt the user the first time anyway, so
-    // the headless test wouldn't be representative even if it ran.
-    if (browserName !== 'webkit') {
-      await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    } else {
-      test.skip();
-    }
+    // The Playwright builds of WebKit and Firefox don't expose the
+    // clipboard permissions as grantable: WebKit rejects
+    // `clipboard-write`, Firefox rejects `clipboard-read`. Real
+    // browsers prompt the user the first time anyway, so the headless
+    // test wouldn't be representative either way. Chromium is the
+    // only one where we can fully exercise the Copy button.
+    test.skip(browserName !== 'chromium', 'clipboard permissions are Chromium-only in Playwright');
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.goto('/setup.html');
 
     const url = page.locator('#search-url');
@@ -666,6 +665,15 @@ test.describe('search router — keyboard shortcuts', () => {
 // Smart paste: strip protocol from pasted URLs
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — smart paste', () => {
+  // Firefox refuses to honor the `clipboardData` field on a manually
+  // constructed `ClipboardEvent` (security policy: scripts can't synthesize
+  // a paste), so our synthetic dispatch can't actually carry text into the
+  // page on Gecko. Real ⌘V / Ctrl-V paste works fine in Firefox; only the
+  // synthetic test below is unrunnable. The handler itself is shared code
+  // exercised on Chromium + WebKit + mobile-safari.
+  test.skip(({ browserName }) => browserName === 'firefox',
+    "Firefox doesn't expose clipboardData on synthetic ClipboardEvents");
+
   test('pasting "https://github.com" strips the protocol', async ({ page }) => {
     await page.goto(PATH);
     await waitForModelReady(page);
@@ -745,6 +753,60 @@ test.describe('search router — click-to-route', () => {
       return host !== 'localhost';
     }, { timeout: 15_000, waitUntil: 'commit' });
     await page.locator('#hint').click();
+    await navPromise;
+  });
+
+  test('clicking a score chip OVERRIDES the model and routes there', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('lofi beats');
+    // Whatever the model picked, we assert the override sends the user
+    // to Amazon — that proves the chip click ignored the model's
+    // decision rather than coincidentally agreeing with it.
+    await expect(page.locator('#scores .score-row[data-engine="amazon"]')).toBeVisible({ timeout: 5_000 });
+    const modelPick = await page.locator('body').getAttribute('data-engine');
+    expect(modelPick).not.toBe('amazon');
+
+    const navPromise = page.waitForURL(/amazon\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await page.locator('#scores .score-row[data-engine="amazon"]').click();
+    await navPromise;
+    expect(new URL(page.url()).hostname).toMatch(/amazon\.com$/);
+  });
+
+  test('every score chip is keyboard-activatable as a real <button>', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    await page.locator('#search').fill('lofi beats');
+    await expect(page.locator('#scores .score-row').first()).toBeVisible({ timeout: 5_000 });
+
+    // Real <button> elements: focusable, have an accessible name, and
+    // expose role=button to assistive tech without an explicit role.
+    const tags = await page.$$eval('#scores .score-row', rows =>
+      rows.map(r => r.tagName.toLowerCase()),
+    );
+    expect(tags.every(t => t === 'button')).toBe(true);
+
+    const labels = await page.$$eval('#scores .score-row', rows =>
+      rows.map(r => r.getAttribute('aria-label') ?? ''),
+    );
+    expect(labels.every(l => /Route to .+ \(\d+% match\)/.test(l))).toBe(true);
+  });
+
+  test('keyboard Enter on a focused score chip overrides the route', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    await page.locator('#search').fill('lofi beats');
+    await expect(page.locator('#scores .score-row[data-engine="github"]')).toBeVisible({ timeout: 5_000 });
+
+    const navPromise = page.waitForURL(/github\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    // `.focus()` then space is more deterministic than tabbing through
+    // the document because some engines focus the URL bar instead.
+    await page.locator('#scores .score-row[data-engine="github"]').focus();
+    await page.keyboard.press('Enter');
     await navPromise;
   });
 });

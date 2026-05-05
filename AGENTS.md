@@ -91,7 +91,7 @@ User types → debounce 150 ms → classify() →
 - Tests assert on `data-*` attributes (`data-state`, `data-engine`) rather than visible text, so copy changes don't break specs.
 - `freezeRouteTimer()` stubs `setTimeout` with `ms === 1500` to prevent overlay auto-navigation during assertions.
 - Navigation assertions match hostname + encoding-agnostic query substring (engines vary between `+` and `%20`).
-- Three Playwright **projects**: `chromium`, `webkit`, `mobile-safari` (iPhone 13). The mobile-only and webkit-only tests use `test.skip(!isMobile)` / `test.skip(browserName !== 'webkit')` rather than tag filtering.
+- Four Playwright **projects**: `chromium`, `firefox`, `webkit`, `mobile-safari` (iPhone 13). Browser-specific tests use `test.skip(({ browserName }) => …)` rather than tag filtering. Known per-engine quirks: WebKit doesn't expose `clipboard-write`; Firefox doesn't expose `clipboard-read` and silently strips `clipboardData` from synthetic ClipboardEvents — both clipboard-related tests are skipped on those engines.
 - `tests/mobile-and-webkit.spec.ts` exists specifically to cover Safari/iOS regressions the desktop-Chromium suite is blind to: theme stability while typing, mobile bottom-of-viewport layout, and the iOS crash-loop guard.
 
 ### Running subsets
@@ -99,6 +99,8 @@ User types → debounce 150 ms → classify() →
 ```bash
 npx playwright test -g "bang"                        # one describe block
 npx playwright test -g "cancel" --headed             # watch it run
+npx playwright test --project=chromium               # single engine, ~90s
+npx playwright test --project=firefox                # single engine, ~90s
 npx playwright test --project=mobile-safari          # iPhone 13 viewport only
 npx playwright test tests/mobile-and-webkit.spec.ts  # Safari-focused suite
 ```
@@ -150,6 +152,17 @@ Embeddings + model are loaded **sequentially** (`await fetchEmbeddings(); await 
 
 ### Single-letter shortcuts must NOT fire while the search input has focus
 The `?`, `/`, and `t` shortcuts live on `document` and short-circuit when `event.target` is an `<input>` / `<textarea>` / `contentEditable` element via the `isTypingTarget()` helper. Attaching them to the `#search` element directly was a long-standing bug: typing any query containing `t` would `preventDefault` the keystroke and silently flip the theme, which users perceived as the page "randomly turning to light mode". Keep the document-level handler; never re-add per-input shortcuts.
+
+### Score chips are real `<button>` elements, by design
+`renderScores()` builds each `.score-row` with `document.createElement('button')`, not a `<div>` with `role="button"`. This gives us:
+- Native keyboard activation (Enter/Space) without a manual keydown handler.
+- An auto-exposed `role=button` for screen readers.
+- Real focus styling via `:focus-visible`.
+
+CSS resets the button's user-agent appearance (`border: 1px solid transparent; color: inherit; font: inherit`) so the chip still looks like a chip. Click handling is event-delegated on `#scores` so it survives every re-render. The handler short-circuits if `search.value.trim()` is empty.
+
+### `performRoute(query, immediate, overrideKey)` — the third arg is the override
+`performRoute` accepts an optional `overrideKey`. When provided, the function **skips `classify()` entirely** and routes to that engine directly. This is how both the engine-hint click and the score-chip click bypass the model's pick. If you ever need to re-introduce a "manual route" code path, use this signature — don't add another routing function and don't temporarily mutate the engine-selection state.
 
 ### Mobile layout: scores live inside `.input-wrap`
 On mobile (`<768px`), `#scores` renders inline beneath the input as wrapping pill-chips (`position: static`, `flex-wrap: wrap`). On desktop (`≥768px`), CSS lifts it back into a fixed bottom-left vertical list. The DOM ordering matters — `#scores` must be the last child of `.input-wrap` so it sits between the engine hint and the bottom-fixed footer. Don't move it back to the page-level layout: the previous fixed-bottom horizontal-scroll strip overlapped the footer links + status dot once the soft keyboard pushed everything up.

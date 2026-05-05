@@ -6,17 +6,20 @@ import { defineConfig, devices } from '@playwright/test';
  * which means every test re-downloads from the local server. Two workers
  * keep wall-clock time reasonable without thrashing CI memory.
  *
- * We run three projects:
+ * We run four projects:
  *
- *   - `chromium`     desktop Chrome (the original suite)
- *   - `webkit`       desktop Safari engine — catches Safari-specific
- *                    bugs in the on-device ML pipeline
+ *   - `chromium`      desktop Chrome (the original suite)
+ *   - `firefox`       desktop Firefox — Gecko has its own quirks around
+ *                     visualViewport, IndexedDB, and ONNX/WASM that
+ *                     Chromium and WebKit don't surface
+ *   - `webkit`        desktop Safari engine — catches Safari-specific
+ *                     bugs in the on-device ML pipeline
  *   - `mobile-safari` iPhone 13 viewport on the WebKit engine — catches
- *                    iOS layout regressions and the soft-keyboard /
- *                    visual-viewport behavior.
+ *                     iOS layout regressions and the soft-keyboard /
+ *                     visual-viewport behavior.
  *
- * Some tests are mobile-only (`@mobile`) or webkit-only (`@webkit`); see
- * tags inside `tests/`.
+ * Some tests are mobile-only or webkit-only; they `test.skip()` when
+ * run on the wrong project so the suite stays valid across all four.
  */
 export default defineConfig({
   testDir: './tests',
@@ -34,6 +37,10 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',

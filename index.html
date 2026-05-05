@@ -323,6 +323,7 @@
     max-height: 12rem;
   }
   .scores-panel .score-row {
+    /* Real <button> reset — drop browser defaults, keep our chip look. */
     display: flex;
     align-items: center;
     gap: 0.35rem;
@@ -330,6 +331,27 @@
     background: rgba(128,128,128,0.08);
     padding: 0.25rem 0.55rem;
     border-radius: 999px;
+    border: 1px solid transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    /* Disable the iOS double-tap zoom delay so the override feels snappy. */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease,
+                color 0.15s ease, transform 0.05s ease;
+  }
+  .scores-panel .score-row:hover {
+    background: rgba(128,128,128,0.16);
+    color: var(--text);
+  }
+  .scores-panel .score-row:active {
+    transform: scale(0.97);
+  }
+  .scores-panel .score-row:focus-visible {
+    outline: none;
+    border-color: var(--text);
+    color: var(--text);
   }
   .scores-panel .score-bar {
     width: 32px;
@@ -378,11 +400,17 @@
       max-height: none;
     }
     .scores-panel .score-row {
+      /* Desktop look: not a chip — just a row of text with a tiny
+         bar. Keep it visually quiet but still hoverable / clickable
+         so power users can override the routing decision. */
       background: transparent;
-      padding: 0;
-      border-radius: 0;
+      padding: 0.05rem 0.25rem;
+      border-radius: 4px;
       gap: 0.5rem;
       pointer-events: auto;
+    }
+    .scores-panel .score-row:hover {
+      background: rgba(128,128,128,0.10);
     }
     .scores-panel .score-bar {
       width: 60px;
@@ -1235,14 +1263,20 @@
       scoresPanel.replaceChildren();
       return;
     }
-    // Build with DOM nodes (avoids innerHTML / XSS surface).
+    // Build with DOM nodes (avoids innerHTML / XSS surface). Each row
+    // is rendered as a real <button> so it's keyboard-focusable and
+    // the click-to-override behavior is announced correctly to screen
+    // readers — pressing Enter/Space on a chip routes to that engine
+    // exactly as a click does.
     const frag = document.createDocumentFragment();
     for (const s of result.scores) {
       const pct = Math.round(s.score * 100);
       const isBest = s.key === result.key;
-      const row = document.createElement('div');
+      const row = document.createElement('button');
+      row.type = 'button';
       row.className = 'score-row';
       row.dataset.engine = s.key;
+      row.setAttribute('aria-label', `Route to ${engines[s.key].name} (${pct}% match)`);
       row.innerHTML =
         `<span class="score-label">${engines[s.key].name}</span>` +
         `<div class="score-bar"><div class="score-fill${isBest ? ' best' : ''}" style="width:${pct}%"></div></div>` +
@@ -1285,21 +1319,39 @@
       : engines[key].url(encodeURIComponent(q));
   }
 
-  async function performRoute(rawQuery, immediate = false) {
+  /**
+   * @param {string}  rawQuery  the user's text
+   * @param {boolean} immediate true → navigate without showing the
+   *                            "redirecting…" overlay (used when the
+   *                            user explicitly clicks a destination)
+   * @param {string?} overrideKey  if provided, route to this engine
+   *                            *instead* of asking the model to
+   *                            classify. This is how the engine-hint
+   *                            click-to-route and the score-chip
+   *                            click-to-override paths bypass the
+   *                            usual semantic decision.
+   */
+  async function performRoute(rawQuery, immediate = false, overrideKey = null) {
     if (!rawQuery || !rawQuery.trim()) return;
     // Defensive: if a previous route was already armed (rapid double
     // Enter, or Enter while a redirect is pending), cancel it first so
     // we don't stack timers / redirect twice.
     if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
 
-    const result = await classify(rawQuery);
-    const url = buildTargetUrl(rawQuery, result.key);
+    let key;
+    if (overrideKey && engines[overrideKey]) {
+      key = overrideKey;
+    } else {
+      const result = await classify(rawQuery);
+      key = result.key;
+    }
+    const url = buildTargetUrl(rawQuery, key);
 
     if (immediate) {
       location.replace(url);
       return;
     }
-    display.textContent = engines[result.key].name;
+    display.textContent = engines[key].name;
     overlay.style.display = 'flex';
     search.blur();
     // Reset width to 0 first so the transition has somewhere to go even
@@ -1473,14 +1525,34 @@
   }, 3000);
 
   // ───────────────────────────────────────────────────────────────────────
-  // Click-to-route: clicking the engine hint instantly routes to that
-  // destination (or overrides the default if the model picked something
-  // the user disagrees with).
+  // Click-to-route
+  //
+  //  - Clicking the engine hint instantly routes to the engine the
+  //    model already picked (a one-tap confirmation).
+  //  - Clicking ANY score chip overrides the model's pick and routes
+  //    to that engine instead. The chips are real <button>s so
+  //    keyboard users get Enter/Space for free; a native click event
+  //    fires for both pointer and keyboard activations.
+  //
+  // Both paths use `performRoute(query, immediate=true, overrideKey)`,
+  // which skips the "redirecting…" overlay because the user has just
+  // told us exactly where to go.
   // ───────────────────────────────────────────────────────────────────────
   hint.addEventListener('click', () => {
     const key = hint.dataset.routeKey;
     if (!key || !search.value.trim()) return;
-    performRoute(search.value, true);
+    performRoute(search.value, true, key);
+  });
+
+  // Event delegation: one listener on the panel survives every
+  // re-render of its children. `closest('.score-row')` lets the user
+  // click anywhere inside the chip (label, bar, percentage).
+  scoresPanel.addEventListener('click', e => {
+    const row = e.target.closest('.score-row');
+    if (!row || !scoresPanel.contains(row)) return;
+    const key = row.dataset.engine;
+    if (!key || !search.value.trim()) return;
+    performRoute(search.value, true, key);
   });
 
   // ───────────────────────────────────────────────────────────────────────
