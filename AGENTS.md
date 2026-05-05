@@ -91,12 +91,16 @@ User types → debounce 150 ms → classify() →
 - Tests assert on `data-*` attributes (`data-state`, `data-engine`) rather than visible text, so copy changes don't break specs.
 - `freezeRouteTimer()` stubs `setTimeout` with `ms === 1500` to prevent overlay auto-navigation during assertions.
 - Navigation assertions match hostname + encoding-agnostic query substring (engines vary between `+` and `%20`).
+- Three Playwright **projects**: `chromium`, `webkit`, `mobile-safari` (iPhone 13). The mobile-only and webkit-only tests use `test.skip(!isMobile)` / `test.skip(browserName !== 'webkit')` rather than tag filtering.
+- `tests/mobile-and-webkit.spec.ts` exists specifically to cover Safari/iOS regressions the desktop-Chromium suite is blind to: theme stability while typing, mobile bottom-of-viewport layout, and the iOS crash-loop guard.
 
 ### Running subsets
 
 ```bash
-npx playwright test -g "bang"          # one describe block
-npx playwright test -g "cancel" --headed  # watch it run
+npx playwright test -g "bang"                        # one describe block
+npx playwright test -g "cancel" --headed             # watch it run
+npx playwright test --project=mobile-safari          # iPhone 13 viewport only
+npx playwright test tests/mobile-and-webkit.spec.ts  # Safari-focused suite
 ```
 
 ---
@@ -130,6 +134,28 @@ The **Retry** button in the error banner does a full cache nuke: clears all `cac
 
 ### iOS-safe ONNX threading
 `env.backends.onnx.wasm.numThreads = 1` and `proxy = false` are intentional. iOS Safari does not give pages cross-origin isolation (no `SharedArrayBuffer`), so the multi-threaded ONNX path either no-ops or crashes with a confusing "protobuf parsing failed". Keep the single-thread pin even if the desktop story improves — it's the iOS pain point.
+
+### Pipeline pinned to `device: 'wasm'`
+`pipeline('feature-extraction', MODEL_ID, { dtype: 'q8', device: 'wasm' })` deliberately bypasses transformers.js v3's `device: 'auto'` probe. The auto-probe tries WebGPU first; on Safari (where WebGPU is gated/buggy as of 2025) this has been observed to crash the WebContent process. The WASM path is fast enough for a 22 MB MiniLM and predictable across browsers.
+
+### Crash-loop guard (the "A problem repeatedly occurred" page)
+iOS Safari shows a hostile "A problem repeatedly occurred on https://divid3.com/" interstitial after the WebContent process crashes ~3 times in a row, and effectively blacklists the URL. We defend against this with a session-storage sentinel:
+
+- `divid3-loading=1` is set before model load starts; cleared on success or on a *caught* failure.
+- On boot, if the flag is still set we know the previous attempt didn't return; we increment `divid3-crash-count`.
+- After `MAX_CRASHES_BEFORE_FALLBACK` (= 2) unfinished loads, `initModel()` short-circuits to "lite mode": no model load attempted, status dot goes red, error banner suggests Retry, and bangs/Enter still route correctly.
+- The Retry button explicitly clears both keys (plus caches + IndexedDB) before reloading.
+
+Embeddings + model are loaded **sequentially** (`await fetchEmbeddings(); await pipeline(...)`) rather than in `Promise.all`, so we don't peak at ~24 MB of concurrent downloads on a memory-pressured iPhone.
+
+### Single-letter shortcuts must NOT fire while the search input has focus
+The `?`, `/`, and `t` shortcuts live on `document` and short-circuit when `event.target` is an `<input>` / `<textarea>` / `contentEditable` element via the `isTypingTarget()` helper. Attaching them to the `#search` element directly was a long-standing bug: typing any query containing `t` would `preventDefault` the keystroke and silently flip the theme, which users perceived as the page "randomly turning to light mode". Keep the document-level handler; never re-add per-input shortcuts.
+
+### Mobile layout: scores live inside `.input-wrap`
+On mobile (`<768px`), `#scores` renders inline beneath the input as wrapping pill-chips (`position: static`, `flex-wrap: wrap`). On desktop (`≥768px`), CSS lifts it back into a fixed bottom-left vertical list. The DOM ordering matters — `#scores` must be the last child of `.input-wrap` so it sits between the engine hint and the bottom-fixed footer. Don't move it back to the page-level layout: the previous fixed-bottom horizontal-scroll strip overlapped the footer links + status dot once the soft keyboard pushed everything up.
+
+### Footer links + status dot hide when keyboard is up (mobile only)
+JS sets `body[data-keyboard="open"]` whenever `visualViewport` reports an inset > 120 px. CSS uses that to fade out `.footer-links` and `.status-dot` on viewports `<768px`. Desktop explicitly opts out via a `min-width: 768px` reset so the footer + dot stay visible regardless of focus state.
 
 ### Auto-retry only for transient failures
 `isTransientError()` whitelists `AbortError`, network/fetch/timeout messages, and HTTP 408/429/5xx. **Do not** add 4xx (other than 408/429) to that whitelist — a 404 means the URL is wrong, retrying just burns the user's data plan and never succeeds.

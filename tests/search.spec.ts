@@ -63,7 +63,11 @@ test.describe('search router — boot', () => {
 
     await page.goto(PATH);
     await waitForModelReady(page);
-    expect(errors, `unexpected console errors:\n${errors.join('\n')}`).toEqual([]);
+    // WebKit warns once that it doesn't recognize the
+    // `interactive-widget` viewport key; that's expected (Chromium
+    // honors it, WebKit ignores it harmlessly) and is filtered here.
+    const real = errors.filter(e => !/interactive-widget/i.test(e));
+    expect(real, `unexpected console errors:\n${real.join('\n')}`).toEqual([]);
   });
 
   test('input is autofocused and accessible', async ({ page }) => {
@@ -384,30 +388,62 @@ test.describe('search router — cancel button', () => {
 
 // ───────────────────────────────────────────────────────────────────────
 // Mobile keyboard awareness
+//
+// On mobile the scores panel now renders *inline* under the input
+// (inside `.input-wrap`) rather than as a fixed-position bottom strip,
+// so the old "scores panel lifts above the simulated keyboard"
+// assertion no longer applies — the inline panel moves with the
+// document, not via `bottom`. Instead, we assert two cleaner
+// invariants of the new layout:
+//   1. The visualViewport handler still updates `--keyboard-inset` so
+//      the desktop fixed-bottom layout (and the footer-links offset)
+//      can react to the soft keyboard.
+//   2. The footer links collapse out of view (`opacity: 0`) once the
+//      keyboard is detected on mobile, so they can never collide with
+//      the inline scores chips.
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — mobile keyboard awareness', () => {
-  test('--keyboard-inset lifts scores panel above the simulated keyboard', async ({ page }) => {
+  async function simulateKeyboard(page: Page, insetPx: number) {
+    await page.evaluate((px: number) => {
+      const vv = window.visualViewport!;
+      Object.defineProperty(vv, 'height',    { configurable: true, value: window.innerHeight - px });
+      Object.defineProperty(vv, 'offsetTop', { configurable: true, value: 0 });
+      vv.dispatchEvent(new Event('resize'));
+    }, insetPx);
+  }
+
+  test('--keyboard-inset CSS variable updates when the visualViewport shrinks', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });   // iPhone 14
     await page.goto(PATH);
     await waitForModelReady(page);
 
-    await page.locator('#search').fill('how do I bake bread');
-    await expect(page.locator('#scores')).toHaveClass(/active/);
-
-    const baseline = await page.locator('#scores').evaluate(el =>
-      parseFloat(getComputedStyle(el).bottom)
+    const readInset = () => page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--keyboard-inset').trim()
     );
 
-    await page.evaluate(() => {
-      const vv = window.visualViewport!;
-      Object.defineProperty(vv, 'height',    { configurable: true, value: window.innerHeight - 350 });
-      Object.defineProperty(vv, 'offsetTop', { configurable: true, value: 0 });
-      vv.dispatchEvent(new Event('resize'));
-    });
+    expect(parseFloat(await readInset())).toBe(0);
+    await simulateKeyboard(page, 350);
+    await expect.poll(async () => parseFloat(await readInset())).toBeGreaterThan(300);
+  });
 
-    await expect.poll(async () =>
-      page.locator('#scores').evaluate(el => parseFloat(getComputedStyle(el).bottom))
-    ).toBeGreaterThan(baseline + 300);
+  test('footer links hide and body[data-keyboard="open"] is set when keyboard is up', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    // Before the keyboard appears, footer fades in via the `.visible`
+    // class. The opacity transition is 0.3s, so poll until the
+    // post-transition value is observed.
+    await expect(page.locator('.footer-links')).toHaveClass(/visible/);
+    await expect.poll(async () => parseFloat(
+      await page.locator('.footer-links').evaluate(el => getComputedStyle(el).opacity)
+    ), { timeout: 2_000 }).toBeGreaterThan(0);
+
+    await simulateKeyboard(page, 350);
+    await expect(page.locator('body')).toHaveAttribute('data-keyboard', 'open');
+    await expect.poll(async () => parseFloat(
+      await page.locator('.footer-links').evaluate(el => getComputedStyle(el).opacity)
+    )).toBe(0);
   });
 });
 
@@ -510,9 +546,16 @@ test.describe('search router — browser registration', () => {
     expect(xml).not.toMatch(/google-analytics|facebook|doubleclick/i);
   });
 
-  test('setup.html exposes the search URL and a working Copy button', async ({ page }) => {
-    // Grant clipboard permission so navigator.clipboard.writeText resolves.
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  test('setup.html exposes the search URL and a working Copy button', async ({ page, browserName }) => {
+    // WebKit's Playwright build doesn't expose `clipboard-write` as a
+    // grantable permission — calling grantPermissions throws there.
+    // Real WebKit browsers prompt the user the first time anyway, so
+    // the headless test wouldn't be representative even if it ran.
+    if (browserName !== 'webkit') {
+      await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    } else {
+      test.skip();
+    }
     await page.goto('/setup.html');
 
     const url = page.locator('#search-url');
@@ -568,11 +611,24 @@ test.describe('search router — transient retries', () => {
 
 // ───────────────────────────────────────────────────────────────────────
 // Keyboard shortcuts overlay
+//
+// The single-letter shortcuts (`?`, `/`, `t`) are deliberately *not*
+// honored while the search input has focus — otherwise typing a query
+// containing any of those characters would silently fire the shortcut
+// (the long-standing "typing a query randomly turns the page light"
+// bug). Each test below blurs the input first so that we exercise the
+// document-level handler, not the user-typing path.
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — keyboard shortcuts', () => {
+  /** Move focus off `#search` so document-level shortcuts fire. */
+  async function blurSearch(page: Page) {
+    await page.locator('#search').evaluate(el => (el as HTMLElement).blur());
+  }
+
   test('? key opens and closes the shortcuts overlay', async ({ page }) => {
     await page.goto(PATH);
     await waitForModelReady(page);
+    await blurSearch(page);
 
     await page.keyboard.press('?');
     await expect(page.locator('#shortcuts-overlay')).toHaveClass(/active/);
@@ -581,24 +637,23 @@ test.describe('search router — keyboard shortcuts', () => {
     await expect(page.locator('#shortcuts-overlay')).not.toHaveClass(/active/);
   });
 
-  test('/ key focuses the search input', async ({ page }) => {
+  test('/ key focuses the search input from elsewhere on the page', async ({ page }) => {
     await page.goto(PATH);
     await waitForModelReady(page);
-
-    // The search input has autofocus, so it starts focused.
-    // Just verify that pressing / keeps it focused (doesn't type the slash).
-    await expect(page.locator('#search')).toBeFocused();
-    const before = await page.locator('#search').inputValue();
+    await blurSearch(page);
+    await expect(page.locator('#search')).not.toBeFocused();
 
     await page.keyboard.press('/');
     await expect(page.locator('#search')).toBeFocused();
-    // The / key should not insert a character (it's handled as shortcut)
-    await expect(page.locator('#search')).toHaveValue(before);
+    // The `/` should NOT have been inserted as a character — the
+    // document handler ran preventDefault.
+    await expect(page.locator('#search')).toHaveValue('');
   });
 
   test('T key toggles the theme (adds .light or .dark)', async ({ page }) => {
     await page.goto(PATH);
     await waitForModelReady(page);
+    await blurSearch(page);
 
     const before = await page.evaluate(() => document.documentElement.className);
     await page.keyboard.press('t');
