@@ -272,7 +272,7 @@
    */
   .status-dot {
     position: fixed;
-    bottom: calc(1.25rem + var(--keyboard-inset, 0px));
+    bottom: calc(1.25rem + var(--keyboard-inset, 0px) + 2px);
     right: 1.25rem;
     width: 8px;
     height: 8px;
@@ -426,7 +426,7 @@
       font-size: 0.7rem;
     }
     .status-dot {
-      bottom: calc(2rem + var(--keyboard-inset, 0px));
+      bottom: calc(2rem + var(--keyboard-inset, 0px) + 2px);
       right: 2rem;
     }
   }
@@ -521,6 +521,7 @@
     right: 0;
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 1.5rem;
     z-index: 60;
     font-size: 0.7rem;
