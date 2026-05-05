@@ -1352,8 +1352,13 @@
           if (!isRedirecting) {
             loadingOverlay.classList.remove('active');
             document.querySelector('.footer-links').classList.add('visible');
+            // Only refresh the hint when we're staying on the page. On
+            // the `?q=` redirect path, kicking off an inference here
+            // would race with the redirect's own classify() call —
+            // single-flight would drop the redirect's call and leave
+            // the user stuck on "Loading model..." until they back out.
+            updateHint();
           }
-          updateHint();
           return true;
         } catch (err) {
           lastErr = err;
@@ -1842,8 +1847,20 @@
       key = overrideKey;
     } else {
       const result = await classify(rawQuery);
-      if (!result) return;          // dropped by single-flight guard
-      key = result.key;
+      if (!result) {
+        // classify() returned null because another inference was
+        // in-flight (single-flight guard). On the immediate path —
+        // `?q=` redirect, Enter, click-to-route — the user is
+        // committing to a route, so silently bailing would strand
+        // them on the loading overlay or do nothing on Enter.
+        // Fall back to deterministic classification: rules first
+        // (bangs, direct URLs), then keyword scoring, then DDG.
+        if (!immediate) return;
+        const q = rawQuery.toLowerCase().trim();
+        key = classifyRules(q) || classifyKeywords(q) || 'ddg';
+      } else {
+        key = result.key;
+      }
     }
     const url = buildTargetUrl(rawQuery, key);
 
