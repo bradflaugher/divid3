@@ -343,8 +343,8 @@
       ]
     },
     {
-      "key": "amazon",
-      "label": "Amazon (shopping)",
+      "key": "wirecutter",
+      "label": "Wirecutter (product reviews, \"best X\" guides)",
       "phrases": [
         "buy usb-c cable",
         "buy wireless headphones",
@@ -407,8 +407,8 @@
       ]
     },
     {
-      "key": "github",
-      "label": "GitHub (code search, libraries, repos)",
+      "key": "hn",
+      "label": "Hacker News (tech discussion, startups, programming)",
       "phrases": [
         "github react hooks examples",
         "github transformers.js examples",

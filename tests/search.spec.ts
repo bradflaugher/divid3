@@ -110,9 +110,9 @@ test.describe('search router — bang shortcuts', () => {
     qFragment: string;
   }[] = [
     { input: '!yt lofi hip hop',   engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
-    { input: '!gh gemini-cli',     engine: 'github',      host: /(^|\.)github\.com$/,       qParam: 'q',            qFragment: 'gemini-cli' },
+    { input: '!hn gemini-cli',     engine: 'hn',          host: /(^|\.)algolia\.com$/,      qParam: 'query',        qFragment: 'gemini-cli' },
     { input: '!w integral of x',   engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qParam: 'i',            qFragment: 'integral' },
-    { input: '!a usb cable',       engine: 'amazon',      host: /(^|\.)amazon\.com$/,       qParam: 'k',            qFragment: 'usb' },
+    { input: '!wc usb cable',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'usb' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
     // destination's interstitial is outside our control.
@@ -121,7 +121,7 @@ test.describe('search router — bang shortcuts', () => {
     { input: '!p quantum gravity', engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
     { input: '!y dancing dog',     engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
-    { input: '!git transformers',  engine: 'github',      host: /(^|\.)github\.com$/,       qParam: 'q',            qFragment: 'transformers' },
+    { input: '!nyt mattress',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'mattress' },
     { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
     { input: '!gr write a haiku',  engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'haiku' },
   ];
@@ -324,9 +324,9 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('body')).toHaveAttribute('data-engine', /.+/, { timeout: 10_000 });
     const first = await page.locator('body').getAttribute('data-engine');
 
-    await search.fill('!gh transformers.js');
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'github');
-    expect(first).not.toBe('github');
+    await search.fill('!hn transformers.js');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'hn');
+    expect(first).not.toBe('hn');
   });
 
   test('rapid-fire keystrokes settle on the latest query (hintSeq race fix)', async ({ page, isMobile }) => {
@@ -341,9 +341,9 @@ test.describe('search router — semantic routing', () => {
     await search.fill('cats');
     await search.fill('dogs');
     await search.fill('pizza');
-    await search.fill('!gh transformers.js');     // unambiguous final state
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'github', { timeout: 5_000 });
-    await expect(page.locator('#hint')).toHaveText('GitHub');
+    await search.fill('!hn transformers.js');     // unambiguous final state
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'hn', { timeout: 5_000 });
+    await expect(page.locator('#hint')).toHaveText('Hacker News');
   });
 });
 
@@ -796,16 +796,16 @@ test.describe('search router — click-to-route', () => {
     const search = page.locator('#search');
     await search.fill('lofi beats');
     // Whatever the model picked, we assert the override sends the user
-    // to Amazon — that proves the chip click ignored the model's
+    // to Wirecutter — that proves the chip click ignored the model's
     // decision rather than coincidentally agreeing with it.
-    await expect(page.locator('#scores .score-row[data-engine="amazon"]')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#scores .score-row[data-engine="wirecutter"]')).toBeVisible({ timeout: 5_000 });
     const modelPick = await page.locator('body').getAttribute('data-engine');
-    expect(modelPick).not.toBe('amazon');
+    expect(modelPick).not.toBe('wirecutter');
 
-    const navPromise = page.waitForURL(/amazon\.com/, { timeout: 15_000, waitUntil: 'commit' });
-    await page.locator('#scores .score-row[data-engine="amazon"]').click();
+    const navPromise = page.waitForURL(/nytimes\.com\/wirecutter/, { timeout: 15_000, waitUntil: 'commit' });
+    await page.locator('#scores .score-row[data-engine="wirecutter"]').click();
     await navPromise;
-    expect(new URL(page.url()).hostname).toMatch(/amazon\.com$/);
+    expect(new URL(page.url()).hostname).toMatch(/nytimes\.com$/);
   });
 
   test('every score chip is keyboard-activatable as a real <button>', async ({ page, isMobile }) => {
@@ -837,12 +837,12 @@ test.describe('search router — click-to-route', () => {
     await waitForModelReady(page);
 
     await page.locator('#search').fill('lofi beats');
-    await expect(page.locator('#scores .score-row[data-engine="github"]')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#scores .score-row[data-engine="hn"]')).toBeVisible({ timeout: 5_000 });
 
-    const navPromise = page.waitForURL(/github\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    const navPromise = page.waitForURL(/hn\.algolia\.com/, { timeout: 15_000, waitUntil: 'commit' });
     // `.focus()` then space is more deterministic than tabbing through
     // the document because some engines focus the URL bar instead.
-    await page.locator('#scores .score-row[data-engine="github"]').focus();
+    await page.locator('#scores .score-row[data-engine="hn"]').focus();
     await page.keyboard.press('Enter');
     await navPromise;
   });
@@ -938,9 +938,9 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
   // no model nondeterminism, no thresholds to drift past.
   const cases: { query: string; engine: string; host: RegExp; qFragment: string }[] = [
     { query: 'lofi beats',                    engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qFragment: 'lofi' },
-    { query: 'github react examples',         engine: 'github',      host: /(^|\.)github\.com$/,       qFragment: 'react' },
+    { query: 'show hn react server components', engine: 'hn',        host: /(^|\.)algolia\.com$/,      qFragment: 'react' },
     { query: 'integral of x^2',               engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qFragment: 'integral' },
-    { query: 'buy usb-c cable',               engine: 'amazon',      host: /(^|\.)amazon\.com$/,       qFragment: 'usb' },
+    { query: 'best wireless headphones',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qFragment: 'wireless' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'bing-images', host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
     { query: 'explain quantum mechanics',     engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qFragment: 'quantum' },
@@ -979,13 +979,10 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     await bootKeywordMode(page);
 
     const search = page.locator('#search');
-    // "!w sin x" — Wolfram bang. Without the bang, "sin x" would also
-    // match wolfram via keywords, so we use a bang that DOESN'T match
-    // the natural keyword routing target: "!a usb cable" → Amazon (the
-    // bang). Without the bang, "buy usb cable" routes to amazon via
-    // keywords too, so let's use "!yt cake recipe" — without the bang
-    // "cake recipe" matches no keyword and would land on DDG, but with
-    // the bang it must go to YouTube.
+    // We use "!yt cake recipe" — without the bang "cake recipe" matches
+    // no keyword and would land on DDG, but with the bang it must go to
+    // YouTube. That makes it unambiguous that the bang is what's driving
+    // the engine selection (not coincident keyword matching).
     await search.fill('!yt cake recipe');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube');
 
@@ -1059,9 +1056,9 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     await navPromise;
   });
 
-  test('keyword routing: word boundaries — "decode" does NOT match the github "code" rules', async ({ page }) => {
+  test('keyword routing: word boundaries — "decode" does NOT match a future "code" rule', async ({ page }) => {
     // Defensive test against future regressions. If a contributor adds
-    // a bare 'code' keyword to the github rules, queries containing
+    // a bare 'code' keyword to any engine's rules, queries containing
     // "decode" / "encoded" would silently misroute. Word-boundary
     // matching is what prevents that — assert it stays correct.
     await bootKeywordMode(page);
