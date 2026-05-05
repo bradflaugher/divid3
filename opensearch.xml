@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OpenSearch description: lets Chromium-based browsers (Chrome, Edge, Brave,
+  Arc, Opera) and Firefox auto-detect divid3 as a search engine on first
+  visit. The browser picks this up via the <link rel="search"> in index.html
+  and offers it under Settings → Search engines, where the user can promote
+  it to default with one click.
+
+  ShortName must be ≤ 16 chars. The {searchTerms} token is replaced by the
+  raw user query (the browser handles URL-encoding).
+-->
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/"
+                       xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+  <ShortName>divid3</ShortName>
+  <LongName>divid3 — private search routing</LongName>
+  <Description>A private, on-device meta search engine. Divides your query and intelligently routes it to the best provider — without tracking.</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Image height="16" width="16" type="image/png">https://divid3.com/favicon-16x16.png</Image>
+  <Image height="32" width="32" type="image/png">https://divid3.com/favicon-32x32.png</Image>
+  <Image height="48" width="48" type="image/png">https://divid3.com/favicon-48x48.png</Image>
+  <Image height="96" width="96" type="image/png">https://divid3.com/favicon-96x96.png</Image>
+  <Image height="192" width="192" type="image/png">https://divid3.com/icon-192.png</Image>
+  <Url type="text/html" method="get" template="https://divid3.com/?q={searchTerms}"/>
+  <Url type="application/opensearchdescription+xml"
+       rel="self"
+       template="https://divid3.com/opensearch.xml"/>
+  <moz:SearchForm>https://divid3.com/</moz:SearchForm>
+  <Developer>divid3</Developer>
+  <Contact>https://github.com/bradflaugher/divid3/issues</Contact>
+  <Tags>search privacy router meta-search semantic on-device</Tags>
+  <SyndicationRight>open</SyndicationRight>
+  <AdultContent>false</AdultContent>
+  <Language>en-us</Language>
+</OpenSearchDescription>

@@ -11,6 +11,9 @@
 <meta name="referrer" content="no-referrer"/>
 <link rel="canonical" href="https://divid3.com/"/>
 <link rel="manifest" href="/search.webmanifest"/>
+<!-- OpenSearch description: lets Chromium-based browsers and Firefox auto-discover divid3
+     and offer it as a search engine the user can promote to default in one click. -->
+<link rel="search" type="application/opensearchdescription+xml" title="divid3" href="/opensearch.xml"/>
 <link rel="icon" href="/favicon.ico" sizes="any"/>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
 <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png"/>
@@ -504,6 +507,7 @@
 </div>
 
 <div class="footer-links">
+  <a href="/setup.html">Set as default</a>
   <a href="/privacy.html">Privacy</a>
   <a href="https://github.com/bradflaugher/divid3" target="_blank" rel="noopener">Source</a>
 </div>
@@ -526,17 +530,41 @@
   env.localModelPath = '/models/';
   env.useBrowserCache = true;
 
+  // ───────────────────────────────────────────────────────────────────────
+  // ONNX runtime tuning — iOS-safe defaults.
+  //
+  // iOS Safari does not give pages cross-origin isolation (no SAB), so
+  // any attempt to spawn ONNX worker threads either no-ops or blows up
+  // mid-init. Pinning numThreads = 1 keeps the runtime on the main
+  // WASM execution path everywhere — slightly slower on desktop, but
+  // dramatically more reliable on iOS. simd is still enabled (works
+  // fine in Safari 16+); proxy=false keeps everything on the main
+  // thread so transformers.js doesn't try to message a worker that
+  // can't be created.
+  // ───────────────────────────────────────────────────────────────────────
+  try {
+    if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+      env.backends.onnx.wasm.numThreads = 1;
+      env.backends.onnx.wasm.proxy = false;
+      // simd defaults to true; we don't override it.
+    }
+  } catch (e) { console.warn('Failed to tune ONNX backend', e); }
+
   const MODEL_ID = 'sentence-transformers/all-MiniLM-L6-v2';
   const MODEL_DTYPE = 'q8';
   // Versioned URL: bump when search-embeddings.json content changes so
   // any client (especially iOS Safari) can't serve a stale cached body
   // alongside a freshly-fetched index.html. The number must match the
   // committed file's content; see _headers for the fallback short TTL.
-  const EMBEDDINGS_VERSION = '1';
+  // v2: regenerated from scripts/search_phrases.json with curated examples
+  //     and 6-digit float precision (file size 3.7 MB → 1.75 MB).
+  const EMBEDDINGS_VERSION = '2';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   const SIMILARITY_THRESHOLD = 0.30;   // below this, fall back to DuckDuckGo
   const INPUT_DEBOUNCE_MS = 150;
   const FETCH_TIMEOUT_MS = 30_000;     // give up on stalled embeddings fetch
+  const MODEL_LOAD_RETRIES = 2;        // transient init failures only
+  const MODEL_LOAD_RETRY_BASE_MS = 800;
   // Read the route-delay countdown from CSS so the visual progress bar
   // and the redirect setTimeout can never drift out of sync.
   const ROUTE_DELAY_MS = (() => {
@@ -590,6 +618,25 @@
   const loadingOverlay = $('loading');
   const scoresPanel    = $('scores');
   const errorBanner    = $('error-banner');
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Global error handlers
+  //
+  // We never want a stray unhandled rejection or an uncaught error inside
+  // a transformers.js worker to take down the page silently. These are
+  // last-ditch logs (no network — privacy-by-design) plus a status-dot
+  // tooltip update so power users notice. The router itself already
+  // degrades to DDG on inference failure, so we don't need to mutate the
+  // model state from here.
+  // ───────────────────────────────────────────────────────────────────────
+  window.addEventListener('error', e => {
+    // Filter out non-page errors (broken external <img>/<script>).
+    if (e && e.target && e.target !== window) return;
+    console.error('Search router: uncaught error', e.error || e.message);
+  });
+  window.addEventListener('unhandledrejection', e => {
+    console.error('Search router: unhandled rejection', e.reason);
+  });
 
   // ───────────────────────────────────────────────────────────────────────
   // Mobile keyboard awareness
@@ -720,44 +767,79 @@
     location.reload();
   }
 
+  /**
+   * Distinguish transient init failures (network blips, partial body,
+   * abort due to timeout) from deterministic ones (404, protobuf parse).
+   * We only retry the transient class — retrying a protobuf failure just
+   * burns the user's data plan to no useful end.
+   */
+  function isTransientError(err) {
+    if (!err) return false;
+    const msg = String(err.message || err);
+    if (err.name === 'AbortError')                         return true;
+    if (/network|fetch|failed to fetch|timeout|timed out/i.test(msg)) return true;
+    if (/HTTP 5\d\d|HTTP 408|HTTP 429/i.test(msg))         return true;
+    return false;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  /** Run the model + embeddings load once. Throws on any failure. */
+  async function loadModelOnce() {
+    const [raw, model] = await Promise.all([
+      fetchEmbeddings(),
+      pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE }),
+    ]);
+    return { raw, model };
+  }
+
   function initModel() {
     if (modelLoadPromise) return modelLoadPromise;
     loadingOverlay.classList.add('active');
     setStatus('loading', 'Embedding Model Loading…');
     modelLoadPromise = (async () => {
-      try {
-        console.log('Search router: initializing…');
-        const [raw, model] = await Promise.all([
-          fetchEmbeddings(),
-          pipeline('feature-extraction', MODEL_ID, { dtype: MODEL_DTYPE }),
-        ]);
-        // Convert to typed arrays once. Vectors are L2-normalized at
-        // build time, so cosine == dot product (no per-query sqrt).
-        routes = raw.map(r => ({
-          key: r.key,
-          vectors: r.vectors.map(v => Float32Array.from(v)),
-        }));
-        extractor = model;
-        modelReady = true;
-        setStatus('ready', 'Embedding Model Ready');
-        const total = routes.reduce((n, r) => n + r.vectors.length, 0);
-        console.log(`Search router: ready (${routes.length} routes, ${total} vectors)`);
-        if (!isRedirecting) {
-          loadingOverlay.classList.remove('active');
-          document.querySelector('.footer-links').classList.add('visible');
+      let lastErr = null;
+      for (let attempt = 0; attempt <= MODEL_LOAD_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            const wait = MODEL_LOAD_RETRY_BASE_MS * Math.pow(2, attempt - 1);
+            console.warn(`Search router: retrying model load (attempt ${attempt + 1}) after ${wait}ms`);
+            setStatus('loading', `Embedding Model Loading… (retry ${attempt})`);
+            await sleep(wait);
+          } else {
+            console.log('Search router: initializing…');
+          }
+          const { raw, model } = await loadModelOnce();
+          // Convert to typed arrays once. Vectors are L2-normalized at
+          // build time, so cosine == dot product (no per-query sqrt).
+          routes = raw.map(r => ({
+            key: r.key,
+            vectors: r.vectors.map(v => Float32Array.from(v)),
+          }));
+          extractor = model;
+          modelReady = true;
+          setStatus('ready', 'Embedding Model Ready');
+          const total = routes.reduce((n, r) => n + r.vectors.length, 0);
+          console.log(`Search router: ready (${routes.length} routes, ${total} vectors)`);
+          if (!isRedirecting) {
+            loadingOverlay.classList.remove('active');
+            document.querySelector('.footer-links').classList.add('visible');
+          }
+          updateHint();
+          return true;
+        } catch (err) {
+          lastErr = err;
+          console.error(`Search router: init attempt ${attempt + 1} failed`, err);
+          if (!isTransientError(err)) break;
         }
-        updateHint();
-        return true;
-      } catch (err) {
-        modelFailed = true;
-        const msg = (err && err.message) || String(err);
-        setStatus('failed', 'Embedding Model Failed: ' + msg);
-        showError(msg);
-        console.error('Search router: init failed', err);
-        loadingOverlay.classList.remove('active');
-        document.querySelector('.footer-links').classList.add('visible');
-        return false;
       }
+      modelFailed = true;
+      const msg = (lastErr && lastErr.message) || String(lastErr);
+      setStatus('failed', 'Embedding Model Failed: ' + msg);
+      showError(msg);
+      loadingOverlay.classList.remove('active');
+      document.querySelector('.footer-links').classList.add('visible');
+      return false;
     })();
     return modelLoadPromise;
   }

@@ -5,21 +5,29 @@ on:
     branches: [ main ]
     paths:
       - 'index.html'
+      - 'setup.html'
+      - 'opensearch.xml'
       - 'search-embeddings.json'
       - 'tests/**'
       - 'playwright.config.ts'
       - 'serve.json'
       - 'models/**'
+      - 'scripts/search_phrases.json'
+      - 'scripts/generate_search_embeddings.py'
       - '.github/workflows/search-tests.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'index.html'
+      - 'setup.html'
+      - 'opensearch.xml'
       - 'search-embeddings.json'
       - 'tests/**'
       - 'playwright.config.ts'
       - 'serve.json'
       - 'models/**'
+      - 'scripts/search_phrases.json'
+      - 'scripts/generate_search_embeddings.py'
       - '.github/workflows/search-tests.yml'
 
 jobs:

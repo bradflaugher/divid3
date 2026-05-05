@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Set as default — divid3</title>
+<meta name="description" content="How to set divid3 as your default search engine in Chrome, Edge, Firefox, Safari, Arc, Brave, and on iOS / macOS."/>
+<meta name="application-name" content="divid3"/>
+<meta name="apple-mobile-web-app-title" content="divid3"/>
+<meta name="robots" content="index,follow"/>
+<meta name="referrer" content="no-referrer"/>
+<link rel="canonical" href="https://divid3.com/setup.html"/>
+<link rel="manifest" href="/search.webmanifest"/>
+<link rel="icon" href="/favicon.ico" sizes="any"/>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+<link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon-dark.png" sizes="180x180" media="(prefers-color-scheme: dark)"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon-light.png" sizes="180x180" media="(prefers-color-scheme: light)"/>
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#000000"/>
+<link rel="search" type="application/opensearchdescription+xml" title="divid3" href="/opensearch.xml"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"/>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
+<meta name="color-scheme" content="dark light"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="divid3"/>
+<meta property="og:title" content="Set divid3 as your default search engine"/>
+<meta property="og:description" content="Step-by-step instructions for Chrome, Edge, Brave, Arc, Firefox, Safari, and iOS / macOS."/>
+<meta property="og:url" content="https://divid3.com/setup.html"/>
+<meta property="og:image" content="https://divid3.com/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="divid3 slash icon with the text private search routing, on device."/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Set divid3 as your default search engine"/>
+<meta name="twitter:description" content="Step-by-step instructions for Chrome, Edge, Brave, Arc, Firefox, Safari, and iOS / macOS."/>
+<meta name="twitter:image" content="https://divid3.com/twitter-card.png"/>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #000000;
+    --text: #ffffff;
+    --text-muted: #666;
+    --accent: #ffffff;
+    --code-bg: rgba(255,255,255,0.06);
+    --rule: rgba(128,128,128,0.25);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --text-muted: #999;
+      --accent: #000000;
+      --code-bg: rgba(0,0,0,0.05);
+      --rule: rgba(128,128,128,0.3);
+    }
+  }
+  html { overscroll-behavior: none; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: max(env(safe-area-inset-top), 3rem) 1.5rem max(env(safe-area-inset-bottom), 2rem) 1.5rem;
+    line-height: 1.6;
+  }
+  .content { width: 100%; max-width: 620px; }
+  h1 {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-weight: 200;
+    letter-spacing: -0.04em;
+    margin-bottom: 0.25rem;
+  }
+  .subtitle {
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+  }
+  h2 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-muted);
+  }
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  p, li {
+    font-size: 0.95rem;
+    font-weight: 300;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+  ol, ul { padding-left: 1.5rem; margin-bottom: 0.5rem; }
+  ol li, ul li { margin-bottom: 0.35rem; }
+  a {
+    color: var(--text);
+    text-decoration: underline;
+    text-decoration-color: var(--text-muted);
+    text-underline-offset: 3px;
+  }
+  a:hover { text-decoration-color: var(--text); }
+  code, kbd {
+    font-family: "SF Mono", "Fira Code", "Roboto Mono", monospace;
+    font-size: 0.85em;
+    background: var(--code-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+  }
+  kbd {
+    border: 1px solid var(--rule);
+    box-shadow: 0 1px 0 var(--rule);
+  }
+  .url-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--code-bg);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    margin: 0.75rem 0 1.25rem 0;
+    font-family: "SF Mono", "Fira Code", "Roboto Mono", monospace;
+    font-size: 0.85rem;
+    overflow: hidden;
+  }
+  .url-box code {
+    background: transparent;
+    padding: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .url-box button {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 0.25rem 0.65rem;
+    font: inherit;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    min-height: 32px;
+  }
+  .url-box button:hover, .url-box button:focus-visible {
+    color: var(--text);
+    border-color: var(--text);
+    outline: none;
+  }
+  .url-box button[data-state="copied"] {
+    color: var(--text);
+    border-color: var(--text);
+  }
+  .platform-card {
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .platform-card h3 { margin-top: 0; }
+  details > summary {
+    cursor: pointer;
+    list-style: none;
+    font-weight: 500;
+    padding: 0.5rem 0;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: "▸";
+    display: inline-block;
+    margin-right: 0.5rem;
+    transition: transform 0.15s;
+    color: var(--text-muted);
+  }
+  details[open] > summary::before { transform: rotate(90deg); }
+  .back-link {
+    display: inline-block;
+    margin-top: 3rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .back-link:hover { color: var(--text); }
+  .pill {
+    display: inline-block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div class="content">
+  <h1>Set as default</h1>
+  <div class="subtitle">divid3 as your search engine</div>
+
+  <p>The search router lives at this URL:</p>
+
+  <div class="url-box" role="group" aria-label="Search URL">
+    <code id="search-url">https://divid3.com/?q=%s</code>
+    <button id="copy-url" type="button" aria-label="Copy URL">Copy</button>
+  </div>
+
+  <p>
+    Most modern browsers <strong>auto-detect</strong> divid3 the first time you visit
+    <a href="/">divid3.com</a> — they pick up an OpenSearch description and offer the
+    engine under <em>Settings → Search engines</em>. If yours didn't, the steps below take
+    a few seconds.
+  </p>
+
+  <h2>Choose your browser</h2>
+
+  <details class="platform-card" id="card-chrome" open>
+    <summary>Chrome / Edge / Brave / Opera <span class="pill">recommended</span></summary>
+    <ol>
+      <li>Open <code>chrome://settings/searchEngines</code> (Edge: <code>edge://settings/searchEngines</code>).</li>
+      <li>Under <em>Site search</em>, click <strong>Add</strong>.</li>
+      <li>Name: <code>divid3</code>. Shortcut: <code>d</code>. URL: paste the URL above.</li>
+      <li>Click the <strong>⋮</strong> next to the new entry → <em>Make default</em>.</li>
+    </ol>
+    <p>Tip: with the shortcut set to <code>d</code>, you can type <kbd>d</kbd> + <kbd>Tab</kbd> in the address bar to search divid3 without making it the default.</p>
+  </details>
+
+  <details class="platform-card" id="card-arc">
+    <summary>Arc</summary>
+    <ol>
+      <li>Open <em>Arc → Settings → Profiles</em> (or press <kbd>⌘</kbd>+<kbd>,</kbd>).</li>
+      <li>Scroll to <em>Search engine</em> → <em>Manage search engines</em>.</li>
+      <li>Click <strong>Add</strong>, fill in: name <code>divid3</code>, shortcut <code>d</code>, URL from above.</li>
+      <li>Three-dot menu → <em>Make default</em>.</li>
+    </ol>
+  </details>
+
+  <details class="platform-card" id="card-firefox">
+    <summary>Firefox</summary>
+    <p>
+      Firefox should auto-detect divid3 when you visit
+      <a href="/">divid3.com</a> — look for the <strong>+</strong> badge on the address bar's
+      magnifying-glass icon, or right-click the address bar.
+    </p>
+    <p>To set as default afterwards:</p>
+    <ol>
+      <li>Open <em>Settings → Search</em>.</li>
+      <li>Under <em>Default Search Engine</em>, choose <strong>divid3</strong>.</li>
+    </ol>
+    <p>Manual add (if auto-detect didn't fire):</p>
+    <ol>
+      <li>Open <em>Settings → Search → Search Shortcuts → Add</em>.</li>
+      <li>Use the URL above. Firefox replaces <code>%s</code> automatically.</li>
+    </ol>
+  </details>
+
+  <details class="platform-card" id="card-safari">
+    <summary>Safari (iOS / iPadOS / macOS)</summary>
+    <p>
+      Safari doesn't expose a way to add an arbitrary search engine natively. Two reliable options:
+    </p>
+    <h3>Option 1 — <em>Customize Search Engine</em> extension</h3>
+    <ol>
+      <li>Install <a href="https://apps.apple.com/us/app/customize-search-engine/id6445840140" target="_blank" rel="noopener">Customize Search Engine</a> from the App Store (free, no account).</li>
+      <li>iOS: <em>Settings → Apps → Safari → Extensions</em> → enable it.<br/>macOS: <em>Safari → Settings → Extensions</em> → enable it.</li>
+      <li>Open the extension and paste the URL above.</li>
+      <li>Set it as the default search.</li>
+    </ol>
+    <h3>Option 2 — Add to Home Screen (iOS)</h3>
+    <ol>
+      <li>Open <a href="/">divid3.com</a> in Safari.</li>
+      <li>Tap the <strong>Share</strong> icon → <em>Add to Home Screen</em>.</li>
+      <li>Launch from the home-screen icon to get a full-screen, app-like experience that bypasses Safari's chrome.</li>
+    </ol>
+    <p style="color: var(--text-muted); font-size: 0.85rem;">
+      For best stability on iOS, give the page a few seconds on first visit so the model can finish caching to disk. After that, divid3 works offline.
+    </p>
+  </details>
+
+  <details class="platform-card" id="card-ddg">
+    <summary>DuckDuckGo Browser</summary>
+    <ol>
+      <li>Open <em>Settings → Search</em>.</li>
+      <li>Default Search Engine → <em>Other</em> → paste the URL above.</li>
+    </ol>
+  </details>
+
+  <details class="platform-card" id="card-android">
+    <summary>Android (Chrome / Samsung Internet)</summary>
+    <p><strong>Chrome:</strong> Visit <a href="/">divid3.com</a>, then open <em>Settings → Search engine → Recently visited</em> and pick <code>divid3</code>.</p>
+    <p><strong>Samsung Internet:</strong> <em>Settings → Search engine → Add search engine</em> and paste the URL above.</p>
+  </details>
+
+  <h2>Power-user shortcuts</h2>
+  <p>
+    Once divid3 is your default, you can still skip its model entirely with bang shortcuts —
+    they short-circuit straight to the engine:
+  </p>
+  <ul>
+    <li><code>!yt lofi</code> → YouTube</li>
+    <li><code>!gh react hooks</code> → GitHub</li>
+    <li><code>!w integral of x^2</code> → Wolfram Alpha</li>
+    <li><code>!a usb-c cable</code> → Amazon</li>
+    <li><code>!m coffee near me</code> → Google Maps</li>
+    <li><code>!p quantum gravity</code> → Perplexity</li>
+    <li><code>!g write a haiku</code> → Grok</li>
+    <li><code>!i black hole</code> → Bing Images</li>
+    <li><code>!d climate news</code> → DuckDuckGo</li>
+  </ul>
+  <p>
+    Plus typing a bare domain (<code>github.com</code>, <code>localhost:3000</code>) goes straight there.
+    The full list lives in <a href="https://github.com/bradflaugher/divid3#bang-shortcuts--instant-routing-without-the-model" target="_blank" rel="noopener">the README</a>.
+  </p>
+
+  <a class="back-link" href="/">← back to search</a>
+</div>
+
+<script>
+  // Detect browser and open the most relevant card. Best-effort only —
+  // the user can always click any card to open it.
+  (function () {
+    const ua = navigator.userAgent;
+    const cards = {
+      chrome:  /Chrome|Edg|Brave|OPR|Vivaldi/.test(ua) && !/Arc/.test(ua),
+      arc:     /Arc/.test(ua),
+      firefox: /Firefox/.test(ua),
+      safari:  /Safari/.test(ua) && !/Chrome|Edg|OPR/.test(ua),
+      android: /Android/.test(ua),
+    };
+    // Close all
+    document.querySelectorAll('details.platform-card').forEach(d => d.removeAttribute('open'));
+    // Open the first one matching, in priority order
+    for (const k of ['arc','firefox','safari','android','chrome']) {
+      if (cards[k]) {
+        const el = document.getElementById('card-' + k);
+        if (el) { el.setAttribute('open', ''); break; }
+      }
+    }
+    // Copy-to-clipboard. The URL contains %s on purpose — that's the
+    // search-engine template token most browsers expect.
+    const btn = document.getElementById('copy-url');
+    const code = document.getElementById('search-url');
+    if (btn && code) {
+      btn.addEventListener('click', async () => {
+        const text = code.textContent.trim();
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // Fallback for older browsers / insecure contexts.
+          const sel = document.createRange();
+          sel.selectNodeContents(code);
+          const s = window.getSelection();
+          s.removeAllRanges();
+          s.addRange(sel);
+          try { document.execCommand('copy'); } catch (_) {}
+          s.removeAllRanges();
+        }
+        btn.dataset.state = 'copied';
+        btn.textContent = 'Copied';
+        setTimeout(() => {
+          btn.dataset.state = '';
+          btn.textContent = 'Copy';
+        }, 1600);
+      });
+    }
+  })();
+</script>
+</body>
+</html>
