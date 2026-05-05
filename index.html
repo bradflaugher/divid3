@@ -416,8 +416,8 @@
       width: 60px;
     }
     .scores-panel .score-label {
-      /* Wide enough for "Wolfram Alpha" (13 chars) at 0.7rem mono. */
-      width: 95px;
+      /* Wide enough for "DuckDuckGo (html)" (17 chars) at 0.7rem mono. */
+      width: 130px;
       text-align: right;
       font-size: 0.7rem;
     }
@@ -577,6 +577,9 @@
   @media (min-width: 768px) {
     .footer-links {
       bottom: calc(2rem + var(--keyboard-inset, 0px));
+      left: auto;
+      right: 5rem;
+      justify-content: flex-end;
       font-size: 0.75rem;
       gap: 2rem;
     }
