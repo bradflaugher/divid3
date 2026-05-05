@@ -1842,6 +1842,7 @@
       key = overrideKey;
     } else {
       const result = await classify(rawQuery);
+      if (!result) return;          // dropped by single-flight guard
       key = result.key;
     }
     const url = buildTargetUrl(rawQuery, key);
