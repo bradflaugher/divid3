@@ -124,6 +124,7 @@ test.describe('search router — bang shortcuts', () => {
     { input: '!nyt mattress',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'mattress' },
     { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
     { input: '!gr write a haiku',  engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'haiku' },
+    { input: '!eb vintage lens',   engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
   ];
 
   for (const c of cases) {
@@ -283,10 +284,10 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#hint')).toHaveClass(/active/);
     await expect(page.locator('#scores')).toHaveClass(/active/);
 
-    // 9 score rows (one per route in the embeddings file).
-    await expect(page.locator('#scores .score-row')).toHaveCount(9);
+    // 10 score rows (one per route in the embeddings file).
+    await expect(page.locator('#scores .score-row')).toHaveCount(10);
     // Every row labels itself with its engine key for the test hook.
-    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(9);
+    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(10);
     // Exactly one row is marked best.
     await expect(page.locator('#scores .score-fill.best')).toHaveCount(1);
 
@@ -882,7 +883,7 @@ test.describe('search router — cache reliability', () => {
 //   - Model load failure after retries
 //
 // In this mode the embedding model is never loaded. classify() routes
-// via deterministic keyword rules (~ 100 phrase patterns across 9
+// via deterministic keyword rules (~ 100 phrase patterns across 10
 // engines, weighted by specificity), with DDG as the no-match fallback.
 //
 // The status dot turns purple to signal the mode visually. Bangs and
@@ -945,6 +946,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     { query: 'image of saturn',               engine: 'bing-images', host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
     { query: 'explain quantum mechanics',     engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qFragment: 'quantum' },
     { query: 'write a haiku about cats',      engine: 'grok',        host: /(^|\.)grok\.com$/,         qFragment: 'haiku' },
+    { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
   ];
 
   for (const c of cases) {
