@@ -147,17 +147,7 @@
   <p>The embedding model (<a href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2" target="_blank" rel="noopener">sentence-transformers/all-MiniLM-L6-v2</a>, ~22 MB q8-quantized ONNX) runs entirely in your browser via <a href="https://github.com/huggingface/transformers.js" target="_blank" rel="noopener">@huggingface/transformers</a> v3. After the first load, the model is cached locally and all inference happens on-device. Your queries never leave your machine until the router decides which search engine to send you to.</p>
 
   <h2>Where your query goes</h2>
-  <p>Once divid3 picks a destination, you are redirected to that search provider just like any normal link click. We don't proxy, modify, or intercept the request. Each provider has its own privacy policy:</p>
-  <ul>
-    <li><a href="https://duckduckgo.com/privacy" target="_blank" rel="noopener">DuckDuckGo Privacy Policy</a></li>
-    <li><a href="https://www.perplexity.ai/hub/legal/privacy-policy" target="_blank" rel="noopener">Perplexity Privacy Policy</a></li>
-    <li><a href="https://privacy.google.com/" target="_blank" rel="noopener">Google Privacy Policy</a> (Maps, YouTube)</li>
-    <li><a href="https://privacy.microsoft.com/" target="_blank" rel="noopener">Microsoft Privacy Policy</a> (Bing Images)</li>
-    <li><a href="https://help.nytimes.com/hc/en-us/articles/115014892108-Privacy-policy" target="_blank" rel="noopener">New York Times Privacy Policy</a> (Wirecutter)</li>
-    <li><a href="https://www.ycombinator.com/legal/#privacy" target="_blank" rel="noopener">Y Combinator Privacy Policy</a> (Hacker News)</li>
-    <li><a href="https://www.wolfram.com/legal/privacy/wolfram-alpha/" target="_blank" rel="noopener">Wolfram Alpha Privacy Policy</a></li>
-    <li><a href="https://x.com/en/privacy" target="_blank" rel="noopener">X Privacy Policy</a> (Grok)</li>
-  </ul>
+  <p>Once divid3 picks a destination, you are redirected to that search provider just like any normal link click. We don't proxy, modify, or intercept the request. Each provider has its own privacy policy; we don't maintain copies here because links rot and policies change. Check the destination site directly for their current terms.</p>
 
   <h2>Cookies and local storage</h2>
   <p>divid3 itself does not set cookies or use localStorage. The only persistent storage used is the browser's standard HTTP cache and IndexedDB, which transformers.js uses to store the downloaded model weights between visits. You can clear this at any time via your browser's developer tools or by tapping the <strong>Retry</strong> button on the main page, which wipes all application caches and reloads.</p>

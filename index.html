@@ -772,9 +772,8 @@
   // any client (especially iOS Safari) can't serve a stale cached body
   // alongside a freshly-fetched index.html. The number must match the
   // committed file's content; see _headers for the fallback short TTL.
-  // v2: regenerated from scripts/search_phrases.json with curated examples
-  //     and 6-digit float precision (file size 3.7 MB → 1.75 MB).
-  const EMBEDDINGS_VERSION = '2';
+  // v3: added eBay route for hard-to-find products, vintage, parts, collectibles.
+  const EMBEDDINGS_VERSION = '3';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   const SIMILARITY_THRESHOLD = 0.30;   // below this, fall back to DuckDuckGo
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
@@ -842,12 +841,14 @@
     'maps':        { name: 'Google Maps',   color: '#4285F4', url: q => `https://maps.google.com/maps?q=${q}` },
     'youtube':     { name: 'YouTube',       color: '#FF0000', url: q => `https://www.youtube.com/results?search_query=${q}` },
     'wirecutter':  { name: 'Wirecutter',    color: '#326891', url: q => `https://www.nytimes.com/wirecutter/search/?s=${q}` },
+    'ebay':        { name: 'eBay',          color: '#E53238', url: q => `https://www.ebay.com/sch/i.html?_nkw=${q}` },
     // Hacker News via Algolia. Default to past-month + popularity-sorted
     // stories — that's the high-signal slice (front-page-grade discussion
     // from the last 30 days), not the all-time firehose. Users who want
     // the full archive can always tweak the filters on the destination.
     'hn':          { name: 'Hacker News',   color: '#FF6600', url: q => `https://hn.algolia.com/?dateRange=pastMonth&page=0&prefix=false&query=${q}&sort=byPopularity&type=story` },
     'wolfram':     { name: 'Wolfram Alpha', color: '#DA0E1A', url: q => `https://www.wolframalpha.com/input/?i=${q}` },
+    'ebay':        { name: 'eBay',          color: '#E53238', url: q => `https://www.ebay.com/sch/i.html?_nkw=${q}` },
     'direct':      { name: 'Direct Link',   color: '#00ff00', url: q => q.startsWith('http') ? q : `https://${q}` }
   };
 
@@ -861,6 +862,7 @@
     g: 'grok',         gr: 'grok',
     hn: 'hn',          h: 'hn',
     w: 'wolfram',      wa: 'wolfram',
+    eb: 'ebay',        ebay: 'ebay',
     d: 'ddg',          ddg: 'ddg'
   };
 
@@ -929,6 +931,11 @@
     // ── grok ────────────────────────────────────────────────────────
     { engine: 'grok', weight: 5, kw: ['write a', 'write me a', 'tell me a joke', 'tell me a story', 'compose a', 'roast my', 'in the style of', 'dad joke', 'knock knock joke', 'pretend you are'] },
     { engine: 'grok', weight: 3, kw: ['haiku', 'limerick', 'sonnet', 'poem about', 'rap about', 'roleplay as', 'witty tweet'] },
+
+    // ── ebay ────────────────────────────────────────────────────────
+    { engine: 'ebay', weight: 5, kw: ['buy vintage', 'buy discontinued', 'buy rare', 'buy used', 'buy refurbished', 'hard to find', 'out of print', 'limited edition', 'collectible', 'replacement part', 'spare part', 'oem part', 'genuine part'] },
+    { engine: 'ebay', weight: 3, kw: ['buy on ebay', 'ebay listing', 'auction', 'bid on', 'seller rating', 'completed listings', 'sold items', 'buy it now'] },
+    { engine: 'ebay', weight: 2, kw: ['vintage', 'retro', 'discontinued', 'obsolete', 'rare find', 'second hand', 'pre-owned', 'factory sealed', 'new old stock', 'nos'] },
   ];
   /** Below this score, fall back to DDG. Tuned so that a single
    *  weight-1 match isn't enough to commit; you need a strong
