@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
 <title>Set as default — divid3</title>
-<meta name="description" content="How to set divid3 as your default search engine in Chrome, Edge, Firefox, Safari, Arc, Brave, and on iOS / macOS."/>
+<meta name="description" content="How to set divid3 as your default search engine in Chrome, Edge, Firefox, Safari, Brave, and on iOS / macOS."/>
 <meta name="application-name" content="divid3"/>
 <meta name="apple-mobile-web-app-title" content="divid3"/>
 <meta name="robots" content="index,follow"/>
@@ -28,7 +28,7 @@
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="divid3"/>
 <meta property="og:title" content="Set divid3 as your default search engine"/>
-<meta property="og:description" content="Step-by-step instructions for Chrome, Edge, Brave, Arc, Firefox, Safari, and iOS / macOS."/>
+<meta property="og:description" content="Step-by-step instructions for Chrome, Edge, Brave, Firefox, Safari, and iOS / macOS."/>
 <meta property="og:url" content="https://divid3.com/setup.html"/>
 <meta property="og:image" content="https://divid3.com/og-image.png"/>
 <meta property="og:image:width" content="1200"/>
@@ -36,7 +36,7 @@
 <meta property="og:image:alt" content="divid3 slash icon with the text private search routing, on device."/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="Set divid3 as your default search engine"/>
-<meta name="twitter:description" content="Step-by-step instructions for Chrome, Edge, Brave, Arc, Firefox, Safari, and iOS / macOS."/>
+<meta name="twitter:description" content="Step-by-step instructions for Chrome, Edge, Brave, Firefox, Safari, and iOS / macOS."/>
 <meta name="twitter:image" content="https://divid3.com/twitter-card.png"/>
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -239,7 +239,7 @@
   <h2>Choose your browser</h2>
 
   <details class="platform-card" id="card-chrome" open>
-    <summary>Chrome / Edge / Brave / Opera <span class="pill">recommended</span></summary>
+    <summary>Chromium-based (Chrome, Edge, Brave, Opera) <span class="pill">recommended</span></summary>
     <ol>
       <li>Open <code>chrome://settings/searchEngines</code> (Edge: <code>edge://settings/searchEngines</code>).</li>
       <li>Under <em>Site search</em>, click <strong>Add</strong>.</li>
@@ -247,35 +247,6 @@
       <li>Click the <strong>⋮</strong> next to the new entry → <em>Make default</em>.</li>
     </ol>
     <p>Tip: with the shortcut set to <code>d</code>, you can type <kbd>d</kbd> + <kbd>Tab</kbd> in the address bar to search divid3 without making it the default.</p>
-  </details>
-
-  <details class="platform-card" id="card-arc">
-    <summary>Arc</summary>
-    <ol>
-      <li>Open <em>Arc → Settings → Profiles</em> (or press <kbd>⌘</kbd>+<kbd>,</kbd>).</li>
-      <li>Scroll to <em>Search engine</em> → <em>Manage search engines</em>.</li>
-      <li>Click <strong>Add</strong>, fill in: name <code>divid3</code>, shortcut <code>d</code>, URL from above.</li>
-      <li>Three-dot menu → <em>Make default</em>.</li>
-    </ol>
-  </details>
-
-  <details class="platform-card" id="card-firefox">
-    <summary>Firefox</summary>
-    <p>
-      Firefox should auto-detect divid3 when you visit
-      <a href="/">divid3.com</a> — look for the <strong>+</strong> badge on the address bar's
-      magnifying-glass icon, or right-click the address bar.
-    </p>
-    <p>To set as default afterwards:</p>
-    <ol>
-      <li>Open <em>Settings → Search</em>.</li>
-      <li>Under <em>Default Search Engine</em>, choose <strong>divid3</strong>.</li>
-    </ol>
-    <p>Manual add (if auto-detect didn't fire):</p>
-    <ol>
-      <li>Open <em>Settings → Search → Search Shortcuts → Add</em>.</li>
-      <li>Use the URL above. Firefox replaces <code>%s</code> automatically.</li>
-    </ol>
   </details>
 
   <details class="platform-card" id="card-safari">
@@ -301,18 +272,23 @@
     </p>
   </details>
 
-  <details class="platform-card" id="card-ddg">
-    <summary>DuckDuckGo Browser</summary>
+  <details class="platform-card" id="card-firefox">
+    <summary>Firefox</summary>
+    <p>
+      Firefox should auto-detect divid3 when you visit
+      <a href="/">divid3.com</a> — look for the <strong>+</strong> badge on the address bar's
+      magnifying-glass icon, or right-click the address bar.
+    </p>
+    <p>To set as default afterwards:</p>
     <ol>
       <li>Open <em>Settings → Search</em>.</li>
-      <li>Default Search Engine → <em>Other</em> → paste the URL above.</li>
+      <li>Under <em>Default Search Engine</em>, choose <strong>divid3</strong>.</li>
     </ol>
-  </details>
-
-  <details class="platform-card" id="card-android">
-    <summary>Android (Chrome / Samsung Internet)</summary>
-    <p><strong>Chrome:</strong> Visit <a href="/">divid3.com</a>, then open <em>Settings → Search engine → Recently visited</em> and pick <code>divid3</code>.</p>
-    <p><strong>Samsung Internet:</strong> <em>Settings → Search engine → Add search engine</em> and paste the URL above.</p>
+    <p>Manual add (if auto-detect didn't fire):</p>
+    <ol>
+      <li>Open <em>Settings → Search → Search Shortcuts → Add</em>.</li>
+      <li>Use the URL above. Firefox replaces <code>%s</code> automatically.</li>
+    </ol>
   </details>
 
   <h2>Power-user shortcuts</h2>
@@ -345,16 +321,14 @@
   (function () {
     const ua = navigator.userAgent;
     const cards = {
-      chrome:  /Chrome|Edg|Brave|OPR|Vivaldi/.test(ua) && !/Arc/.test(ua),
-      arc:     /Arc/.test(ua),
+      chrome:  /Chrome|Edg|Brave|OPR|Vivaldi|Arc/.test(ua),
       firefox: /Firefox/.test(ua),
       safari:  /Safari/.test(ua) && !/Chrome|Edg|OPR/.test(ua),
-      android: /Android/.test(ua),
     };
     // Close all
     document.querySelectorAll('details.platform-card').forEach(d => d.removeAttribute('open'));
     // Open the first one matching, in priority order
-    for (const k of ['arc','firefox','safari','android','chrome']) {
+    for (const k of ['firefox','safari','chrome']) {
       if (cards[k]) {
         const el = document.getElementById('card-' + k);
         if (el) { el.setAttribute('open', ''); break; }
