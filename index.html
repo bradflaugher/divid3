@@ -247,6 +247,61 @@
     border-color: var(--text);
     background: rgba(255,255,255,0.05);
   }
+  .override-engines {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    max-width: min(90vw, 520px);
+    margin: 1.5rem 0 0.5rem;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.3s ease 0.15s, transform 0.3s ease 0.15s;
+  }
+  .routing-overlay.active .override-engines {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .override-btn {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 36px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .override-btn:hover, .override-btn:active {
+    color: var(--text);
+    border-color: var(--text);
+    background: rgba(255,255,255,0.05);
+  }
+  .override-btn:focus-visible {
+    outline: none;
+    border-color: var(--text);
+    color: var(--text);
+  }
+  .override-btn.selected {
+    border-color: var(--text);
+    color: var(--text);
+    background: rgba(255,255,255,0.08);
+  }
+  @media (min-width: 768px) {
+    .override-engines {
+      gap: 0.6rem;
+      margin-top: 2rem;
+    }
+    .override-btn {
+      font-size: 0.8rem;
+      padding: 0.45rem 1rem;
+    }
+  }
   .progress-bar {
     width: min(240px, 60vw);
     height: 2px;
@@ -697,6 +752,7 @@
 <div class="routing-overlay" id="overlay">
   <div class="engine-name" id="engine-display">DuckDuckGo</div>
   <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  <div class="override-engines" id="override-engines"></div>
   <button class="cancel-btn" id="cancel">Cancel</button>
 </div>
 
@@ -983,6 +1039,7 @@
   const errorBanner    = $('error-banner');
   const shortcutsOverlay = $('shortcuts-overlay');
   const themeToggle    = $('theme-toggle');
+  const overrideEngines = $('override-engines');
 
   // ───────────────────────────────────────────────────────────────────────
   // Global error handlers
@@ -1082,6 +1139,35 @@
   const _params = new URLSearchParams(location.search);
   const qParam = _params.get('q');
   const isRedirecting = qParam !== null;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Chrome Android search-engine registration helper
+  //
+  // Chrome for Android only offers to add a site as a search engine after
+  // the user has performed a search on it. Because divid3's homepage has
+  // no query string, first-time visitors never trigger that flow unless
+  // they manually type `/?q=test`. We detect Chrome Android and, once per
+  // session, append a demo query so the routing overlay appears. The user
+  // can cancel or let it redirect — either way Chrome sees a search result
+  // come from divid3 and offers to add it under Settings → Search engine.
+  // ───────────────────────────────────────────────────────────────────────
+  function isChromeAndroid() {
+    const ua = navigator.userAgent;
+    return /Android/.test(ua) && /Chrome/.test(ua) && !/Edg|OPR|Brave/.test(ua);
+  }
+  const CHROME_ANDROID_DEMO_KEY = 'divid3-chrome-android-demo';
+  function shouldTriggerChromeAndroidDemo() {
+    if (!isChromeAndroid()) return false;
+    if (isRedirecting) return false;
+    try {
+      if (sessionStorage.getItem(CHROME_ANDROID_DEMO_KEY) === '1') return false;
+    } catch (_) {}
+    return true;
+  }
+  function markChromeAndroidDemoDone() {
+    try { sessionStorage.setItem(CHROME_ANDROID_DEMO_KEY, '1'); } catch (_) {}
+  }
+
   if (_params.get('lite') === '1') {
     keywordMode = true;
     console.log('Search router: keyword mode (?lite=1 opt-in)');
@@ -1357,9 +1443,9 @@
           setStatus('ready', 'Embedding Model Ready');
           const total = routes.reduce((n, r) => n + r.vectors.length, 0);
           console.log(`Search router: ready (${routes.length} routes, ${total} vectors)`);
+          loadingOverlay.classList.remove('active');
+          document.querySelector('.footer-links').classList.add('visible');
           if (!isRedirecting) {
-            loadingOverlay.classList.remove('active');
-            document.querySelector('.footer-links').classList.add('visible');
             // Only refresh the hint when we're staying on the page. On
             // the `?q=` redirect path, kicking off an inference here
             // would race with the redirect's own classify() call —
@@ -1820,6 +1906,28 @@
   // ───────────────────────────────────────────────────────────────────────
   // Routing / redirect
   // ───────────────────────────────────────────────────────────────────────
+
+  /**
+   * Render a row of engine override buttons inside the routing overlay.
+   * The currently-selected engine is highlighted; clicking any button
+   * immediately routes there (skipping the countdown).
+   */
+  function renderOverrideButtons(selectedKey) {
+    overrideEngines.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (const [key, engine] of Object.entries(engines)) {
+      if (key === 'direct') continue;   // not a searchable destination
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'override-btn' + (key === selectedKey ? ' selected' : '');
+      btn.textContent = engine.name;
+      btn.dataset.engine = key;
+      btn.setAttribute('aria-label', `Route to ${engine.name}`);
+      frag.appendChild(btn);
+    }
+    overrideEngines.appendChild(frag);
+  }
+
   function buildTargetUrl(rawQuery, key) {
     let q = rawQuery.trim();
     if (q.startsWith('!')) {
@@ -1877,7 +1985,9 @@
       return;
     }
     display.textContent = engines[key].name;
+    renderOverrideButtons(key);
     overlay.style.display = 'flex';
+    overlay.classList.add('active');
     search.blur();
     // Reset width to 0 first so the transition has somewhere to go even
     // if the bar was previously filled by a cancelled route.
@@ -2013,7 +2123,9 @@
   function cancelRoute() {
     if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
     overlay.style.display = 'none';
+    overlay.classList.remove('active');
     progress.style.width = '0%';
+    overrideEngines.replaceChildren();
     search.focus();
   }
   cancel.addEventListener('click', cancelRoute);
@@ -2080,6 +2192,19 @@
     performRoute(search.value, true, key);
   });
 
+  // Event delegation for the routing-overlay override buttons.
+  overrideEngines.addEventListener('click', e => {
+    const btn = e.target.closest('.override-btn');
+    if (!btn || !overrideEngines.contains(btn)) return;
+    const key = btn.dataset.engine;
+    if (!key) return;
+    // Use the query that was originally being routed. When the overlay is
+    // shown from ?q= or Enter, search.value already holds the query.
+    const query = search.value.trim();
+    if (!query) return;
+    performRoute(query, true, key);
+  });
+
   // ───────────────────────────────────────────────────────────────────────
   // ?q=… auto-redirect entry point
   //
@@ -2110,9 +2235,25 @@
         // internally — bangs/direct URL/keyword/DDG. Previously this
         // path hard-coded DDG on model failure; keyword mode gives
         // us much smarter offline routing for free.
-        performRoute(trimmed, true);
+        // Show the overlay (not immediate) so the user can see the
+        // destination, cancel, or override before the redirect fires.
+        performRoute(trimmed, false);
       })();
     }
+  } else if (shouldTriggerChromeAndroidDemo()) {
+    // Chrome Android needs to see a search result come from divid3 before
+    // it offers to add the engine. Redirect once per session to a demo
+    // query so the routing overlay appears and the user can confirm.
+    markChromeAndroidDemoDone();
+    const demoUrl = new URL(location.href);
+    demoUrl.searchParams.set('q', 'test');
+    history.replaceState(null, '', demoUrl.toString());
+    search.value = 'test';
+    (async () => {
+      const ok = await initPromise;
+      if (pendingRedirectAborted) return;
+      performRoute('test', false);
+    })();
   }
 </script>
 </body>
