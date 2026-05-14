@@ -66,7 +66,7 @@
     /* Single source of truth for the "redirecting…" countdown. JS reads
        this back via getPropertyValue when arming the route timer, so the
        visual fill and the actual setTimeout always agree. */
-    --route-delay-ms: 1500ms;
+    --route-delay-ms: 3000ms;
   }
   @media (prefers-color-scheme: light) {
     :root {
@@ -885,7 +885,7 @@
     const v = getComputedStyle(document.documentElement)
       .getPropertyValue('--route-delay-ms').trim();
     const n = parseFloat(v);
-    if (!Number.isFinite(n) || n <= 0) return 1500;
+    if (!Number.isFinite(n) || n <= 0) return 3000;
     return v.endsWith('ms') ? n : n * 1000;       // s → ms
   })();
 
@@ -1987,10 +1987,19 @@
     }
     const url = buildTargetUrl(rawQuery, key);
 
-    if (immediate) {
+    // User: "don't show that override/splash screen thing on desktop as the user sees chips..."
+    // We only show the overlay if:
+    //  1. The call specifically asked for it (immediate=false), AND
+    //  2. We are on mobile OR we are in a redirect (?q=) path.
+    // On desktop, the Enter-key path (which passes immediate=false) will now
+    // skip the overlay and navigate immediately.
+    const shouldShowOverlay = !immediate && (mobileMedia.matches || isRedirecting);
+
+    if (!shouldShowOverlay) {
       location.replace(url);
       return;
     }
+
     display.textContent = engines[key].name;
     renderOverrideButtons(key);
     overlay.style.display = 'flex';

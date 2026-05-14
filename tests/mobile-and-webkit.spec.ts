@@ -171,7 +171,7 @@ test.describe('mobile inference policy', () => {
       const origSetTimeout = window.setTimeout;
       // @ts-ignore
       window.setTimeout = (fn: any, ms?: number, ...rest: any[]) => {
-        if (ms === 1500) return 0 as any;       // freeze the redirect
+        if (ms === 3000) return 0 as any;       // freeze the redirect
         return origSetTimeout(fn, ms, ...rest);
       };
     });
