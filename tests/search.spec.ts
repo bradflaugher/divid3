@@ -38,7 +38,7 @@ async function freezeRouteTimer(page: Page) {
     const orig = window.setTimeout;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).setTimeout = (fn: TimerHandler, ms?: number, ...args: any[]) => {
-      if (ms === 1500) return 0;     // route-delay timer — never fires
+      if (ms === 3000) return 0;     // route-delay timer — never fires
       return orig(fn, ms, ...args);
     };
   });
@@ -225,6 +225,19 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#search')).toBeVisible();
   });
 
+  test('Enter on desktop navigates immediately without overlay', async ({ page }) => {
+    await page.goto(PATH);
+    const search = page.locator('#search');
+    await search.fill('!yt cats');
+
+    // We expect navigation to YouTube without the overlay appearing.
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: MODEL_TIMEOUT });
+    await search.press('Enter');
+
+    await expect(page.locator('#overlay')).toBeHidden();
+    await navPromise;
+  });
+
   test('?q=%20%20 (whitespace only) does not redirect either', async ({ page }) => {
     // Same trim logic that empty-?q= takes; no navigation away.
     await page.goto(`${PATH}?q=%20%20`);
@@ -377,56 +390,49 @@ test.describe('search router — semantic routing', () => {
 test.describe('search router — cancel button', () => {
   test('cancel stops the redirect and refocuses the input', async ({ page }) => {
     await freezeRouteTimer(page);
-    await page.goto(PATH);
-
-    const search = page.locator('#search');
-    await search.fill('!yt lofi');
-    await search.press('Enter');
+    await page.goto(`${PATH}?q=!yt+lofi`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
 
     await page.locator('#cancel').click();
 
     await expect(page.locator('#overlay')).toBeHidden();
-    expect(page.url()).toMatch(/\/index\.html$/);
+    expect(page.url()).toContain('?q=!yt+lofi');
+    const search = page.locator('#search');
     await expect(search).toHaveValue('!yt lofi');
     await expect(search).toBeFocused();
 
     await page.waitForTimeout(2_000);
-    expect(page.url()).toMatch(/\/index\.html$/);
+    expect(page.url()).toContain('?q=!yt+lofi');
   });
 
   test('Escape key cancels the same way the button does', async ({ page }) => {
     await freezeRouteTimer(page);
-    await page.goto(PATH);
-
-    const search = page.locator('#search');
-    await search.fill('!yt cats');
-    await search.press('Enter');
-    await expect(page.locator('#overlay')).toBeVisible();
+    await page.goto(`${PATH}?q=!yt+cats`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
 
     // Escape from anywhere should close the overlay.
     await page.keyboard.press('Escape');
     await expect(page.locator('#overlay')).toBeHidden();
-    await expect(search).toBeFocused();
+    await expect(page.locator('#search')).toBeFocused();
   });
 
   test('rapid double-Enter does not stack two route timers', async ({ page }) => {
-    // Without the defensive clearTimeout in performRoute, pressing
-    // Enter twice would arm two redirect timers and produce a broken
-    // double-navigation sequence. The freeze stub is a noop here —
-    // we just want to assert the overlay state is consistent.
+    // On desktop, manual Enter is immediate, so we must use ?q= to test the
+    // timer/overlay logic. We load the page with ?q=, then press Enter again
+    // while the overlay is up to simulate a double-commit.
     await freezeRouteTimer(page);
-    await page.goto(PATH);
+    await page.goto(`${PATH}?q=!yt+lofi`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
 
     const search = page.locator('#search');
-    await search.fill('!yt lofi');
+    await search.focus();
     await search.press('Enter');
-    await search.press('Enter');     // intentional double press
 
     await expect(page.locator('#overlay')).toBeVisible();
     // One overlay, one progress bar; cancelling once should suffice.
     await page.locator('#cancel').click();
     await expect(page.locator('#overlay')).toBeHidden();
-    expect(page.url()).toMatch(/\/index\.html$/);
+    expect(page.url()).toContain('?q=!yt+lofi');
   });
 });
 
