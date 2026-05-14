@@ -177,33 +177,45 @@ test.describe('search router — bang shortcuts', () => {
 // ?q= entry-point redirect
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — query parameter redirect', () => {
-  test('?q=!yt+lofi auto-redirects to YouTube', async ({ page }) => {
-    // waitUntil:'commit' — see comment in the bang-shortcut test at L148.
-    // The redirect is what we're asserting, not YouTube's load behavior.
-    const navPromise = page.waitForURL(/youtube\.com/, { timeout: MODEL_TIMEOUT, waitUntil: 'commit' });
+  test('?q=!yt+lofi shows routing overlay with override buttons', async ({ page }) => {
+    await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=!yt+lofi`);
-    // Loading overlay should be visible while the model is fetched.
-    await expect(page.locator('#loading')).toHaveClass(/active/);
-    await navPromise;
-    expect(page.url()).toMatch(/youtube\.com\/results\?search_query=lofi/);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#engine-display')).toHaveText('YouTube');
+    // Override buttons should render (all engines except 'direct').
+    const btns = page.locator('#override-engines .override-btn');
+    await expect(btns).toHaveCount(10, { timeout: 5_000 });
+    // The selected engine should be highlighted.
+    await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
   });
 
-  test('?q=github.com → direct link redirect (rule-based, no model wait)', async ({ page }) => {
-    // Direct-URL classification is rule-based, but the redirect path
-    // still awaits initModel resolution. Confirm we end up on github.com.
-    const navPromise = page.waitForURL(/^https?:\/\/(www\.)?github\.com\/?$/, { timeout: MODEL_TIMEOUT });
+  test('?q=!yt+lofi cancel keeps user on page', async ({ page }) => {
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=!yt+lofi`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+
+    await page.locator('#cancel').click();
+    await expect(page.locator('#overlay')).toBeHidden();
+    expect(page.url()).toContain('/index.html?q=!yt+lofi');
+    await expect(page.locator('#search')).toHaveValue('!yt lofi');
+    await expect(page.locator('#search')).toBeFocused();
+  });
+
+  test('?q=github.com shows routing overlay for direct link', async ({ page }) => {
+    await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=github.com`);
-    await navPromise;
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#engine-display')).toHaveText('Direct Link');
   });
 
-  test('?q=how+to+make+pizza routes via semantic engine after model loads', async ({ page }) => {
-    // No bang, no domain — must wait for the model and pick something.
-    const navPromise = page.waitForURL(url => {
-      const host = new URL(url.toString()).hostname;
-      return host !== 'localhost';
-    }, { timeout: MODEL_TIMEOUT });
+  test('?q=how+to+make+pizza shows overlay with semantic engine', async ({ page }) => {
+    await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=how+to+make+pizza`);
-    await navPromise;
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    const name = await page.locator('#engine-display').textContent();
+    expect(name).toBeTruthy();
+    expect(name!.trim().length).toBeGreaterThan(0);
+    expect(name).not.toBe('DuckDuckGo (html)');
   });
 
   test('?q= (empty) does not redirect and shows the page', async ({ page }) => {
@@ -219,6 +231,17 @@ test.describe('search router — query parameter redirect', () => {
     await waitForModelReady(page);
     await expect(page.locator('#search')).toBeVisible();
     expect(page.url()).toContain('/index.html?q=');
+  });
+
+  test('?q= override button routes immediately to chosen engine', async ({ page }) => {
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=lofi+beats`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+
+    // Click the Wirecutter override button — should route there immediately.
+    const navPromise = page.waitForURL(/nytimes\.com\/wirecutter/, { timeout: 15_000, waitUntil: 'commit' });
+    await page.locator('#override-engines .override-btn[data-engine="wirecutter"]').click();
+    await navPromise;
   });
 });
 
@@ -511,12 +534,12 @@ test.describe('search router — model load failure', () => {
     await navPromise;
   });
 
-  test('?q=… falls back to DuckDuckGo when the model failed and no keyword matches', async ({ page }) => {
+  test('?q=… shows overlay and falls back to DuckDuckGo when model failed', async ({ page }) => {
     await breakEmbeddings(page);
-    const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 30_000, waitUntil: 'commit' });
+    await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=what+is+a+transformer`);
-    await navPromise;
-    expect(page.url()).toMatch(/q=what/);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('#engine-display')).toHaveText('DuckDuckGo (html)');
   });
 
   test('Retry button reloads the page', async ({ page }) => {
@@ -1002,25 +1025,22 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     await expect(page.locator('#hint')).toHaveText('Direct Link');
   });
 
-  test('keyword routing: ?q= URL parameter routes via keywords on a fresh boot', async ({ page }) => {
-    // The `?q=` redirect path runs through performRoute → classify,
+  test('keyword routing: ?q= URL parameter shows overlay and routes via keywords', async ({ page }) => {
+    // The `?q=` path runs through performRoute → classify,
     // which respects keywordMode the same way Enter does. So a
-    // ?q=lofi+beats&lite=1 visit should redirect to YouTube without
-    // ever loading the model.
+    // ?q=lofi+beats&lite=1 visit should show the overlay with YouTube
+    // selected, without ever loading the model.
     let modelHits = 0;
     await page.route('**/model_quantized.onnx', (route: Route) => {
       modelHits += 1;
       return route.continue();
     });
 
-    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
-    // page.goto's default waitUntil is 'load' — but our redirect lands
-    // on m.youtube.com, whose full load occasionally crashes headless
-    // WebKit on Linux. We only care that the redirect committed; use
-    // 'commit' here just like the navPromise above.
-    await page.goto(`${PATH}?q=lofi+beats&lite=1`, { waitUntil: 'commit' });
-    await navPromise;
-    expect(decodeURIComponent(page.url())).toMatch(/lofi/i);
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=lofi+beats&lite=1`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('#engine-display')).toHaveText('YouTube');
+    await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
     expect(modelHits, 'model should not have been fetched').toBe(0);
   });
 

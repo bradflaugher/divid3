@@ -191,6 +191,10 @@ test.describe('mobile inference policy', () => {
     const engineName = await page.locator('#engine-display').textContent();
     expect(engineName, 'overlay should show a routed engine name').toBeTruthy();
     expect(engineName!.trim().length).toBeGreaterThan(0);
+
+    // Override buttons should be visible on mobile too.
+    await expect(page.locator('#override-engines .override-btn')).toHaveCount(10, { timeout: 3_000 });
+    await expect(page.locator('#override-engines .override-btn.selected')).toBeVisible();
   });
 });
 
