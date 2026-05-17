@@ -210,19 +210,35 @@
     display: none;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     z-index: 100;
     text-align: center;
-    padding: 2rem;
+    padding: 2rem 1.5rem;
     animation: fadeIn 0.3s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .query-preview {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    max-width: 85vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
   .engine-name {
     font-size: clamp(2rem, 8vw, 3.5rem);
     font-weight: 100;
     letter-spacing: -0.06em;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
     word-break: break-word;
+    line-height: 1.1;
   }
   .cancel-btn {
     background: transparent;
@@ -235,7 +251,8 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     cursor: pointer;
-    margin-top: 3rem;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
     transition: all 0.2s;
     /* Larger tap target for mobile */
     min-height: 44px;
@@ -249,11 +266,12 @@
   }
   .override-engines {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-    max-width: min(90vw, 520px);
-    margin: 1.5rem 0 0.5rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    max-width: min(90vw, 320px);
+    margin: 1.25rem 0 0.5rem;
     opacity: 0;
     transform: translateY(6px);
     transition: opacity 0.3s ease 0.15s, transform 0.3s ease 0.15s;
@@ -263,19 +281,54 @@
     transform: translateY(0);
   }
   .override-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     background: transparent;
     border: 1px solid var(--text-muted);
     color: var(--text-muted);
-    padding: 0.4rem 0.85rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
     font-weight: 500;
     letter-spacing: 0.02em;
     cursor: pointer;
     transition: all 0.2s;
-    min-height: 36px;
+    min-height: 44px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  .override-label {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .override-bar {
+    width: 40px;
+    height: 3px;
+    background: rgba(128,128,128,0.15);
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5px;
+  }
+  .override-fill {
+    height: 100%;
+    background: var(--text-muted);
+    transition: width 0.3s ease;
+    border-radius: 1.5px;
+  }
+  .override-fill.best {
+    background: var(--text);
+  }
+  .override-val {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    min-width: 32px;
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
   .override-btn:hover, .override-btn:active {
     color: var(--text);
@@ -292,14 +345,34 @@
     color: var(--text);
     background: rgba(255,255,255,0.08);
   }
+  .override-btn.selected .override-fill {
+    background: var(--text);
+  }
+  .override-btn.selected .override-val {
+    opacity: 1;
+  }
   @media (min-width: 768px) {
+    .routing-overlay {
+      justify-content: center;
+      padding: 2rem;
+    }
+    .query-preview {
+      margin-top: 0;
+      font-size: 0.8rem;
+    }
+    .engine-name {
+      margin-bottom: 1.5rem;
+    }
     .override-engines {
       gap: 0.6rem;
       margin-top: 2rem;
     }
     .override-btn {
-      font-size: 0.8rem;
-      padding: 0.45rem 1rem;
+      font-size: 0.9rem;
+      padding: 0.6rem 1.25rem;
+    }
+    .override-bar {
+      width: 60px;
     }
   }
   .progress-bar {
@@ -315,7 +388,7 @@
     position: absolute;
     top: 0; left: 0; bottom: 0;
     width: 0%;
-    background: var(--text);
+    background: var(--engine-color, var(--text));
     transition: width var(--route-delay-ms) linear;
   }
   /*
@@ -750,6 +823,7 @@
 </div>
 
 <div class="routing-overlay" id="overlay">
+  <div class="query-preview" id="query-display"></div>
   <div class="engine-name" id="engine-display">DuckDuckGo</div>
   <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
   <div class="override-engines" id="override-engines"></div>
@@ -904,7 +978,6 @@
     // the full archive can always tweak the filters on the destination.
     'hn':          { name: 'Hacker News',   color: '#FF6600', url: q => `https://hn.algolia.com/?dateRange=pastMonth&page=0&prefix=false&query=${q}&sort=byPopularity&type=story` },
     'wolfram':     { name: 'Wolfram Alpha', color: '#DA0E1A', url: q => `https://www.wolframalpha.com/input/?i=${q}` },
-    'ebay':        { name: 'eBay',          color: '#E53238', url: q => `https://www.ebay.com/sch/i.html?_nkw=${q}` },
     'direct':      { name: 'Direct Link',   color: '#00ff00', url: q => q.startsWith('http') ? q : `https://${q}` }
   };
 
@@ -1038,6 +1111,7 @@
   const hint           = $('hint');
   const overlay        = $('overlay');
   const display        = $('engine-display');
+  const queryDisplay   = $('query-display');
   const progress       = $('progress');
   const cancel         = $('cancel');
   const statusDot      = $('status');
@@ -1919,17 +1993,41 @@
    * The currently-selected engine is highlighted; clicking any button
    * immediately routes there (skipping the countdown).
    */
-  function renderOverrideButtons(selectedKey) {
+  function renderOverrideButtons(selectedKey, scores = []) {
     overrideEngines.replaceChildren();
     const frag = document.createDocumentFragment();
-    for (const [key, engine] of Object.entries(engines)) {
-      if (key === 'direct') continue;   // not a searchable destination
+
+    // Rank by score if available; otherwise use default order (with the
+    // currently-selected engine first). scores is already sorted desc.
+    const rankedKeys = scores.length > 0
+      ? scores.map(s => s.key)
+      : [selectedKey, ...Object.keys(engines).filter(k => k !== 'direct' && k !== selectedKey)];
+
+    // Add any engines missing from scores (defensive)
+    for (const k of Object.keys(engines)) {
+      if (k !== 'direct' && !rankedKeys.includes(k)) rankedKeys.push(k);
+    }
+
+    for (const key of rankedKeys) {
+      const engine = engines[key];
+      if (!engine || key === 'direct') continue;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'override-btn' + (key === selectedKey ? ' selected' : '');
-      btn.textContent = engine.name;
       btn.dataset.engine = key;
       btn.setAttribute('aria-label', `Route to ${engine.name}`);
+
+      const scoreObj = scores.find(s => s.key === key);
+      const isSelected = key === selectedKey;
+      if (scoreObj) {
+        const pct = Math.round(scoreObj.score * 100);
+        btn.innerHTML =
+          `<span class="override-label">${engine.name}</span>` +
+          `<div class="override-bar"><div class="override-fill${isSelected ? ' best' : ''}" style="width:${pct}%"></div></div>` +
+          `<span class="override-val">${pct}%</span>`;
+      } else {
+        btn.innerHTML = `<span class="override-label">${engine.name}</span>`;
+      }
       frag.appendChild(btn);
     }
     overrideEngines.appendChild(frag);
@@ -1966,6 +2064,7 @@
     if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
 
     let key;
+    let scores = [];
     if (overrideKey && engines[overrideKey]) {
       key = overrideKey;
     } else {
@@ -1983,6 +2082,7 @@
         key = classifyRules(q) || classifyKeywords(q) || 'ddg';
       } else {
         key = result.key;
+        scores = result.scores;
       }
     }
     const url = buildTargetUrl(rawQuery, key);
@@ -2000,14 +2100,21 @@
       return;
     }
 
-    display.textContent = engines[key].name;
-    renderOverrideButtons(key);
+    const engine = engines[key];
+    queryDisplay.textContent = rawQuery;
+    display.textContent = engine.name;
+    document.documentElement.style.setProperty('--engine-color', engine.color);
+    renderOverrideButtons(key, scores);
     overlay.style.display = 'flex';
     overlay.classList.add('active');
     search.blur();
     // Reset width to 0 first so the transition has somewhere to go even
     // if the bar was previously filled by a cancelled route.
+    progress.style.transition = 'none';
     progress.style.width = '0%';
+    // Force reflow
+    progress.offsetHeight;
+    progress.style.transition = '';
     requestAnimationFrame(() => { progress.style.width = '100%'; });
     routeTimer = setTimeout(() => location.replace(url), ROUTE_DELAY_MS);
   }
@@ -2214,8 +2321,26 @@
     if (!btn || !overrideEngines.contains(btn)) return;
     const key = btn.dataset.engine;
     if (!key) return;
-    // Use the query that was originally being routed. When the overlay is
-    // shown from ?q= or Enter, search.value already holds the query.
+
+    // Immediate feedback: highlight the new selection and update the
+    // display name so the route feels instant even while the browser
+    // is busy starting the new navigation.
+    const allBtns = overrideEngines.querySelectorAll('.override-btn');
+    allBtns.forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+
+    const engine = engines[key];
+    display.textContent = engine.name;
+    document.documentElement.style.setProperty('--engine-color', engine.color);
+
+    // Haptic feedback (if supported)
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
+
+    // Stop the progress bar's visual fill. performRoute(..., true) will
+    // handle clearing the actual redirect timer.
+    progress.style.transition = 'none';
+    progress.style.width = '100%';
+
     const query = search.value.trim();
     if (!query) return;
     performRoute(query, true, key);
