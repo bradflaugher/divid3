@@ -171,7 +171,7 @@ test.describe('mobile inference policy', () => {
       const origSetTimeout = window.setTimeout;
       // @ts-ignore
       window.setTimeout = (fn: any, ms?: number, ...rest: any[]) => {
-        if (ms === 3000) return 0 as any;       // freeze the redirect
+        if (ms === 4000) return 0 as any;       // freeze the redirect
         return origSetTimeout(fn, ms, ...rest);
       };
     });
@@ -193,7 +193,7 @@ test.describe('mobile inference policy', () => {
     expect(engineName!.trim().length).toBeGreaterThan(0);
 
     // Override buttons should be visible on mobile too.
-    await expect(page.locator('#override-engines .override-btn')).toHaveCount(10, { timeout: 3_000 });
+    await expect(page.locator('#override-engines .override-btn')).toHaveCount(13, { timeout: 3_000 });
     await expect(page.locator('#override-engines .override-btn.selected')).toBeVisible();
   });
 });

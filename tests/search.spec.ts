@@ -38,7 +38,7 @@ async function freezeRouteTimer(page: Page) {
     const orig = window.setTimeout;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).setTimeout = (fn: TimerHandler, ms?: number, ...args: any[]) => {
-      if (ms === 3000) return 0;     // route-delay timer — never fires
+      if (ms === 4000) return 0;     // route-delay timer — never fires
       return orig(fn, ms, ...args);
     };
   });
@@ -111,19 +111,19 @@ test.describe('search router — bang shortcuts', () => {
   }[] = [
     { input: '!yt lofi hip hop',   engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
     { input: '!hn gemini-cli',     engine: 'hn',          host: /(^|\.)algolia\.com$/,      qParam: 'query',        qFragment: 'gemini-cli' },
-    { input: '!w integral of x',   engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qParam: 'i',            qFragment: 'integral' },
+    { input: '!wa integral of x',  engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qParam: 'i',            qFragment: 'integral' },
     { input: '!wc usb cable',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'usb' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
     // destination's interstitial is outside our control.
     // { input: '!m coffee shops',    engine: 'maps',        host: /(^|\.)google\.com$/,       qParam: 'q',            qFragment: 'coffee' },
-    { input: '!i black hole',      engine: 'bing-images', host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'black' },
+    { input: '!i black hole',      engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'black' },
     { input: '!p quantum gravity', engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
     { input: '!y dancing dog',     engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
     { input: '!nyt mattress',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'mattress' },
     { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
-    { input: '!gr write a haiku',  engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'haiku' },
+    { input: '!g trending on x',   engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'trending' },
     { input: '!eb vintage lens',   engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
   ];
 
@@ -184,7 +184,7 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#engine-display')).toHaveText('YouTube');
     // Override buttons should render (all engines except 'direct').
     const btns = page.locator('#override-engines .override-btn');
-    await expect(btns).toHaveCount(10, { timeout: 5_000 });
+    await expect(btns).toHaveCount(13, { timeout: 5_000 });
     // The selected engine should be highlighted.
     await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
   });
@@ -320,10 +320,10 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#hint')).toHaveClass(/active/);
     await expect(page.locator('#scores')).toHaveClass(/active/);
 
-    // 10 score rows (one per route in the embeddings file).
-    await expect(page.locator('#scores .score-row')).toHaveCount(10);
+    // 13 score rows (one per route in the embeddings file).
+    await expect(page.locator('#scores .score-row')).toHaveCount(13);
     // Every row labels itself with its engine key for the test hook.
-    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(10);
+    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(13);
     // Exactly one row is marked best.
     await expect(page.locator('#scores .score-fill.best')).toHaveCount(1);
 
@@ -416,23 +416,18 @@ test.describe('search router — cancel button', () => {
     await expect(page.locator('#search')).toBeFocused();
   });
 
-  test('rapid double-Enter does not stack two route timers', async ({ page }) => {
-    // On desktop, manual Enter is immediate, so we must use ?q= to test the
-    // timer/overlay logic. We load the page with ?q=, then press Enter again
-    // while the overlay is up to simulate a double-commit.
+  test('rapid double-Enter navigates immediately', async ({ page }) => {
+    // Our new feature: if the overlay is already active, Enter routes immediately.
     await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=!yt+lofi`);
     await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
 
     const search = page.locator('#search');
     await search.focus();
+    
+    const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000 });
     await search.press('Enter');
-
-    await expect(page.locator('#overlay')).toBeVisible();
-    // One overlay, one progress bar; cancelling once should suffice.
-    await page.locator('#cancel').click();
-    await expect(page.locator('#overlay')).toBeHidden();
-    expect(page.url()).toContain('?q=!yt+lofi');
+    await navPromise;
   });
 });
 
@@ -529,21 +524,21 @@ test.describe('search router — model load failure', () => {
     await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', { timeout: 30_000 });
 
     const search = page.locator('#search');
-    // "what is a transformer model" doesn't strongly match any keyword
+    // "decode this string model" doesn't strongly match any keyword
     // rule (transformers.js would route to GitHub, but the bare word
     // "transformer" doesn't match the 'transformers' keyword on word-
     // boundary). So it correctly falls through to the DDG default.
-    await search.fill('what is a transformer model');
+    await search.fill('decode this string model');
 
     const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 15_000 });
     await search.press('Enter');
     await navPromise;
   });
 
-  test('?q=… shows overlay and falls back to DuckDuckGo when model failed', async ({ page }) => {
+  test('?q=… shows overlay and falls back to DuckDuckGo (html) when model failed', async ({ page }) => {
     await breakEmbeddings(page);
     await freezeRouteTimer(page);
-    await page.goto(`${PATH}?q=what+is+a+transformer`);
+    await page.goto(`${PATH}?q=decode+this+string`);
     await expect(page.locator('#overlay')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('#engine-display')).toHaveText('DuckDuckGo (html)');
   });
@@ -972,9 +967,9 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     { query: 'integral of x^2',               engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qFragment: 'integral' },
     { query: 'best wireless headphones',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qFragment: 'wireless' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
-    { query: 'image of saturn',               engine: 'bing-images', host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
+    { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
     { query: 'explain quantum mechanics',     engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qFragment: 'quantum' },
-    { query: 'write a haiku about cats',      engine: 'grok',        host: /(^|\.)grok\.com$/,         qFragment: 'haiku' },
+    { query: 'trending on x',                 engine: 'grok',        host: /(^|\.)grok\.com$/,         qFragment: 'trending' },
     { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
   ];
 
@@ -1067,8 +1062,8 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     // Routing should still work via keywords even though the model
     // never loaded. Pick a query with a strong keyword signal.
     const search = page.locator('#search');
-    await search.fill('integral of sin(x)');
-    const navPromise = page.waitForURL(/wolframalpha\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    await search.fill('trending on x');
+    const navPromise = page.waitForURL(/grok\.com/, { timeout: 15_000, waitUntil: 'commit' });
     await search.press('Enter');
     await navPromise;
   });
