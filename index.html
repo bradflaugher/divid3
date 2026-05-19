@@ -902,7 +902,7 @@
   // alongside a freshly-fetched index.html. The number must match the
   // committed file's content; see _headers for the fallback short TTL.
   // v3: added eBay route for hard-to-find products, vintage, parts, collectibles.
-  const EMBEDDINGS_VERSION = '6';
+  const EMBEDDINGS_VERSION = '7';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   const SIMILARITY_THRESHOLD = 0.30;   // below this, fall back to DuckDuckGo (html)
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
@@ -965,7 +965,6 @@
   const engines = {
     'ddg':         { name: 'DuckDuckGo (html)', color: '#DE5833', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
     'images':      { name: 'Bing Images',   color: '#008373', url: q => `https://www.bing.com/images/search?q=${q}` },
-    'perplexity':  { name: 'Perplexity',    color: '#20B2AA', url: q => `https://www.perplexity.ai/search?q=${q}` },
     'grok':        { name: 'Grok',          color: '#1b1b1b', url: q => `https://grok.com/?q=${q}` },
     'maps':        { name: 'Google Maps',   color: '#4285F4', url: q => `https://maps.google.com/maps?q=${q}` },
     'youtube':     { name: 'YouTube',       color: '#FF0000', url: q => `https://www.youtube.com/results?search_query=${q}` },
@@ -985,7 +984,7 @@
     wc: 'wirecutter',  nyt: 'wirecutter',
     m: 'maps',         map: 'maps',
     i: 'images',       img: 'images',
-    p: 'perplexity',   px: 'perplexity',
+    p: 'grok',         px: 'grok',
     g: 'grok',         gr: 'grok',
     hn: 'hn',          h: 'hn',
     w: 'wiki',         wiki: 'wiki',
@@ -1063,11 +1062,9 @@
     { engine: 'images', weight: 3, kw: ['wallpaper', 'wallpapers', 'lockscreen', 'background image', 'desktop background', 'phone wallpaper'] },
     { engine: 'images', weight: 1, kw: ['image', 'images', 'photo', 'photos', 'picture', 'pictures', 'gif', 'meme'] },
 
-    // ── perplexity ──────────────────────────────────────────────────
-    { engine: 'perplexity', weight: 5, kw: ['pros and cons', 'tradeoffs between', 'difference between', 'comparison of', 'detailed comparison', 'literature review', 'research the', 'in depth analysis', 'overview of', 'history of'] },
-    { engine: 'perplexity', weight: 3, kw: ['explain', 'summarize', 'tldr', 'tl;dr', 'compare', 'how does', 'why does', 'why is', 'walk me through', 'breakdown of'] },
-
     // ── grok ────────────────────────────────────────────────────────
+    { engine: 'grok', weight: 5, kw: ['pros and cons', 'tradeoffs between', 'difference between', 'comparison of', 'detailed comparison', 'literature review', 'research the', 'in depth analysis', 'overview of', 'history of'] },
+    { engine: 'grok', weight: 3, kw: ['explain', 'summarize', 'tldr', 'tl;dr', 'compare', 'how does', 'why does', 'why is', 'walk me through', 'breakdown of'] },
     { engine: 'grok', weight: 5, kw: ['trending on x', 'trending on twitter', 'latest news on x', 'what elon said', 'breaking news live', 'current public opinion', 'twitter trends'] },
     { engine: 'grok', weight: 3, kw: ['twitter', 'news trends', 'viral video', 'social sentiment', 'what people think'] },
     { engine: 'grok', weight: 1, kw: ['write a', 'tell me a joke', 'pretend you are'] },

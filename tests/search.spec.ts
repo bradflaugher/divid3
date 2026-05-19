@@ -118,7 +118,7 @@ test.describe('search router — bang shortcuts', () => {
     // destination's interstitial is outside our control.
     // { input: '!m coffee shops',    engine: 'maps',        host: /(^|\.)google\.com$/,       qParam: 'q',            qFragment: 'coffee' },
     { input: '!i black hole',      engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'black' },
-    { input: '!p quantum gravity', engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qParam: 'q',            qFragment: 'quantum' },
+    { input: '!p quantum gravity', engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
     { input: '!y dancing dog',     engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
     { input: '!nyt mattress',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'mattress' },
@@ -184,7 +184,7 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#engine-display')).toHaveText('YouTube');
     // Override buttons should render (all engines except 'direct').
     const btns = page.locator('#override-engines .override-btn');
-    await expect(btns).toHaveCount(13, { timeout: 5_000 });
+    await expect(btns).toHaveCount(12, { timeout: 5_000 });
     // The selected engine should be highlighted.
     await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
   });
@@ -321,9 +321,9 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#scores')).toHaveClass(/active/);
 
     // 13 score rows (one per route in the embeddings file).
-    await expect(page.locator('#scores .score-row')).toHaveCount(13);
+    await expect(page.locator('#scores .score-row')).toHaveCount(12);
     // Every row labels itself with its engine key for the test hook.
-    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(13);
+    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(12);
     // Exactly one row is marked best.
     await expect(page.locator('#scores .score-fill.best')).toHaveCount(1);
 
@@ -968,7 +968,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     { query: 'best wireless headphones',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qFragment: 'wireless' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
-    { query: 'explain quantum mechanics',     engine: 'perplexity',  host: /(^|\.)perplexity\.ai$/,    qFragment: 'quantum' },
+    { query: 'explain quantum mechanics',     engine: 'grok',        host: /(^|\.)grok\.com$/,         qFragment: 'quantum' },
     { query: 'trending on x',                 engine: 'grok',        host: /(^|\.)grok\.com$/,         qFragment: 'trending' },
     { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
   ];
