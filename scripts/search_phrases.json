@@ -96,8 +96,8 @@
       ]
     },
     {
-      "key": "perplexity",
-      "label": "Perplexity (LLM-style explainer & research)",
+      "key": "grok",
+      "label": "Grok (timely news, trends, social search)",
       "phrases": [
         "explain quantum entanglement in simple terms",
         "summarize the plot of dune",
@@ -148,13 +148,7 @@
         "explain navier stokes equations in simple terms",
         "what are the major theories of consciousness",
         "compare different vaccine platforms",
-        "explain the riemann hypothesis"
-      ]
-    },
-    {
-      "key": "grok",
-      "label": "Grok (timely news, trends, social search)",
-      "phrases": [
+        "explain the riemann hypothesis",
         "what is trending on twitter right now",
         "latest news on x about space x",
         "current public opinion on the election",
