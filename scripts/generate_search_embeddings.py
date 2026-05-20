@@ -36,6 +36,7 @@ from tokenizers import Tokenizer
 REPO_ROOT      = Path(__file__).resolve().parent.parent
 PHRASES_FILE   = REPO_ROOT / "scripts" / "search_phrases.json"
 OUT_FILE       = REPO_ROOT / "search-embeddings.json"
+OUT_CONFIG_FILE = REPO_ROOT / "search-config.json"
 MODEL_DIR      = REPO_ROOT / "models" / "sentence-transformers" / "all-MiniLM-L6-v2"
 TOKENIZER_FILE = MODEL_DIR / "tokenizer.json"
 ONNX_FILE      = MODEL_DIR / "onnx" / "model_quantized.onnx"
@@ -89,6 +90,66 @@ def round_floats(vec: list[float], digits: int = 6) -> list[float]:
 
 def main() -> int:
     cfg = json.loads(PHRASES_FILE.read_text(encoding="utf-8"))
+
+    # Read customizable config parts
+    engines = cfg.get("engines")
+    bangs = cfg.get("bangs")
+    keyword_rules = cfg.get("keywordRules")
+
+    if not isinstance(engines, dict) or not engines:
+        raise SystemExit("scripts/search_phrases.json: 'engines' must be a non-empty object")
+    if not isinstance(bangs, dict) or not bangs:
+        raise SystemExit("scripts/search_phrases.json: 'bangs' must be a non-empty object")
+    if not isinstance(keyword_rules, list) or not keyword_rules:
+        raise SystemExit("scripts/search_phrases.json: 'keywordRules' must be a non-empty list")
+
+    # Validate per-engine shape: name + urlTemplate are required; nothing else
+    # is consumed by the runtime, so flag stray keys early.
+    allowed_engine_keys = {"name", "urlTemplate"}
+    for key, val in engines.items():
+        if not isinstance(val, dict):
+            raise SystemExit(f"engine '{key}' must be an object")
+        if not val.get("name"):
+            raise SystemExit(f"engine '{key}' missing required field 'name'")
+        if not val.get("urlTemplate"):
+            raise SystemExit(f"engine '{key}' missing required field 'urlTemplate'")
+        if key != "direct" and "{q}" not in val["urlTemplate"]:
+            raise SystemExit(
+                f"engine '{key}' urlTemplate must contain '{{q}}' "
+                f"(got {val['urlTemplate']!r})"
+            )
+        stray = set(val) - allowed_engine_keys
+        if stray:
+            raise SystemExit(
+                f"engine '{key}' has unsupported fields: {sorted(stray)}. "
+                f"Allowed: {sorted(allowed_engine_keys)}"
+            )
+
+    # Validate engines referenced in bangs and keywordRules
+    for shortcut, engine in bangs.items():
+        if engine not in engines:
+            raise SystemExit(f"bang '{shortcut}' references unknown engine '{engine}'")
+
+    for rule in keyword_rules:
+        engine = rule.get("engine")
+        if engine not in engines:
+            raise SystemExit(f"keyword rule references unknown engine '{engine}'")
+        if not isinstance(rule.get("kw"), list) or not rule["kw"]:
+            raise SystemExit(f"keyword rule for '{engine}' missing non-empty 'kw' list")
+        weight = rule.get("weight")
+        if not isinstance(weight, (int, float)) or weight <= 0:
+            raise SystemExit(f"keyword rule for '{engine}' needs a positive 'weight'")
+
+    # Phrases must reference known engines too (otherwise embeddings get
+    # built for a route that the runtime can't dispatch to).
+    for route in cfg.get("_routes", []):
+        rkey = route.get("key")
+        if rkey not in engines:
+            raise SystemExit(
+                f"_routes entry '{rkey}' is not declared in 'engines' "
+                f"({sorted(engines)})"
+            )
+
     routes_cfg = cfg["_routes"]
     if not isinstance(routes_cfg, list) or not routes_cfg:
         raise SystemExit("scripts/search_phrases.json: _routes must be a non-empty list")
@@ -150,6 +211,18 @@ def main() -> int:
         json.dumps(output, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
+
+    config_out = {
+        "engines": engines,
+        "bangs": bangs,
+        "keywordRules": keyword_rules
+    }
+    print(f"writing {OUT_CONFIG_FILE.relative_to(REPO_ROOT)}")
+    OUT_CONFIG_FILE.write_text(
+        json.dumps(config_out, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
     print("done. Remember to bump EMBEDDINGS_VERSION in index.html.")
     return 0
 

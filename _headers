@@ -30,6 +30,12 @@
 /search-embeddings.json
   Cache-Control: public, max-age=3600, must-revalidate
 
+# Engine + bang + keyword-rule tables. Same `?v=…` bump policy as the
+# embeddings file; short max-age keeps iOS Safari honest after a config
+# change.
+/search-config.json
+  Cache-Control: public, max-age=3600, must-revalidate
+
 # Static visual assets and install metadata
 /fonts/*
   Cache-Control: public, max-age=604800

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import math
 import os
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 
