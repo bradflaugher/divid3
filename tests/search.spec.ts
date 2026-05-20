@@ -111,7 +111,6 @@ test.describe('search router — bang shortcuts', () => {
   }[] = [
     { input: '!yt lofi hip hop',   engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
     { input: '!hn gemini-cli',     engine: 'hn',          host: /(^|\.)algolia\.com$/,      qParam: 'query',        qFragment: 'gemini-cli' },
-    { input: '!wa integral of x',  engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qParam: 'i',            qFragment: 'integral' },
     { input: '!wc usb cable',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'usb' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
@@ -184,7 +183,7 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#engine-display')).toHaveText('YouTube');
     // Override buttons should render (all engines except 'direct').
     const btns = page.locator('#override-engines .override-btn');
-    await expect(btns).toHaveCount(12, { timeout: 5_000 });
+    await expect(btns).toHaveCount(8, { timeout: 5_000 });
     // The selected engine should be highlighted.
     await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
   });
@@ -201,11 +200,11 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#search')).toBeFocused();
   });
 
-  test('?q=github.com shows routing overlay for direct link', async ({ page }) => {
+  test('?q=!yt+lofi shows YouTube in overlay', async ({ page }) => {
     await freezeRouteTimer(page);
-    await page.goto(`${PATH}?q=github.com`);
+    await page.goto(`${PATH}?q=!yt+lofi`);
     await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
-    await expect(page.locator('#engine-display')).toHaveText('Direct Link');
+    await expect(page.locator('#engine-display')).toHaveText('YouTube');
   });
 
   test('?q=how+to+make+pizza shows overlay with semantic engine', async ({ page }) => {
@@ -262,16 +261,16 @@ test.describe('search router — query parameter redirect', () => {
 // Direct URL detection
 // ───────────────────────────────────────────────────────────────────────
 test.describe('search router — direct URL detection', () => {
-  test('"github.com" classifies as Direct Link (rule-based, no model needed)', async ({ page }) => {
+  test('"bing.com" classifies as Direct Link (rule-based, no model needed)', async ({ page }) => {
     await page.goto(PATH);
-    await page.locator('#search').fill('github.com');
+    await page.locator('#search').fill('bing.com');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
     await expect(page.locator('#hint')).toHaveText('Direct Link');
   });
 
-  test('"github.com/openhands" (domain + path) classifies as Direct Link', async ({ page }) => {
+  test('"bing.com/search" (domain + path) classifies as Direct Link', async ({ page }) => {
     await page.goto(PATH);
-    await page.locator('#search').fill('github.com/openhands');
+    await page.locator('#search').fill('bing.com/search');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
   });
 
@@ -281,20 +280,20 @@ test.describe('search router — direct URL detection', () => {
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
   });
 
-  test('"github.com cool repos" (with space) does NOT classify as Direct Link', async ({ page }) => {
+  test('"bing.com cool search" (with space) does NOT classify as Direct Link', async ({ page }) => {
     await page.goto(PATH);
     await waitForModelReady(page);
-    await page.locator('#search').fill('github.com cool repos');
+    await page.locator('#search').fill('bing.com cool search');
     // Should land somewhere semantic — but never "direct".
     await expect(page.locator('body')).not.toHaveAttribute('data-engine', 'direct');
   });
 
-  test('Enter on "github.com" navigates to https://github.com', async ({ page }) => {
+  test('Enter on "bing.com" navigates to https://bing.com', async ({ page }) => {
     await page.goto(PATH);
     const search = page.locator('#search');
-    await search.fill('github.com');
+    await search.fill('bing.com');
 
-    const navPromise = page.waitForURL(/^https?:\/\/(www\.)?github\.com\/?$/, { timeout: 15_000 });
+    const navPromise = page.waitForURL(/^https?:\/\/(www\.)?bing\.com\/?.*$/, { timeout: 15_000 });
     await search.press('Enter');
     await navPromise;
   });
@@ -320,10 +319,10 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#hint')).toHaveClass(/active/);
     await expect(page.locator('#scores')).toHaveClass(/active/);
 
-    // 13 score rows (one per route in the embeddings file).
-    await expect(page.locator('#scores .score-row')).toHaveCount(12);
+    // 9 score rows (one per route in the embeddings file).
+    await expect(page.locator('#scores .score-row')).toHaveCount(8);
     // Every row labels itself with its engine key for the test hook.
-    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(12);
+    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(8);
     // Exactly one row is marked best.
     await expect(page.locator('#scores .score-fill.best')).toHaveCount(1);
 
@@ -524,11 +523,9 @@ test.describe('search router — model load failure', () => {
     await expect(page.locator('#status')).toHaveAttribute('data-state', 'keyword', { timeout: 30_000 });
 
     const search = page.locator('#search');
-    // "decode this string model" doesn't strongly match any keyword
-    // rule (transformers.js would route to GitHub, but the bare word
-    // "transformer" doesn't match the 'transformers' keyword on word-
-    // boundary). So it correctly falls through to the DDG default.
-    await search.fill('decode this string model');
+    // "decode this string" doesn't strongly match any keyword
+    // rule — so it correctly falls through to the DDG default.
+    await search.fill('decode this string');
 
     const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 15_000 });
     await search.press('Enter');
@@ -728,13 +725,13 @@ test.describe('search router — smart paste', () => {
   test.skip(({ browserName }) => browserName === 'firefox',
     "Firefox doesn't expose clipboardData on synthetic ClipboardEvents");
 
-  test('pasting "https://github.com" strips the protocol', async ({ page }) => {
+  test('pasting "https://bing.com" strips the protocol', async ({ page }) => {
     await page.goto(PATH);
     await waitForModelReady(page);
 
     await page.locator('#search').evaluate(el => {
       const dt = new DataTransfer();
-      dt.setData('text/plain', 'https://github.com');
+      dt.setData('text/plain', 'https://bing.com');
       el.dispatchEvent(new ClipboardEvent('paste', {
         bubbles: true,
         cancelable: true,
@@ -742,7 +739,7 @@ test.describe('search router — smart paste', () => {
       }));
     });
 
-    await expect(page.locator('#search')).toHaveValue('github.com');
+    await expect(page.locator('#search')).toHaveValue('bing.com');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
   });
 
@@ -906,8 +903,7 @@ test.describe('search router — cache reliability', () => {
 //   - Crash-loop guard (≥ 2 unfinished cold loads in a row)
 //   - Model load failure after retries
 //
-// In this mode the embedding model is never loaded. classify() routes
-// via deterministic keyword rules (~ 100 phrase patterns across 10
+// via deterministic keyword rules (~ 100 phrase patterns across 8
 // engines, weighted by specificity), with DDG as the no-match fallback.
 //
 // The status dot turns purple to signal the mode visually. Bangs and
@@ -964,7 +960,6 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
   const cases: { query: string; engine: string; host: RegExp; qFragment: string }[] = [
     { query: 'lofi beats',                    engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qFragment: 'lofi' },
     { query: 'show hn react server components', engine: 'hn',        host: /(^|\.)algolia\.com$/,      qFragment: 'react' },
-    { query: 'integral of x^2',               engine: 'wolfram',     host: /(^|\.)wolframalpha\.com$/, qFragment: 'integral' },
     { query: 'best wireless headphones',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qFragment: 'wireless' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
@@ -1021,7 +1016,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     await bootKeywordMode(page);
 
     const search = page.locator('#search');
-    await search.fill('github.com');
+    await search.fill('bing.com');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
     await expect(page.locator('#hint')).toHaveText('Direct Link');
   });
