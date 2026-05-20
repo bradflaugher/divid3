@@ -340,7 +340,7 @@
     background: rgba(255,255,255,0.08);
     font-weight: 600;
   }
-  .override-btn.selected::after {
+  .override-btn.top-match::after {
     content: 'Top match';
     font-size: 0.65rem;
     font-weight: 500;
@@ -1982,7 +1982,7 @@
       if (!engine || key === 'direct') continue;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'override-btn' + (key === selectedKey ? ' selected' : '');
+      btn.className = 'override-btn' + (key === selectedKey ? ' selected top-match' : '');
       btn.dataset.engine = key;
       btn.setAttribute('aria-label', `Route to ${engine.name}`);
 
