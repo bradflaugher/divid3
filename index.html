@@ -902,7 +902,7 @@
   // alongside a freshly-fetched index.html. The number must match the
   // committed file's content; see _headers for the fallback short TTL.
   // v3: added eBay route for hard-to-find products, vintage, parts, collectibles.
-  const EMBEDDINGS_VERSION = '7';
+  const EMBEDDINGS_VERSION = '8';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   const SIMILARITY_THRESHOLD = 0.30;   // below this, fall back to DuckDuckGo (html)
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
@@ -970,11 +970,7 @@
     'youtube':     { name: 'YouTube',       color: '#FF0000', url: q => `https://www.youtube.com/results?search_query=${q}` },
     'wirecutter':  { name: 'Wirecutter',    color: '#326891', url: q => `https://www.nytimes.com/wirecutter/search/?s=${q}` },
     'ebay':        { name: 'eBay',          color: '#E53238', url: q => `https://www.ebay.com/sch/i.html?_nkw=${q}` },
-    'amazon':      { name: 'Amazon',        color: '#FF9900', url: q => `https://www.amazon.com/s?k=${q}` },
     'hn':          { name: 'Hacker News',   color: '#FF6600', url: q => `https://hn.algolia.com/?query=${q}&sort=byPopularity` },
-    'github':      { name: 'GitHub',        color: '#4078c0', url: q => `https://github.com/search?q=${q}` },
-    'wolfram':     { name: 'Wolfram Alpha', color: '#DA0E1A', url: q => `https://www.wolframalpha.com/input/?i=${q}` },
-    'wiki':        { name: 'Wikipedia',     color: '#636466', url: q => `https://en.wikipedia.org/wiki/Special:Search?search=${q}` },
     'direct':      { name: 'Direct Link',   color: '#4ade80', url: q => q.startsWith('http') ? q : `https://${q}` }
   };
 
@@ -987,12 +983,8 @@
     p: 'grok',         px: 'grok',
     g: 'grok',         gr: 'grok',
     hn: 'hn',          h: 'hn',
-    w: 'wiki',         wiki: 'wiki',
-    wa: 'wolfram',     wolf: 'wolfram',
     eb: 'ebay',        ebay: 'ebay',
-    a: 'amazon',       am: 'amazon',
-    d: 'ddg',          ddg: 'ddg',
-    gh: 'github',      git: 'github'
+    d: 'ddg',          ddg: 'ddg'
   };
 
   const DOMAIN_RE    = /^[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,10}(:[0-9]{1,5})?(\/.*)?$/i;
@@ -1028,24 +1020,10 @@
     { engine: 'youtube', weight: 3, kw: ['lofi', 'beats', 'remix', 'edm mix', 'hip hop', 'mashup', 'concert footage', 'unboxing'] },
     { engine: 'youtube', weight: 1, kw: ['music', 'song', 'songs', 'video', 'videos', 'watch', 'concert', 'playlist', 'channel', 'episode', 'trailer', 'soundtrack', 'remixes', 'tiktok', 'shorts'] },
 
-    // ── github ──────────────────────────────────────────────────────
-    { engine: 'github', weight: 5, kw: ['github repo', 'github repository', 'source code of', 'open source', 'pull request', 'github actions', 'clone git'] },
-    { engine: 'github', weight: 3, kw: ['github', 'repository', 'readme', 'git clone', 'npm package', 'rust crate', 'python library', 'go module'] },
-    { engine: 'github', weight: 2, kw: ['lib', 'library', 'package', 'module', 'framework', 'sdk', 'api client', 'starter kit', 'boilerplate'] },
-
     // ── hacker news ─────────────────────────────────────────────────
     { engine: 'hn', weight: 5, kw: ['show hn', 'ask hn', 'hacker news', 'thoughts on', 'discussion of', 'is dead', 'is still relevant', 'y combinator', 'yc startup', 'show notes'] },
     { engine: 'hn', weight: 3, kw: ['startup', 'founder', 'vc funding', 'engineering blog', 'post mortem', 'rfc', 'rant about', 'why we', 'we built', 'lessons learned'] },
     { engine: 'hn', weight: 2, kw: ['react', 'pytorch', 'tensorflow', 'nextjs', 'fastapi', 'transformers', 'langchain', 'llama.cpp', 'huggingface'] },
-
-    // ── wikipedia ───────────────────────────────────────────────────
-    { engine: 'wiki', weight: 5, kw: ['biography of', 'history of', 'timeline of', 'definition of', 'what is a', 'who was', 'list of countries'] },
-    { engine: 'wiki', weight: 3, kw: ['wikipedia', 'wiki', 'encyclopedia', 'summary of', 'overview of'] },
-
-    // ── wolfram ─────────────────────────────────────────────────────
-    { engine: 'wolfram', weight: 5, kw: ['integral of', 'derivative of', 'limit of', 'solve for', 'taylor series', 'fourier transform', 'laplace transform', 'plot of', 'eigenvalues of', 'eigenvectors of', 'roots of', 'expand the', 'simplify the'] },
-    { engine: 'wolfram', weight: 3, kw: ['integrate', 'differentiate', 'eigenvalue', 'eigenvector', 'theorem', 'simplify', 'factorize', 'mod arithmetic', 'partial derivative', 'definite integral'] },
-    { engine: 'wolfram', weight: 2, kw: ['integral', 'derivative', 'sin(', 'cos(', 'tan(', 'log(', 'sqrt(', 'ln(', '^2', '^3', 'matrix', 'vector field', 'cross product', 'dot product'] },
 
     // ── wirecutter ──────────────────────────────────────────────────
     { engine: 'wirecutter', weight: 5, kw: ['best wireless', 'best mechanical', 'best budget', 'best cheap', 'best of 2024', 'best of 2025', 'wirecutter pick', 'noise cancelling', 'standing desk', 'office chair', 'usb-c cable', 'usb c cable'] },
@@ -1068,10 +1046,6 @@
     { engine: 'grok', weight: 5, kw: ['trending on x', 'trending on twitter', 'latest news on x', 'what elon said', 'breaking news live', 'current public opinion', 'twitter trends'] },
     { engine: 'grok', weight: 3, kw: ['twitter', 'news trends', 'viral video', 'social sentiment', 'what people think'] },
     { engine: 'grok', weight: 1, kw: ['write a', 'tell me a joke', 'pretend you are'] },
-
-    // ── amazon ──────────────────────────────────────────────────────
-    { engine: 'amazon', weight: 5, kw: ['buy on amazon', 'amazon prime', 'amazon search', 'amazon price'] },
-    { engine: 'amazon', weight: 3, kw: ['amazon', 'prime day'] },
 
     // ── ebay ────────────────────────────────────────────────────────
     { engine: 'ebay', weight: 5, kw: ['buy vintage', 'buy discontinued', 'buy rare', 'buy used', 'buy refurbished', 'hard to find', 'out of print', 'limited edition', 'collectible', 'replacement part', 'spare part', 'oem part', 'genuine part'] },
