@@ -902,9 +902,9 @@
   // alongside a freshly-fetched index.html. The number must match the
   // committed file's content; see _headers for the fallback short TTL.
   // v3: added eBay route for hard-to-find products, vintage, parts, collectibles.
-  const EMBEDDINGS_VERSION = '8';
+  const EMBEDDINGS_VERSION = '9';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
-  const SIMILARITY_THRESHOLD = 0.30;   // below this, fall back to DuckDuckGo (html)
+  const SIMILARITY_THRESHOLD = 0.0;    // trust the model more; always pick the top destination
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
   // ~2 inferences for a 10-char query instead of ~10. Each WASM inference
@@ -915,7 +915,7 @@
   // match a route confidently, and we'd just be allocating WASM tensors
   // for no signal. Bangs and direct-URL detection still run normally
   // (they're rule-based and free).
-  const MIN_QUERY_LEN_FOR_MODEL = 2;
+  const MIN_QUERY_LEN_FOR_MODEL = 1;
   const FETCH_TIMEOUT_MS = 30_000;     // give up on stalled embeddings fetch
   const MODEL_LOAD_RETRIES = 2;        // transient init failures only
   const MODEL_LOAD_RETRY_BASE_MS = 800;
