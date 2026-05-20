@@ -902,9 +902,9 @@
   // alongside a freshly-fetched index.html. The number must match the
   // committed file's content; see _headers for the fallback short TTL.
   // v3: added eBay route for hard-to-find products, vintage, parts, collectibles.
-  const EMBEDDINGS_VERSION = '9';
+  const EMBEDDINGS_VERSION = '11';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
-  const SIMILARITY_THRESHOLD = 0.0;    // trust the model more; always pick the top destination
+  const SIMILARITY_THRESHOLD = 0.30;    // fallback to DDG below this confidence score
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
   // ~2 inferences for a 10-char query instead of ~10. Each WASM inference
@@ -962,7 +962,7 @@
     return v.endsWith('ms') ? n : n * 1000;       // s → ms
   })();
 
-  const engines = {
+  let engines = {
     'ddg':         { name: 'DuckDuckGo (html)', color: '#DE5833', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
     'images':      { name: 'Bing Images',   color: '#008373', url: q => `https://www.bing.com/images/search?q=${q}` },
     'grok':        { name: 'Grok',          color: '#1b1b1b', url: q => `https://grok.com/?q=${q}` },
@@ -975,7 +975,7 @@
   };
 
   // Bang shortcuts (always win over semantic routing)
-  const BANG_MAP = {
+  let BANG_MAP = {
     yt: 'youtube',     y: 'youtube',
     wc: 'wirecutter',  nyt: 'wirecutter',
     m: 'maps',         map: 'maps',
@@ -1014,7 +1014,7 @@
   // levels (a 4-weight phrase rule plus a 2-weight noun rule plus a
   // 1-weight common-word rule).
   // ───────────────────────────────────────────────────────────────────────
-  const KEYWORD_RULES = [
+  let KEYWORD_RULES = [
     // ── youtube ─────────────────────────────────────────────────────
     { engine: 'youtube', weight: 5, kw: ['music video', 'official video', 'official audio', 'full album', 'live concert', 'live stream', 'lyric video', 'cover song', 'guitar tutorial'] },
     { engine: 'youtube', weight: 3, kw: ['lofi', 'beats', 'remix', 'edm mix', 'hip hop', 'mashup', 'concert footage', 'unboxing'] },
@@ -1440,47 +1440,92 @@
     return { raw, model };
   }
 
+  let configPromise = null;
+
+  async function loadConfigOnce() {
+    if (configPromise) return configPromise;
+    configPromise = (async () => {
+      try {
+        const response = await fetch(`/search-config.json?v=${EMBEDDINGS_VERSION}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch config: ${response.status}`);
+        }
+        const cfg = await response.json();
+        if (cfg.engines) {
+          const newEngines = {};
+          for (const [key, val] of Object.entries(cfg.engines)) {
+            newEngines[key] = {
+              name: val.name,
+              color: val.color,
+              url: key === 'direct'
+                ? (q => {
+                    const target = val.urlTemplate ? val.urlTemplate.replace('{q}', q) : q;
+                    return target.startsWith('http') ? target : `https://${target}`;
+                  })
+                : (val.urlTemplate
+                    ? (q => val.urlTemplate.replace('{q}', q))
+                    : (q => `https://html.duckduckgo.com/html/?q=${q}`))
+            };
+          }
+          engines = newEngines;
+        }
+        if (cfg.bangs) {
+          BANG_MAP = cfg.bangs;
+        }
+        if (cfg.keywordRules) {
+          KEYWORD_RULES = cfg.keywordRules;
+        }
+        console.log('Search router: custom config loaded successfully');
+      } catch (err) {
+        console.warn('Search router: failed to load search-config.json, using embedded defaults:', err);
+      }
+    })();
+    return configPromise;
+  }
+
   function initModel() {
     if (modelLoadPromise) return modelLoadPromise;
 
-    // Explicit `?lite=1` opt-in: the user (or a deep link) asked for
-    // keyword-only routing. Skip the model entirely.
-    if (keywordMode) {
-      console.log('Search router: keyword mode (?lite=1) — skipping model load');
-      setStatus('keyword', 'Keyword routing (lite mode)');
-      loadingOverlay.classList.remove('active');
-      document.querySelector('.footer-links').classList.add('visible');
-      modelLoadPromise = Promise.resolve(false);
-      return modelLoadPromise;
-    }
-
-    // If the previous one or two boots crashed mid-load, don't try
-    // again — switch to keyword routing instead of attempting another
-    // model load. This is the actual mitigation for the iOS "A problem
-    // repeatedly occurred" lockout: by the time Safari would have shown
-    // it, we've already given the user a usable, smart router.
-    if (skipModelDueToCrashes) {
-      console.warn(
-        `Search router: skipping model load after ${crashCount} unfinished attempts; ` +
-        'falling back to keyword routing.'
-      );
-      keywordMode = true;
-      modelFailed = true;
-      setStatus('keyword', 'Keyword routing (model disabled after repeated crashes)');
-      showError(
-        'Keyword routing active after a previous load failed. ' +
-        'Bangs, Enter, and most queries still route correctly.'
-      );
-      loadingOverlay.classList.remove('active');
-      document.querySelector('.footer-links').classList.add('visible');
-      modelLoadPromise = Promise.resolve(false);
-      return modelLoadPromise;
-    }
-
-    loadingOverlay.classList.add('active');
-    setStatus('loading', 'Embedding Model Loading…');
-    markLoadStart();
     const loadPromise = (async () => {
+      // Load config first so everything below consumes it (keyword mode, bangs, etc.)
+      await loadConfigOnce();
+
+      // Explicit `?lite=1` opt-in: the user (or a deep link) asked for
+      // keyword-only routing. Skip the model entirely.
+      if (keywordMode) {
+        console.log('Search router: keyword mode (?lite=1) — skipping model load');
+        setStatus('keyword', 'Keyword routing (lite mode)');
+        loadingOverlay.classList.remove('active');
+        document.querySelector('.footer-links').classList.add('visible');
+        return false;
+      }
+
+      // If the previous one or two boots crashed mid-load, don't try
+      // again — switch to keyword routing instead of attempting another
+      // model load. This is the actual mitigation for the iOS "A problem
+      // repeatedly occurred" lockout: by the time Safari would have shown
+      // it, we've already given the user a usable, smart router.
+      if (skipModelDueToCrashes) {
+        console.warn(
+          `Search router: skipping model load after ${crashCount} unfinished attempts; ` +
+          'falling back to keyword routing.'
+        );
+        keywordMode = true;
+        modelFailed = true;
+        setStatus('keyword', 'Keyword routing (model disabled after repeated crashes)');
+        showError(
+          'Keyword routing active after a previous load failed. ' +
+          'Bangs, Enter, and most queries still route correctly.'
+        );
+        loadingOverlay.classList.remove('active');
+        document.querySelector('.footer-links').classList.add('visible');
+        return false;
+      }
+
+      loadingOverlay.classList.add('active');
+      setStatus('loading', 'Embedding Model Loading…');
+      markLoadStart();
+
       let lastErr = null;
       for (let attempt = 0; attempt <= MODEL_LOAD_RETRIES; attempt++) {
         try {
