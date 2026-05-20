@@ -2,47 +2,38 @@
   "engines": {
     "ddg": {
       "name": "DuckDuckGo (html)",
-      "color": "#DE5833",
       "urlTemplate": "https://html.duckduckgo.com/html/?q={q}"
     },
     "images": {
       "name": "Bing Images",
-      "color": "#008373",
       "urlTemplate": "https://www.bing.com/images/search?q={q}"
     },
     "grok": {
       "name": "Grok",
-      "color": "#1b1b1b",
       "urlTemplate": "https://grok.com/?q={q}"
     },
     "maps": {
       "name": "Google Maps",
-      "color": "#4285F4",
       "urlTemplate": "https://maps.google.com/maps?q={q}"
     },
     "youtube": {
       "name": "YouTube",
-      "color": "#FF0000",
       "urlTemplate": "https://www.youtube.com/results?search_query={q}"
     },
     "wirecutter": {
       "name": "Wirecutter",
-      "color": "#326891",
       "urlTemplate": "https://www.nytimes.com/wirecutter/search/?s={q}"
     },
     "ebay": {
       "name": "eBay",
-      "color": "#E53238",
       "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}"
     },
     "hn": {
       "name": "Hacker News",
-      "color": "#FF6600",
       "urlTemplate": "https://hn.algolia.com/?query={q}&sort=byPopularity"
     },
     "direct": {
       "name": "Direct Link",
-      "color": "#4ade80",
       "urlTemplate": "{q}"
     }
   },

@@ -103,6 +103,28 @@ def main() -> int:
     if not isinstance(keyword_rules, list) or not keyword_rules:
         raise SystemExit("scripts/search_phrases.json: 'keywordRules' must be a non-empty list")
 
+    # Validate per-engine shape: name + urlTemplate are required; nothing else
+    # is consumed by the runtime, so flag stray keys early.
+    allowed_engine_keys = {"name", "urlTemplate"}
+    for key, val in engines.items():
+        if not isinstance(val, dict):
+            raise SystemExit(f"engine '{key}' must be an object")
+        if not val.get("name"):
+            raise SystemExit(f"engine '{key}' missing required field 'name'")
+        if not val.get("urlTemplate"):
+            raise SystemExit(f"engine '{key}' missing required field 'urlTemplate'")
+        if key != "direct" and "{q}" not in val["urlTemplate"]:
+            raise SystemExit(
+                f"engine '{key}' urlTemplate must contain '{{q}}' "
+                f"(got {val['urlTemplate']!r})"
+            )
+        stray = set(val) - allowed_engine_keys
+        if stray:
+            raise SystemExit(
+                f"engine '{key}' has unsupported fields: {sorted(stray)}. "
+                f"Allowed: {sorted(allowed_engine_keys)}"
+            )
+
     # Validate engines referenced in bangs and keywordRules
     for shortcut, engine in bangs.items():
         if engine not in engines:
@@ -112,6 +134,21 @@ def main() -> int:
         engine = rule.get("engine")
         if engine not in engines:
             raise SystemExit(f"keyword rule references unknown engine '{engine}'")
+        if not isinstance(rule.get("kw"), list) or not rule["kw"]:
+            raise SystemExit(f"keyword rule for '{engine}' missing non-empty 'kw' list")
+        weight = rule.get("weight")
+        if not isinstance(weight, (int, float)) or weight <= 0:
+            raise SystemExit(f"keyword rule for '{engine}' needs a positive 'weight'")
+
+    # Phrases must reference known engines too (otherwise embeddings get
+    # built for a route that the runtime can't dispatch to).
+    for route in cfg.get("_routes", []):
+        rkey = route.get("key")
+        if rkey not in engines:
+            raise SystemExit(
+                f"_routes entry '{rkey}' is not declared in 'engines' "
+                f"({sorted(engines)})"
+            )
 
     routes_cfg = cfg["_routes"]
     if not isinstance(routes_cfg, list) or not routes_cfg:

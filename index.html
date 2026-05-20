@@ -61,12 +61,7 @@
     --text: #ffffff;
     --text-muted: #666;
     --accent: #ffffff;
-    --engine-color: transparent;
     --keyboard-inset: 0px;
-    /* Single source of truth for the "redirecting…" countdown. JS reads
-       this back via getPropertyValue when arming the route timer, so the
-       visual fill and the actual setTimeout always agree. */
-    --route-delay-ms: 4000ms;
   }
   @media (prefers-color-scheme: light) {
     :root {
@@ -117,15 +112,6 @@
     /* Prevent text selection on UI elements */
     -webkit-user-select: none;
     user-select: none;
-  }
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: var(--engine-color);
-    opacity: 0.05;
-    pointer-events: none;
-    transition: background 0.8s ease;
   }
   .container {
     width: 100%;
@@ -219,26 +205,34 @@
     -webkit-overflow-scrolling: touch;
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  .query-preview {
-    font-size: 0.75rem;
-    font-weight: 500;
+  .overlay-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 600;
     color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
     margin-top: 2rem;
-    margin-bottom: 0.5rem;
-    max-width: 85vw;
-    white-space: nowrap;
+  }
+  .query-preview {
+    font-size: clamp(1.4rem, 6vw, 2.2rem);
+    font-weight: 200;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-top: 0.4rem;
+    margin-bottom: 1.5rem;
+    max-width: 90vw;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-  .engine-name {
-    font-size: clamp(2rem, 8vw, 3.5rem);
-    font-weight: 100;
-    letter-spacing: -0.06em;
-    margin-bottom: 1.25rem;
     word-break: break-word;
-    line-height: 1.1;
+    line-height: 1.15;
+  }
+  .overlay-prompt {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.25rem;
   }
   .cancel-btn {
     background: transparent;
@@ -344,6 +338,17 @@
     border-color: var(--text);
     color: var(--text);
     background: rgba(255,255,255,0.08);
+    font-weight: 600;
+  }
+  .override-btn.selected::after {
+    content: 'Top match';
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+    white-space: nowrap;
   }
   .override-btn.selected .override-fill {
     background: var(--text);
@@ -356,12 +361,8 @@
       justify-content: center;
       padding: 2rem;
     }
-    .query-preview {
+    .overlay-eyebrow {
       margin-top: 0;
-      font-size: 0.8rem;
-    }
-    .engine-name {
-      margin-bottom: 1.5rem;
     }
     .override-engines {
       gap: 0.6rem;
@@ -374,21 +375,6 @@
     .override-bar {
       width: 60px;
     }
-  }
-  .progress-bar {
-    width: min(240px, 60vw);
-    height: 2px;
-    background: rgba(128,128,128,0.2);
-    position: relative;
-    overflow: hidden;
-    border-radius: 1px;
-  }
-  .progress-fill {
-    position: absolute;
-    top: 0; left: 0; bottom: 0;
-    width: 0%;
-    background: var(--text);
-    transition: width var(--route-delay-ms) linear;
   }
   /*
    * --keyboard-inset is set from JS via the visualViewport API and reflects
@@ -821,10 +807,11 @@
   </div>
 </div>
 
-<div class="routing-overlay" id="overlay">
+<div class="routing-overlay" id="overlay" role="dialog" aria-label="Choose search destination">
+  <div class="overlay-eyebrow">Search for</div>
   <div class="query-preview" id="query-display"></div>
-  <div class="engine-name" id="engine-display">DuckDuckGo (html)</div>
-  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  <div class="overlay-prompt">Choose where to go</div>
+  <div class="engine-name" id="engine-display" hidden></div>
   <div class="override-engines" id="override-engines"></div>
   <button class="cancel-btn" id="cancel">Cancel</button>
 </div>
@@ -850,7 +837,7 @@
   <div class="shortcuts-panel">
     <h2>Keyboard Shortcuts</h2>
     <div class="sc-row"><span>Focus search</span><kbd>/</kbd></div>
-    <div class="sc-row"><span>Cancel redirect</span><kbd>Esc</kbd></div>
+    <div class="sc-row"><span>Close overlay</span><kbd>Esc</kbd></div>
     <div class="sc-row"><span>Toggle theme</span><kbd>T</kbd></div>
     <div class="sc-row"><span>This help</span><kbd>?</kbd></div>
     <div class="sc-close">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div>
@@ -897,12 +884,14 @@
 
   const MODEL_ID = 'sentence-transformers/all-MiniLM-L6-v2';
   const MODEL_DTYPE = 'q8';
-  // Versioned URL: bump when search-embeddings.json content changes so
-  // any client (especially iOS Safari) can't serve a stale cached body
-  // alongside a freshly-fetched index.html. The number must match the
-  // committed file's content; see _headers for the fallback short TTL.
-  // v3: added eBay route for hard-to-find products, vintage, parts, collectibles.
-  const EMBEDDINGS_VERSION = '11';
+  // Versioned URL: bump when search-embeddings.json OR search-config.json
+  // content changes so any client (especially iOS Safari) can't serve a
+  // stale cached body alongside a freshly-fetched index.html. The number
+  // must match the committed file's content; see _headers for the fallback
+  // short TTL.
+  //  v11: moved engines/bangs/keywordRules into search-config.json
+  //  v12: dropped per-engine `color`; one-file config from search_phrases.json
+  const EMBEDDINGS_VERSION = '12';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   const SIMILARITY_THRESHOLD = 0.30;    // fallback to DDG below this confidence score
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
@@ -952,40 +941,23 @@
   // routed through whichever experience matches their current layout.
   // ───────────────────────────────────────────────────────────────────────
   const mobileMedia = window.matchMedia('(max-width: 767px)');
-  // Read the route-delay countdown from CSS so the visual progress bar
-  // and the redirect setTimeout can never drift out of sync.
-  const ROUTE_DELAY_MS = (() => {
-    const v = getComputedStyle(document.documentElement)
-      .getPropertyValue('--route-delay-ms').trim();
-    const n = parseFloat(v);
-    if (!Number.isFinite(n) || n <= 0) return 3000;
-    return v.endsWith('ms') ? n : n * 1000;       // s → ms
-  })();
 
+  // ───────────────────────────────────────────────────────────────────────
+  // Engine / bang / keyword-rule tables
+  //
+  // The authoritative source is scripts/search_phrases.json → generated
+  // /search-config.json. `loadConfigOnce()` (below) populates these
+  // tables before any routing happens. The defaults here are a DDG-only
+  // safety net so the page still routes *something* if /search-config.json
+  // is missing or malformed.
+  // ───────────────────────────────────────────────────────────────────────
   let engines = {
-    'ddg':         { name: 'DuckDuckGo (html)', color: '#DE5833', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
-    'images':      { name: 'Bing Images',   color: '#008373', url: q => `https://www.bing.com/images/search?q=${q}` },
-    'grok':        { name: 'Grok',          color: '#1b1b1b', url: q => `https://grok.com/?q=${q}` },
-    'maps':        { name: 'Google Maps',   color: '#4285F4', url: q => `https://maps.google.com/maps?q=${q}` },
-    'youtube':     { name: 'YouTube',       color: '#FF0000', url: q => `https://www.youtube.com/results?search_query=${q}` },
-    'wirecutter':  { name: 'Wirecutter',    color: '#326891', url: q => `https://www.nytimes.com/wirecutter/search/?s=${q}` },
-    'ebay':        { name: 'eBay',          color: '#E53238', url: q => `https://www.ebay.com/sch/i.html?_nkw=${q}` },
-    'hn':          { name: 'Hacker News',   color: '#FF6600', url: q => `https://hn.algolia.com/?query=${q}&sort=byPopularity` },
-    'direct':      { name: 'Direct Link',   color: '#4ade80', url: q => q.startsWith('http') ? q : `https://${q}` }
+    ddg:    { name: 'DuckDuckGo (html)', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
+    direct: { name: 'Direct Link',       url: q => q.startsWith('http') ? q : `https://${q}` }
   };
 
-  // Bang shortcuts (always win over semantic routing)
-  let BANG_MAP = {
-    yt: 'youtube',     y: 'youtube',
-    wc: 'wirecutter',  nyt: 'wirecutter',
-    m: 'maps',         map: 'maps',
-    i: 'images',       img: 'images',
-    p: 'grok',         px: 'grok',
-    g: 'grok',         gr: 'grok',
-    hn: 'hn',          h: 'hn',
-    eb: 'ebay',        ebay: 'ebay',
-    d: 'ddg',          ddg: 'ddg'
-  };
+  // Bang shortcuts (always win over semantic routing). Populated by config.
+  let BANG_MAP = { d: 'ddg', ddg: 'ddg' };
 
   const DOMAIN_RE    = /^[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,10}(:[0-9]{1,5})?(\/.*)?$/i;
   const LOCALHOST_RE = /^localhost(:[0-9]{1,5})?(\/.*)?$/i;
@@ -1014,44 +986,7 @@
   // levels (a 4-weight phrase rule plus a 2-weight noun rule plus a
   // 1-weight common-word rule).
   // ───────────────────────────────────────────────────────────────────────
-  let KEYWORD_RULES = [
-    // ── youtube ─────────────────────────────────────────────────────
-    { engine: 'youtube', weight: 5, kw: ['music video', 'official video', 'official audio', 'full album', 'live concert', 'live stream', 'lyric video', 'cover song', 'guitar tutorial'] },
-    { engine: 'youtube', weight: 3, kw: ['lofi', 'beats', 'remix', 'edm mix', 'hip hop', 'mashup', 'concert footage', 'unboxing'] },
-    { engine: 'youtube', weight: 1, kw: ['music', 'song', 'songs', 'video', 'videos', 'watch', 'concert', 'playlist', 'channel', 'episode', 'trailer', 'soundtrack', 'remixes', 'tiktok', 'shorts'] },
-
-    // ── hacker news ─────────────────────────────────────────────────
-    { engine: 'hn', weight: 5, kw: ['show hn', 'ask hn', 'hacker news', 'thoughts on', 'discussion of', 'is dead', 'is still relevant', 'y combinator', 'yc startup', 'show notes'] },
-    { engine: 'hn', weight: 3, kw: ['startup', 'founder', 'vc funding', 'engineering blog', 'post mortem', 'rfc', 'rant about', 'why we', 'we built', 'lessons learned'] },
-    { engine: 'hn', weight: 2, kw: ['react', 'pytorch', 'tensorflow', 'nextjs', 'fastapi', 'transformers', 'langchain', 'llama.cpp', 'huggingface'] },
-
-    // ── wirecutter ──────────────────────────────────────────────────
-    { engine: 'wirecutter', weight: 5, kw: ['best wireless', 'best mechanical', 'best budget', 'best cheap', 'best of 2024', 'best of 2025', 'wirecutter pick', 'noise cancelling', 'standing desk', 'office chair', 'usb-c cable', 'usb c cable'] },
-    { engine: 'wirecutter', weight: 3, kw: ['where to buy', 'buy', 'purchase', 'wirecutter', 'budget pick', 'review of', 'recommendations for', 'gift guide'] },
-    { engine: 'wirecutter', weight: 2, kw: ['headphones', 'earbuds', 'mechanical keyboard', 'gaming mouse', 'monitor', 'webcam', 'mattress', 'hdmi cable', 'power bank', 'travel adapter', 'french press', 'air purifier', 'vacuum', 'humidifier'] },
-
-    // ── maps ────────────────────────────────────────────────────────
-    { engine: 'maps', weight: 5, kw: ['near me', 'nearby', 'directions to', 'how far is', 'distance to', 'gas stations', 'urgent care', 'open now', 'route to', 'driving directions'] },
-    { engine: 'maps', weight: 3, kw: ['downtown', 'closest', 'best restaurants in', 'restaurants in', 'cafes in', 'gyms in'] },
-    { engine: 'maps', weight: 1, kw: ['restaurant', 'restaurants', 'cafe', 'gym', 'mall', 'airport', 'pharmacy', 'hospital', 'park', 'museum', 'station', 'pizzeria', 'sushi'] },
-
-    // ── images ──────────────────────────────────────────────────────
-    { engine: 'images', weight: 5, kw: ['image of', 'photo of', 'picture of', 'screenshot of', 'wallpaper of', 'high resolution photo', 'high res image'] },
-    { engine: 'images', weight: 3, kw: ['wallpaper', 'wallpapers', 'lockscreen', 'background image', 'desktop background', 'phone wallpaper'] },
-    { engine: 'images', weight: 1, kw: ['image', 'images', 'photo', 'photos', 'picture', 'pictures', 'gif', 'meme'] },
-
-    // ── grok ────────────────────────────────────────────────────────
-    { engine: 'grok', weight: 5, kw: ['pros and cons', 'tradeoffs between', 'difference between', 'comparison of', 'detailed comparison', 'literature review', 'research the', 'in depth analysis', 'overview of', 'history of'] },
-    { engine: 'grok', weight: 3, kw: ['explain', 'summarize', 'tldr', 'tl;dr', 'compare', 'how does', 'why does', 'why is', 'walk me through', 'breakdown of'] },
-    { engine: 'grok', weight: 5, kw: ['trending on x', 'trending on twitter', 'latest news on x', 'what elon said', 'breaking news live', 'current public opinion', 'twitter trends'] },
-    { engine: 'grok', weight: 3, kw: ['twitter', 'news trends', 'viral video', 'social sentiment', 'what people think'] },
-    { engine: 'grok', weight: 1, kw: ['write a', 'tell me a joke', 'pretend you are'] },
-
-    // ── ebay ────────────────────────────────────────────────────────
-    { engine: 'ebay', weight: 5, kw: ['buy vintage', 'buy discontinued', 'buy rare', 'buy used', 'buy refurbished', 'hard to find', 'out of print', 'limited edition', 'collectible', 'replacement part', 'spare part', 'oem part', 'genuine part'] },
-    { engine: 'ebay', weight: 3, kw: ['buy on ebay', 'ebay listing', 'auction', 'bid on', 'seller rating', 'completed listings', 'sold items', 'buy it now'] },
-    { engine: 'ebay', weight: 2, kw: ['vintage', 'retro', 'discontinued', 'obsolete', 'rare find', 'second hand', 'pre-owned', 'factory sealed', 'new old stock', 'nos'] },
-  ];
+  let KEYWORD_RULES = [];
   /** Below this score, fall back to DDG. Tuned so that a single
    *  weight-1 match isn't enough to commit; you need a strong
    *  signal (one weight-2+ rule, or two weight-1 rules). */
@@ -1098,7 +1033,6 @@
   const overlay        = $('overlay');
   const display        = $('engine-display');
   const queryDisplay   = $('query-display');
-  const progress       = $('progress');
   const cancel         = $('cancel');
   const statusDot      = $('status');
   const loadingOverlay = $('loading');
@@ -1170,7 +1104,6 @@
   let routes = [];                                       // [{ key, vectors: Float32Array[] }]
   let modelReady = false;
   let modelFailed = false;
-  let routeTimer = null;
   /** @type {Promise<boolean>}  Resolves true on success, false on failure;
    *  never rejects. ?q= redirect awaits this instead of polling. */
   let modelLoadPromise = null;
@@ -1442,42 +1375,55 @@
 
   let configPromise = null;
 
+  /**
+   * Load /search-config.json — the single source of truth for engines,
+   * bang shortcuts, and keyword fallback rules. Generated by
+   * scripts/generate_search_embeddings.py from scripts/search_phrases.json.
+   *
+   * Resolves whether the fetch succeeded or not; on failure we keep the
+   * embedded DDG-only safety fallback and surface an error so the user
+   * knows the page is degraded but still usable.
+   */
   async function loadConfigOnce() {
     if (configPromise) return configPromise;
     configPromise = (async () => {
       try {
         const response = await fetch(`/search-config.json?v=${EMBEDDINGS_VERSION}`);
         if (!response.ok) {
-          throw new Error(`Failed to fetch config: ${response.status}`);
+          throw new Error(`HTTP ${response.status}`);
         }
         const cfg = await response.json();
-        if (cfg.engines) {
-          const newEngines = {};
-          for (const [key, val] of Object.entries(cfg.engines)) {
-            newEngines[key] = {
-              name: val.name,
-              color: val.color,
-              url: key === 'direct'
-                ? (q => {
-                    const target = val.urlTemplate ? val.urlTemplate.replace('{q}', q) : q;
-                    return target.startsWith('http') ? target : `https://${target}`;
-                  })
-                : (val.urlTemplate
-                    ? (q => val.urlTemplate.replace('{q}', q))
-                    : (q => `https://html.duckduckgo.com/html/?q=${q}`))
-            };
-          }
-          engines = newEngines;
+        if (!cfg || typeof cfg !== 'object' || !cfg.engines) {
+          throw new Error('config missing "engines"');
         }
-        if (cfg.bangs) {
-          BANG_MAP = cfg.bangs;
+        const newEngines = {};
+        for (const [key, val] of Object.entries(cfg.engines)) {
+          if (!val || !val.name || !val.urlTemplate) continue;
+          newEngines[key] = {
+            name: val.name,
+            url: key === 'direct'
+              ? (q => {
+                  const target = val.urlTemplate.replace('{q}', q);
+                  return target.startsWith('http') ? target : `https://${target}`;
+                })
+              : (q => val.urlTemplate.replace('{q}', q))
+          };
         }
-        if (cfg.keywordRules) {
-          KEYWORD_RULES = cfg.keywordRules;
+        if (!newEngines.ddg) {
+          // Every config must keep a ddg key so the keyword-mode and
+          // similarity-threshold fallbacks have somewhere to land.
+          throw new Error('config must define a "ddg" engine');
         }
-        console.log('Search router: custom config loaded successfully');
+        engines = newEngines;
+        BANG_MAP = (cfg.bangs && typeof cfg.bangs === 'object') ? cfg.bangs : {};
+        KEYWORD_RULES = Array.isArray(cfg.keywordRules) ? cfg.keywordRules : [];
+        console.log(
+          `Search router: loaded ${Object.keys(engines).length} engines, ` +
+          `${Object.keys(BANG_MAP).length} bangs, ${KEYWORD_RULES.length} keyword rules`,
+        );
       } catch (err) {
-        console.warn('Search router: failed to load search-config.json, using embedded defaults:', err);
+        console.error('Search router: failed to load /search-config.json — using DDG-only fallback', err);
+        showError('Search config failed to load; routing to DuckDuckGo only.');
       }
     })();
     return configPromise;
@@ -1726,8 +1672,8 @@
   // mid-redirect, or a server that prefetched divid3 on hover). The
   // script doesn't re-run on bfcache restore — the user sees whatever
   // visual state the page was in at navigation time, often a stuck
-  // "Loading model..." overlay or the routing countdown frozen in
-  // place. That's the "current behavior is odd" case.
+  // "Loading model..." overlay or the choose-destination panel still
+  // open from the previous visit. That's the "current behavior is odd" case.
   //
   // Fix: detect bfcache restore (pageshow.persisted), reset the
   // overlays, drop `?q=` from the URL via history.replaceState, and
@@ -1743,13 +1689,8 @@
     // the user backed out mid-load).
     pendingRedirectAborted = true;
 
-    // Cancel any pending route timer that might fire after the user
-    // already navigated away and back.
-    if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
-
     // Hide overlays that may have been mid-animation when we left.
     overlay.style.display = 'none';
-    progress.style.width = '0%';
     loadingOverlay.classList.remove('active');
 
     // If we landed here via a `?q=` URL, restore the user's query into
@@ -1924,7 +1865,6 @@
 
   function clearHint() {
     hint.classList.remove('active');
-    document.documentElement.style.setProperty('--engine-color', 'transparent');
     delete document.body.dataset.engine;
     scoresPanel.classList.remove('active');
     scoresPanel.replaceChildren();
@@ -1985,7 +1925,6 @@
         const engine = engines[key];
         hint.textContent = engine.name;
         hint.classList.add('active');
-        document.documentElement.style.setProperty('--engine-color', engine.color);
         document.body.dataset.engine = key;
         hint.dataset.routeKey = key;
       } else {
@@ -2008,7 +1947,6 @@
     const engine = engines[result.key];
     hint.textContent = engine.name;
     hint.classList.add('active');
-    document.documentElement.style.setProperty('--engine-color', engine.color);
     document.body.dataset.engine = result.key;
     // Store the current route key on the hint so click-to-route knows where to go
     hint.dataset.routeKey = result.key;
@@ -2021,8 +1959,8 @@
 
   /**
    * Render a row of engine override buttons inside the routing overlay.
-   * The currently-selected engine is highlighted; clicking any button
-   * immediately routes there (skipping the countdown).
+   * The currently-selected engine (top semantic match) is highlighted;
+   * clicking any button routes there immediately.
    */
   function renderOverrideButtons(selectedKey, scores = []) {
     overrideEngines.replaceChildren();
@@ -2076,23 +2014,26 @@
   }
 
   /**
-   * @param {string}  rawQuery  the user's text
-   * @param {boolean} immediate true → navigate without showing the
-   *                            "redirecting…" overlay (used when the
-   *                            user explicitly clicks a destination)
+   * Route the user's query to a search engine.
+   *
+   * @param {string}  rawQuery     the user's text
+   * @param {boolean} immediate    true → navigate directly without
+   *                               showing the choose-destination overlay.
+   *                               Set by every code path where the user
+   *                               has explicitly already chosen an engine
+   *                               (desktop Enter, hint click, score chip,
+   *                               override button).
    * @param {string?} overrideKey  if provided, route to this engine
-   *                            *instead* of asking the model to
-   *                            classify. This is how the engine-hint
-   *                            click-to-route and the score-chip
-   *                            click-to-override paths bypass the
-   *                            usual semantic decision.
+   *                               instead of running classification. Used
+   *                               by the click-to-route / click-to-override
+   *                               paths.
+   *
+   * Overlay policy: mobile Enter and any `?q=` URL never auto-route — the
+   * user MUST tap an override button. Desktop Enter routes immediately
+   * because the user can already see and click the live score chips.
    */
   async function performRoute(rawQuery, immediate = false, overrideKey = null) {
     if (!rawQuery || !rawQuery.trim()) return;
-    // Defensive: if a previous route was already armed (rapid double
-    // Enter, or Enter while a redirect is pending), cancel it first so
-    // we don't stack timers / redirect twice.
-    if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
 
     let key;
     let scores = [];
@@ -2116,46 +2057,26 @@
         scores = result.scores;
       }
     }
-    const url = buildTargetUrl(rawQuery, key);
 
-    // User: "don't show that override/splash screen thing on desktop as the user sees chips..."
-    // We only show the overlay if:
-    //  1. The call specifically asked for it (immediate=false), AND
-    //  2. We are on mobile OR we are in a redirect (?q=) path.
-    // On desktop, the Enter-key path (which passes immediate=false) will now
-    // skip the overlay and navigate immediately.
-    const shouldShowOverlay = !immediate && (mobileMedia.matches || isRedirecting);
+    // Mobile and ?q= paths require an explicit tap — except for the
+    // `direct` engine, where the user already typed the literal URL
+    // they want to visit. Asking them to re-confirm a domain they just
+    // typed is friction without information value.
+    const shouldShowOverlay = !immediate && key !== 'direct' && (mobileMedia.matches || isRedirecting);
 
     if (!shouldShowOverlay) {
-      location.replace(url);
+      location.replace(buildTargetUrl(rawQuery, key));
       return;
     }
 
     const engine = engines[key];
     queryDisplay.textContent = rawQuery;
     display.textContent = engine.name;
-    document.documentElement.style.setProperty('--engine-color', engine.color);
     renderOverrideButtons(key, scores);
     overlay.style.display = 'flex';
     overlay.classList.add('active');
     search.blur();
-    // Reset width to 0 first so the transition has somewhere to go even
-    // if the bar was previously filled by a cancelled route.
-    progress.style.transition = 'none';
-    progress.style.width = '0%';
-    // Force reflow
-    progress.offsetHeight;
-    progress.style.transition = '';
-    requestAnimationFrame(() => { progress.style.width = '100%'; });
-    routeTimer = setTimeout(() => location.replace(url), ROUTE_DELAY_MS);
   }
-
-  // Allow clicking the engine name or progress area to skip the delay too.
-  overlay.addEventListener('click', e => {
-    if (e.target.closest('.cancel-btn') || e.target.closest('.override-engines')) return;
-    const query = search.value.trim();
-    if (query) performRoute(query, true);
-  });
 
   // ───────────────────────────────────────────────────────────────────────
   // Theme toggle (with localStorage persistence)
@@ -2286,10 +2207,8 @@
   });
 
   function cancelRoute() {
-    if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
     overlay.style.display = 'none';
     overlay.classList.remove('active');
-    progress.style.width = '0%';
     overrideEngines.replaceChildren();
     search.focus();
   }
@@ -2364,24 +2283,16 @@
     const key = btn.dataset.engine;
     if (!key) return;
 
-    // Immediate feedback: highlight the new selection and update the
-    // display name so the route feels instant even while the browser
-    // is busy starting the new navigation.
+    // Immediate visual feedback before navigation kicks in.
     const allBtns = overrideEngines.querySelectorAll('.override-btn');
     allBtns.forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
 
     const engine = engines[key];
     display.textContent = engine.name;
-    document.documentElement.style.setProperty('--engine-color', engine.color);
 
     // Haptic feedback (if supported)
     if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
-
-    // Stop the progress bar's visual fill. performRoute(..., true) will
-    // handle clearing the actual redirect timer.
-    progress.style.transition = 'none';
-    progress.style.width = '100%';
 
     const query = search.value.trim();
     if (!query) return;
@@ -2405,7 +2316,7 @@
     } else {
       search.value = trimmed;
       (async () => {
-        const ok = await initPromise;
+        await initPromise;
         // Bail if bfcache restore (or any other reset) flagged the
         // pending redirect as cancelled. Without this check, the
         // user could land on a stale `?q=` page via bfcache, the
@@ -2415,11 +2326,9 @@
         if (pendingRedirectAborted) return;
         // Whether the model loaded or we're in keyword mode, route
         // through performRoute. classify() handles the fallbacks
-        // internally — bangs/direct URL/keyword/DDG. Previously this
-        // path hard-coded DDG on model failure; keyword mode gives
-        // us much smarter offline routing for free.
-        // Show the overlay (not immediate) so the user can see the
-        // destination, cancel, or override before the redirect fires.
+        // internally — bangs/direct URL/keyword/DDG. The overlay
+        // shows the top-ranked match and forces the user to tap an
+        // engine; nothing fires automatically.
         performRoute(trimmed, false);
       })();
     }
@@ -2433,7 +2342,7 @@
     history.replaceState(null, '', demoUrl.toString());
     search.value = 'test';
     (async () => {
-      const ok = await initPromise;
+      await initPromise;
       if (pendingRedirectAborted) return;
       performRoute('test', false);
     })();
