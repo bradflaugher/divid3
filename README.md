@@ -15,8 +15,7 @@ divid3 is a meta-search router that runs entirely in your browser. It uses a sma
 - **Semantic intent.** A 22 MB `all-MiniLM-L6-v2` model embeds your query and picks the best-matching destination from your configured set.
 - **Bangs.** DuckDuckGo-style shortcuts (`!yt`, `!hn`, `!m`, …) that always win over the semantic router.
 - **Rule-based fallbacks.** Bare domains (`github.com`) and `localhost:3000` route directly. Low-memory phones get a deterministic keyword router instead of the model.
-- **Choose-don't-autoroute on mobile + `?q=` URLs.** No 4-second countdown. On mobile and on any link with a query string (e.g. browser-bar searches), the router shows you the top match plus the ranked alternatives and waits for you to tap. Desktop typing still routes immediately because the live score chips already let you click any destination.
-- **No build step.** Pure HTML / CSS / vanilla JS. Easy to audit. Easy to self-host.
+- **Dead Simple.** Pure HTML / CSS / vanilla JS. Easy to audit. Easy to self-host.
 
 ---
 
