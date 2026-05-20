@@ -1,61 +1,82 @@
 # divid3
 
-A private, on-device search router. **divid3** intelligently routes your queries to the best destination without tracking.
+**Private, on-device search routing.**
+
+divid3 is a meta-search engine that lives entirely in your browser. It uses local machine learning to understand your intent and route your queries to the best destination—without tracking, server logs, or middlemen.
 
 [**Try it at divid3.com**](https://divid3.com)
 
 ---
 
-## The Philosophy
+## ⚡ Key Features
 
-Most search tools act as a middleman, collecting data and showing ads before sending you to your destination. **divid3** is different. It is a client-side router that lives entirely in your browser. It understands your intent locally and sends you directly to the source. No server logs, no analytics, no middleman.
-
----
-
-## How it Works
-
-divid3 uses a layered approach to determine where your query should go:
-
-1.  **Direct Shortcuts (Bangs):** If you prefix a query with a bang (e.g., `!yt`), it skips the model and routes immediately to that engine.
-2.  **Explicit Rules:** Bare domains (like `github.com`) or specific patterns (like `localhost:3000`) are detected via regex and routed directly.
-3.  **Semantic Intent:** For everything else, a 22MB `all-MiniLM-L6-v2` model runs locally using Transformers.js to classify your query against a private index of potential destinations.
-4.  **Privacy Fallback:** If the model isn't confident, you are routed to a private, general-purpose fallback engine.
+- **Private by Design**: No queries ever leave your device for classification. All routing logic happens in your browser's memory.
+- **Semantic Intent**: Uses a 22MB `all-MiniLM-L6-v2` model to intelligently route queries like "best pizza nearby" to Maps, or "rust result type" to tech discussions.
+- **Instant Bangs**: DuckDuckGo-style shortcuts (e.g., `!yt`, `!gh`, `!m`) for when you know exactly where you want to go.
+- **Rule-Based Routing**: Detects domains and localhost patterns automatically.
+- **Low Memory Fallback**: Automatically switches to a lightweight keyword-based router on low-memory devices or if the model fails to load.
+- **No Build Step**: Pure HTML/CSS/JS. Easy to audit, easy to self-host.
 
 ---
 
-## Getting Started
+## 🛠 How it Works
 
-Set divid3 as your default search engine using the following template:
-`https://divid3.com/?q=%s`
+divid3 uses a multi-layered classification strategy:
 
-Detailed instructions for all major browsers and platforms are available at [**divid3.com/setup.html**](https://divid3.com/setup.html).
-
----
-
-## Tech Stack
-
-- **ML Runtime:** `@huggingface/transformers` v3 (WASM/WebGPU).
-- **Model:** `all-MiniLM-L6-v2` (q8-quantized).
-- **Frontend:** Vanilla HTML/JS/CSS (No build step).
-- **Hosting:** Static hosting (Cloudflare Pages).
+1.  **Bangs**: Synchronous regex matching for explicit shortcuts (e.g., `!yt` for YouTube).
+2.  **Explicit Rules**: Detects bare domains (`github.com`) or specific environments (`localhost:3000`).
+3.  **Semantic Routing**: A locally running Transformers.js model embeds your query and compares it against pre-computed vectors of hundreds of common intents.
+4.  **Top-Choice Routing**: The model picks the most likely destination based on semantic similarity. DuckDuckGo serves as the natural general-purpose fallback when no specific engine intent is detected.
 
 ---
 
-## Development
+## 🚀 Getting Started
+
+### Set as Default Search Engine
+
+Add the following URL as a custom search engine in your browser:
+```text
+https://divid3.com/?q=%s
+```
+
+Detailed setup instructions for Chrome, Firefox, Safari, and Arc are available at [divid3.com/setup.html](https://divid3.com/setup.html).
+
+### Keyboard Shortcuts
+
+- `/`: Focus search input
+- `Esc`: Cancel pending redirect
+- `T`: Toggle light/dark theme
+- `?`: Show help overlay
+
+---
+
+## 💻 Development
+
+divid3 is built with vanilla web technologies and requires no build step.
 
 ```bash
-# Serve locally
+# Install development dependencies (Playwright, serve)
+npm ci
+
+# Start the local development server
 npm run serve
 
-# Run the Playwright test suite
+# Run the full end-to-end test suite
 npm test
 
-# Regenerate the semantic index from scripts/search_phrases.json
+# Regenerate semantic embeddings from scripts/search_phrases.json
 python3 scripts/generate_search_embeddings.py
 ```
 
+### Adding New Routes
+
+1.  Edit `index.html` to add the engine to the `engines` object.
+2.  Add example phrases to `scripts/search_phrases.json`.
+3.  Run the embedding generation script.
+4.  Bump `EMBEDDINGS_VERSION` in `index.html`.
+
 ---
 
-## License
+## 📜 License
 
-AGPL-3.0. Model weights are Apache 2.0.
+Code is licensed under **AGPL-3.0**. The embedded model weights are **Apache 2.0**.

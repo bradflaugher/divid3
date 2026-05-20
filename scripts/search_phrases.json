@@ -1,6 +1,6 @@
 {
   "_comment": "Source phrases for the semantic-routing index. Run scripts/generate_search_embeddings.py to (re)build search-embeddings.json. Keep phrases short, varied in phrasing/style, and unambiguous about which destination they imply. Prefer the kind of thing a real user types (lowercase, no punctuation, fragment-style) over polished prose.",
-  "_threshold": 0.30,
+  "_threshold": 0.0,
   "_routes": [
     {
       "key": "ddg",
@@ -40,7 +40,21 @@
         "area code 415",
         "dialing code united kingdom",
         "what holiday is today",
-        "phases of the moon"
+        "phases of the moon",
+        "d",
+        "ddg",
+        "search the web",
+        "general search",
+        "duck duck go",
+        "private search engine",
+        "how to",
+        "why is",
+        "where to",
+        "definition of",
+        "synonym for",
+        "calculator",
+        "convert 5km to miles",
+        "translate hello to spanish"
       ]
     },
     {
@@ -92,7 +106,22 @@
         "image of a volcano erupting",
         "image of a tornado",
         "google image search alternative",
-        "high quality photo of a sunflower"
+        "high quality photo of a sunflower",
+        "i",
+        "img",
+        "pics",
+        "photos",
+        "gallery",
+        "wallpaper",
+        "background",
+        "screenshot",
+        "illustration",
+        "clipart",
+        "vector",
+        "icon",
+        "logo",
+        "meme",
+        "gif"
       ]
     },
     {
@@ -218,7 +247,38 @@
         "creative writing prompt about time travel",
         "list of weird excuses for being late",
         "give me 10 fun facts to share at a party",
-        "what's a good comeback to that's just your opinion"
+        "what's a good comeback to that's just your opinion",
+        "g",
+        "p",
+        "px",
+        "ai",
+        "chat",
+        "ask",
+        "explain",
+        "summarize",
+        "write",
+        "compose",
+        "draft",
+        "tell me",
+        "help me",
+        "what is",
+        "how do i",
+        "can you",
+        "what's up",
+        "trending",
+        "viral",
+        "tweets",
+        "x",
+        "twitter",
+        "chatgpt",
+        "openai",
+        "claude",
+        "anthropic",
+        "gemini",
+        "large language model",
+        "generative ai",
+        "llm research",
+        "transformer architecture"
       ]
     },
     {
@@ -276,7 +336,22 @@
         "directions to yosemite national park",
         "scenic drives in california",
         "navigate to 1600 pennsylvania ave",
-        "show me a map of seattle"
+        "show me a map of seattle",
+        "m",
+        "map",
+        "maps",
+        "directions",
+        "navigate",
+        "where is",
+        "nearby",
+        "near me",
+        "open now",
+        "address",
+        "location",
+        "transit",
+        "traffic",
+        "distance",
+        "route"
       ]
     },
     {
@@ -338,7 +413,22 @@
         "vlog day in the life of a nurse",
         "review iphone 15 pro max",
         "speedrun super mario 64",
-        "best of conan o'brien"
+        "best of conan o'brien",
+        "y",
+        "yt",
+        "video",
+        "watch",
+        "vlog",
+        "tutorial",
+        "music",
+        "song",
+        "trailer",
+        "clip",
+        "stream",
+        "live",
+        "highlights",
+        "compilation",
+        "asmr"
       ]
     },
     {
@@ -402,7 +492,20 @@
         "shop for womens leggings",
         "shop for sunglasses ray ban",
         "buy a usb-c hub for macbook",
-        "best ratings electric kettle"
+        "best ratings electric kettle",
+        "wc",
+        "nyt",
+        "buy",
+        "best",
+        "review",
+        "reviews",
+        "guide",
+        "top",
+        "rated",
+        "recommendation",
+        "compare",
+        "shopping",
+        "purchase"
       ]
     },
     {
@@ -444,7 +547,30 @@
         "replacing bash with zsh",
         "why sqlite is enough",
         "modern css is amazing",
-        "htmx vs react debate"
+        "htmx vs react debate",
+        "hn",
+        "h",
+        "hacker news",
+        "y combinator",
+        "yc",
+        "show hn",
+        "ask hn",
+        "tech news",
+        "programming",
+        "coding",
+        "development",
+        "software",
+        "startup",
+        "engineering",
+        "rust programming",
+        "typescript types",
+        "react server components",
+        "postgres performance",
+        "distributed systems",
+        "kernel development",
+        "compiler optimization",
+        "functional programming",
+        "technical blog"
       ]
     },
     {
@@ -482,7 +608,19 @@
         "sold items search",
         "buy it now only",
         "best offer accepted",
-        "free shipping filter"
+        "free shipping filter",
+        "eb",
+        "ebay",
+        "vintage",
+        "used",
+        "collectible",
+        "rare",
+        "parts",
+        "spare",
+        "discontinued",
+        "refurbished",
+        "auction",
+        "bid"
       ]
     }
   ]
