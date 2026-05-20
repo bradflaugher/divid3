@@ -340,15 +340,26 @@
     background: rgba(255,255,255,0.08);
     font-weight: 600;
   }
-  .override-btn.top-match::after {
+  .override-btn.top-match .override-label::after {
     content: 'Top match';
-    font-size: 0.65rem;
-    font-weight: 500;
-    letter-spacing: 0.12em;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
+    background: rgba(128, 128, 128, 0.1);
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
     margin-left: 0.5rem;
-    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+  }
+  .override-btn.top-match.selected .override-label::after {
+    color: var(--text);
+    background: rgba(128, 128, 128, 0.18);
+    border-color: rgba(128, 128, 128, 0.35);
   }
   .override-btn.selected .override-fill {
     background: var(--text);
