@@ -30,7 +30,7 @@ No build step, no bundler, no transpilation. The app is `index.html` + static fi
 
 1. **Bangs** — DuckDuckGo-style shortcuts (`!yt`, `!gh`, `!w`, etc.). Synchronous regex, no model.
 2. **Direct URL detection** — `DOMAIN_RE` / `LOCALHOST_RE` catch domains like `github.com` or `localhost:3000`. Also rule-based, no model.
-3. **Semantic routing** — Query is embedded via `@huggingface/transformers` v3 (WebGPU/WASM), compared against pre-computed vectors in `search-embeddings.json`. Falls back to DuckDuckGo if top score < `SIMILARITY_THRESHOLD` (0.30).
+3. **Semantic routing** — Query is embedded via `@huggingface/transformers` v3 (WebGPU/WASM), compared against pre-computed vectors in `search-embeddings.json`.
 
 ### Key data flow
 
@@ -38,8 +38,7 @@ No build step, no bundler, no transpilation. The app is `index.html` + static fi
 User types → debounce 150 ms → classify() →
   rule match? → route immediately
   else if model ready → embed query → dot-product against all route vectors →
-    max score ≥ 0.30? → best engine
-    else → DuckDuckGo
+    best engine
 ```
 
 - **Dot product = cosine similarity** because both query and route vectors are L2-normalized. No `sqrt` in the hot path.

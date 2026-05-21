@@ -38,7 +38,7 @@ You're welcome to ship a fork that points only at Kagi, Brave, SearXNG, your own
 2. **Explicit rules.** Bare-domain (`github.com`) and `localhost:port` detection.
 3. **Semantic match.** Transformers.js embeds the query and compares it against pre-computed vectors built from the phrase corpus.
 4. **Keyword fallback.** When the model isn't usable (low-memory device, repeated crashes, `?lite=1`), a deterministic weighted-keyword scorer takes over.
-5. **DDG as the universal fallback.** Below the similarity threshold, queries go to DuckDuckGo (HTML) by default.
+5. **DDG as the universal fallback.** In keyword mode, queries with no matching keywords fall back to DuckDuckGo (HTML) by default.
 
 ---
 
