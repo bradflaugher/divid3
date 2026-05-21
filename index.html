@@ -904,7 +904,6 @@
   //  v12: dropped per-engine `color`; one-file config from search_phrases.json
   const EMBEDDINGS_VERSION = '12';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
-  const SIMILARITY_THRESHOLD = 0.30;    // fallback to DDG below this confidence score
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
   // ~2 inferences for a 10-char query instead of ~10. Each WASM inference
@@ -1421,8 +1420,8 @@
           };
         }
         if (!newEngines.ddg) {
-          // Every config must keep a ddg key so the keyword-mode and
-          // similarity-threshold fallbacks have somewhere to land.
+          // Every config must keep a ddg key so the keyword-mode
+          // fallback has somewhere to land.
           throw new Error('config must define a "ddg" engine');
         }
         engines = newEngines;
@@ -1847,7 +1846,7 @@
       const qVec = output.data;
       const scores = scoreAll(qVec);
       const top = scores[0];
-      const key = top.score >= SIMILARITY_THRESHOLD ? top.key : 'ddg';
+      const key = top.key;
       return { key, scores };
     } catch (e) {
       console.error('Inference error', e);
