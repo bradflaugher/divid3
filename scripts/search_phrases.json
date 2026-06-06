@@ -4,7 +4,7 @@
   "engines": {
     "ddg":         { "name": "DuckDuckGo (html)", "urlTemplate": "https://html.duckduckgo.com/html/?q={q}" },
     "images":      { "name": "Bing Images",   "urlTemplate": "https://www.bing.com/images/search?q={q}" },
-    "grok":        { "name": "Grok",          "urlTemplate": "https://grok.com/?q={q}" },
+    "brave":       { "name": "Brave Search",  "urlTemplate": "https://search.brave.com/ask?q={q}&source=llmSuggest" },
     "maps":        { "name": "Google Maps",   "urlTemplate": "https://maps.google.com/maps?q={q}" },
     "youtube":     { "name": "YouTube",       "urlTemplate": "https://www.youtube.com/results?search_query={q}" },
     "wirecutter":  { "name": "Wirecutter",    "urlTemplate": "https://www.nytimes.com/wirecutter/search/?s={q}" },
@@ -17,8 +17,8 @@
     "wc": "wirecutter",  "nyt": "wirecutter",
     "m": "maps",         "map": "maps",
     "i": "images",       "img": "images",
-    "p": "grok",         "px": "grok",
-    "g": "grok",         "gr": "grok",
+    "p": "brave",        "px": "brave",
+    "g": "brave",        "gr": "brave",
     "hn": "hn",          "h": "hn",
     "eb": "ebay",        "ebay": "ebay",
     "d": "ddg",          "ddg": "ddg"
@@ -39,11 +39,11 @@
     { "engine": "images", "weight": 5, "kw": ["image of", "photo of", "picture of", "screenshot of", "wallpaper of", "high resolution photo", "high res image"] },
     { "engine": "images", "weight": 3, "kw": ["wallpaper", "wallpapers", "lockscreen", "background image", "desktop background", "phone wallpaper"] },
     { "engine": "images", "weight": 1, "kw": ["image", "images", "photo", "photos", "picture", "pictures", "gif", "meme"] },
-    { "engine": "grok", "weight": 5, "kw": ["pros and cons", "tradeoffs between", "difference between", "comparison of", "detailed comparison", "literature review", "research the", "in depth analysis", "overview of", "history of"] },
-    { "engine": "grok", "weight": 3, "kw": ["explain", "summarize", "tldr", "tl;dr", "compare", "how does", "why does", "why is", "walk me through", "breakdown of"] },
-    { "engine": "grok", "weight": 5, "kw": ["trending on x", "trending on twitter", "latest news on x", "what elon said", "breaking news live", "current public opinion", "twitter trends"] },
-    { "engine": "grok", "weight": 3, "kw": ["twitter", "news trends", "viral video", "social sentiment", "what people think"] },
-    { "engine": "grok", "weight": 1, "kw": ["write a", "tell me a joke", "pretend you are"] },
+    { "engine": "brave", "weight": 5, "kw": ["pros and cons", "tradeoffs between", "difference between", "comparison of", "detailed comparison", "literature review", "research the", "in depth analysis", "overview of", "history of"] },
+    { "engine": "brave", "weight": 3, "kw": ["explain", "summarize", "tldr", "tl;dr", "compare", "how does", "why does", "why is", "walk me through", "breakdown of"] },
+    { "engine": "brave", "weight": 5, "kw": ["trending on x", "trending on twitter", "latest news on x", "what elon said", "breaking news live", "current public opinion", "twitter trends"] },
+    { "engine": "brave", "weight": 3, "kw": ["twitter", "news trends", "viral video", "social sentiment", "what people think"] },
+    { "engine": "brave", "weight": 1, "kw": ["write a", "tell me a joke", "pretend you are"] },
     { "engine": "ebay", "weight": 5, "kw": ["buy vintage", "used listing", "buy replacement parts", "bids on", "auction for", "hard to find collectible", "rare item for sale"] },
     { "engine": "ebay", "weight": 3, "kw": ["ebay", "used price", "second hand", "refurbished", "cheap used", "for parts"] },
     { "engine": "ebay", "weight": 1, "kw": ["used", "vintage", "antique", "collectible", "spare", "repair"] }
@@ -211,8 +211,8 @@
       ]
     },
     {
-      "key": "grok",
-      "label": "Grok (timely news, trends, social search)",
+      "key": "brave",
+      "label": "Brave Search (AI answers, web search)",
       "phrases": [
         "explain quantum entanglement in simple terms",
         "summarize the plot of dune",
