@@ -549,6 +549,41 @@
       width: 35px;
       font-size: 0.7rem;
     }
+    body[data-keyboard="open"] .scores-panel {
+      position: static;
+      margin-top: 1rem;
+      max-height: 0;
+      overflow: hidden;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.5rem;
+      max-width: none;
+      pointer-events: auto;
+    }
+    body[data-keyboard="open"] .scores-panel.active {
+      max-height: 12rem;
+    }
+    body[data-keyboard="open"] .scores-panel .score-row {
+      background: rgba(128, 128, 128, 0.08);
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      gap: 0.35rem;
+    }
+    body[data-keyboard="open"] .scores-panel .score-row:hover {
+      background: rgba(128, 128, 128, 0.16);
+    }
+    body[data-keyboard="open"] .scores-panel .score-bar {
+      width: 32px;
+    }
+    body[data-keyboard="open"] .scores-panel .score-label {
+      width: auto;
+      text-align: left;
+      font-size: 0.65rem;
+    }
+    body[data-keyboard="open"] .scores-panel .score-val {
+      width: auto;
+      font-size: 0.65rem;
+    }
     .status-dot {
       bottom: calc(2rem + var(--keyboard-inset, 0px) + 2px);
       right: 2rem;
@@ -674,19 +709,6 @@
   body[data-keyboard="open"] .status-dot {
     opacity: 0;
     pointer-events: none;
-  }
-  @media (min-width: 768px) {
-    /* On desktop the keyboard concept doesn't apply; always show the
-       footer links and status dot regardless of focus state. */
-    body[data-keyboard="open"] .footer-links,
-    body[data-keyboard="open"] .status-dot {
-      opacity: unset;
-      pointer-events: unset;
-    }
-    body[data-keyboard="open"] .footer-links.visible {
-      opacity: 0.4;
-      pointer-events: auto;
-    }
   }
   .footer-links a {
     color: var(--text-muted);
@@ -902,7 +924,8 @@
   // short TTL.
   //  v11: moved engines/bangs/keywordRules into search-config.json
   //  v12: dropped per-engine `color`; one-file config from search_phrases.json
-  const EMBEDDINGS_VERSION = '12';
+  //  v13: replaced Grok with Brave Search Ask endpoint
+  const EMBEDDINGS_VERSION = '13';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates

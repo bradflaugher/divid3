@@ -50,7 +50,7 @@ The shipped configuration routes between:
 |---------------|--------------------------------------------|--------------------|
 | DuckDuckGo    | Generic web search; fallback for anything ambiguous | `!d`, `!ddg`       |
 | Bing Images   | Image queries                              | `!i`, `!img`       |
-| Grok          | Conversational / current-events / X-flavored research | `!g`, `!gr`, `!p`, `!px` |
+| Brave Search  | Conversational AI answers and web search           | `!g`, `!gr`, `!p`, `!px` |
 | Google Maps   | Locations, "near me", directions           | `!m`, `!map`       |
 | YouTube       | Music, video, tutorials                    | `!y`, `!yt`        |
 | Wirecutter    | Buying advice, product recommendations     | `!wc`, `!nyt`      |
