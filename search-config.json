@@ -10,7 +10,7 @@
     },
     "brave": {
       "name": "Brave Search",
-      "urlTemplate": "https://search.brave.com/ask?q={q}&source=llmSuggest&conversation=092cac775d1f299ad9c578db2a96010520eb"
+      "urlTemplate": "https://search.brave.com/ask?q={q}&source=llmSuggest"
     },
     "maps": {
       "name": "Google Maps",

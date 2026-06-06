@@ -4,7 +4,7 @@
   "engines": {
     "ddg":         { "name": "DuckDuckGo (html)", "urlTemplate": "https://html.duckduckgo.com/html/?q={q}" },
     "images":      { "name": "Bing Images",   "urlTemplate": "https://www.bing.com/images/search?q={q}" },
-    "brave":       { "name": "Brave Search",  "urlTemplate": "https://search.brave.com/ask?q={q}&source=llmSuggest&conversation=092cac775d1f299ad9c578db2a96010520eb" },
+    "brave":       { "name": "Brave Search",  "urlTemplate": "https://search.brave.com/ask?q={q}&source=llmSuggest" },
     "maps":        { "name": "Google Maps",   "urlTemplate": "https://maps.google.com/maps?q={q}" },
     "youtube":     { "name": "YouTube",       "urlTemplate": "https://www.youtube.com/results?search_query={q}" },
     "wirecutter":  { "name": "Wirecutter",    "urlTemplate": "https://www.nytimes.com/wirecutter/search/?s={q}" },

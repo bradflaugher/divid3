@@ -925,7 +925,8 @@
   //  v11: moved engines/bangs/keywordRules into search-config.json
   //  v12: dropped per-engine `color`; one-file config from search_phrases.json
   //  v13: replaced Grok with Brave Search Ask endpoint
-  const EMBEDDINGS_VERSION = '13';
+  //  v14: removed conversation ID parameter from Brave Search URL
+  const EMBEDDINGS_VERSION = '14';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
