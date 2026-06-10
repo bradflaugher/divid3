@@ -36,9 +36,27 @@ You're welcome to ship a fork that points only at Kagi, Brave, SearXNG, your own
 
 1. **Bangs.** Regex match for `!yt`, `!hn`, etc. Always wins.
 2. **Explicit rules.** Bare-domain (`github.com`) and `localhost:port` detection.
-3. **Semantic match.** Transformers.js embeds the query and compares it against pre-computed vectors built from the phrase corpus.
+3. **Semantic match.** Transformers.js embeds the query and scores each destination by the **mean of its top-3 cosine similarities** against that destination's phrase corpus. Top-3 pooling (instead of plain nearest-neighbor) means a single stray phrase can't hijack a route — three examples have to agree.
 4. **Keyword fallback.** When the model isn't usable (low-memory device, repeated crashes, `?lite=1`), a deterministic weighted-keyword scorer takes over.
 5. **DDG as the universal fallback.** In keyword mode, queries with no matching keywords fall back to DuckDuckGo (HTML) by default.
+
+### Measured accuracy
+
+Routing quality is measured by `scripts/eval_routing.py` against a **held-out benchmark** of 353 labeled real-world queries (`scripts/routing_benchmark.json` — the validator enforces that no benchmark query is ever copied into the training phrases):
+
+| Router                  | Accuracy |
+|-------------------------|----------|
+| Semantic (top-3 cosine) | **98.9%** |
+| Keyword (`?lite=1`)     | **97.5%** |
+
+Run it yourself after any corpus edit:
+
+```bash
+python3 scripts/eval_routing.py                      # full report + misroute analysis
+python3 scripts/eval_routing.py --query "best ramen" # probe a single query
+```
+
+The misroute report names the exact phrase that "won" each wrong routing, which makes corpus debugging mechanical: find the hijacking phrase, sharpen or remove it, re-run.
 
 ---
 
@@ -136,20 +154,30 @@ Notes:
 - Every engine used by a bang, keyword rule, or `_routes` entry must be declared in `engines`. The validator and the generator both enforce this.
 - `ddg` must exist; it's the universal fallback when nothing else is confident.
 
+### Phrase-writing rules (enforced by the validator)
+
+- **No single-word phrases** outside the `ddg` fallback route. Under nearest-neighbor pooling a bare word (`buy`, `music`, `guide`) becomes a universal attractor that hijacks unrelated queries — removing them was worth ~10 points of measured accuracy.
+- **No phrase may appear in two routes** — that's a guaranteed conflict.
+- Every phrase must be unambiguous about its destination *on its own*. If it could plausibly belong to two engines, sharpen it or drop it.
+- Never copy a query from `scripts/routing_benchmark.json` into the corpus; the benchmark must stay held-out (also enforced).
+
 ### Workflow
 
 ```bash
 # 1. Edit scripts/search_phrases.json — add engines, tweak bangs, drop phrases.
 $EDITOR scripts/search_phrases.json
 
-# 2. Regenerate the runtime artifacts.
+# 2. Measure the change against the routing benchmark.
+python3 scripts/eval_routing.py
+
+# 3. Regenerate the runtime artifacts.
 python3 scripts/generate_search_embeddings.py
 
-# 3. Bump EMBEDDINGS_VERSION in index.html so caches invalidate atomically.
+# 4. Bump EMBEDDINGS_VERSION in index.html so caches invalidate atomically.
 #    (search the file for EMBEDDINGS_VERSION = '...')
 
-# 4. Sanity-check the change locally.
-npm run lint     # validates schema + drift between phrases.json and search-config.json
+# 5. Sanity-check the change locally.
+npm run lint     # validates schema + corpus rules + drift with search-config.json
 npm run serve
 npm test
 ```

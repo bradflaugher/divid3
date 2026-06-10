@@ -80,7 +80,51 @@ def validate_phrases(cfg: dict) -> tuple[dict, dict, list]:
         if rkey not in engines:
             fail(f"_routes entry '{rkey}' is not declared in 'engines'")
 
+    validate_route_phrases(cfg.get("_routes", []))
     return engines, bangs, rules
+
+
+def validate_route_phrases(routes: list) -> None:
+    """Corpus-quality rules learned from eval (scripts/eval_routing.py):
+
+    1. No single-word phrases outside the 'ddg' fallback route. Under
+       nearest-neighbor pooling a bare word ('buy', 'music', 'guide')
+       becomes a universal attractor that hijacks unrelated queries —
+       removing them was worth ~10 points of routing accuracy. The ddg
+       route is exempt because navigational brand words ('wikipedia',
+       'facebook') genuinely belong to the fallback engine.
+    2. No phrase may appear in two different routes — that's a
+       guaranteed routing conflict.
+    """
+    seen: dict[str, str] = {}
+    for route in routes:
+        rkey = route.get("key")
+        for phrase in route.get("phrases", []):
+            p = phrase.strip().lower()
+            if not p:
+                fail(f"route '{rkey}' contains an empty phrase")
+            if " " not in p and rkey != "ddg":
+                fail(
+                    f"route '{rkey}' has single-word phrase {p!r} — bare words "
+                    "hijack the nearest-neighbor router; use a multi-word, "
+                    "intent-specific phrase instead"
+                )
+            if p in seen and seen[p] != rkey:
+                fail(f"phrase {p!r} appears in both '{seen[p]}' and '{rkey}'")
+            seen[p] = rkey
+
+    bench_file = REPO_ROOT / "scripts" / "routing_benchmark.json"
+    if bench_file.exists():
+        bench = json.loads(bench_file.read_text(encoding="utf-8"))
+        overlap = [
+            item["q"] for item in bench.get("queries", [])
+            if item["q"].strip().lower() in seen
+        ]
+        if overlap:
+            fail(
+                "benchmark queries copied verbatim into _routes (the benchmark "
+                f"must stay held-out): {overlap[:5]}"
+            )
 
 
 def validate_generated(engines: dict, bangs: dict, rules: list) -> None:
