@@ -221,9 +221,14 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#engine-display')).toHaveText('YouTube');
   });
 
-  test('?q=how+to+make+pizza shows overlay with semantic engine', async ({ page }) => {
+  test('?q=how+to+fix+a+flat+tire shows overlay with semantic engine', async ({ page }) => {
     await freezeRouteTimer(page);
-    await page.goto(`${PATH}?q=how+to+make+pizza`);
+    // "not DDG" is the proxy for "the semantic model actually classified
+    // this" (DDG is also the everything-fallback engine), so the query must
+    // be one whose CORRECT destination is non-DDG by a wide margin — a
+    // hands-on how-to that's best answered by video. Simple recipe lookups
+    // ("how to make pizza") intentionally route to DDG, so don't use one.
+    await page.goto(`${PATH}?q=how+to+fix+a+flat+tire`);
     await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
     const name = await page.locator('#engine-display').textContent();
     expect(name).toBeTruthy();

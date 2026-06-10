@@ -926,7 +926,11 @@
   //  v12: dropped per-engine `color`; one-file config from search_phrases.json
   //  v13: replaced Grok with Brave Search Ask endpoint
   //  v14: removed conversation ID parameter from Brave Search URL
-  const EMBEDDINGS_VERSION = '14';
+  //  v15: corpus overhaul — removed single-word hijacker phrases, sharpened
+  //       per-engine intent boundaries, expanded keyword rules; routing
+  //       accuracy on scripts/eval_routing.py went 76.8% → ~99% (semantic)
+  //       and 45.9% → ~97% (keyword/lite)
+  const EMBEDDINGS_VERSION = '15';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
@@ -937,8 +941,9 @@
   // Skip the model entirely for ultra-short queries — 0–1 chars never
   // match a route confidently, and we'd just be allocating WASM tensors
   // for no signal. Bangs and direct-URL detection still run normally
-  // (they're rule-based and free).
-  const MIN_QUERY_LEN_FOR_MODEL = 1;
+  // (they're rule-based and free). Enter still runs the model on any
+  // length (performRoute doesn't pass allowInference:false).
+  const MIN_QUERY_LEN_FOR_MODEL = 2;
   const FETCH_TIMEOUT_MS = 30_000;     // give up on stalled embeddings fetch
   const MODEL_LOAD_RETRIES = 2;        // transient init failures only
   const MODEL_LOAD_RETRY_BASE_MS = 800;
@@ -1520,10 +1525,17 @@
           const { raw, model } = await loadModelOnce();
           // Convert to typed arrays once. Vectors are L2-normalized at
           // build time, so cosine == dot product (no per-query sqrt).
-          routes = raw.map(r => ({
-            key: r.key,
-            vectors: r.vectors.map(v => Float32Array.from(v)),
-          }));
+          // Drop any route whose engine isn't dispatchable — happens when
+          // search-config.json failed to load (DDG-only fallback engines)
+          // but the embeddings fetch succeeded. Without this filter,
+          // classify() could return a key that engines[] can't render,
+          // crashing updateHint() on `engine.name`.
+          routes = raw
+            .filter(r => engines[r.key])
+            .map(r => ({
+              key: r.key,
+              vectors: r.vectors.map(v => Float32Array.from(v)),
+            }));
           extractor = model;
           modelReady = true;
           modelEverLoaded = true;
@@ -1775,20 +1787,31 @@
   }
 
   /**
-   * Score a query against every route. Each route's score is the *max*
-   * similarity over its example vectors (nearest-neighbor pooling — more
-   * robust than averaging when example phrasings vary widely).
+   * Score a query against every route. Each route's score is the mean of
+   * its TOP_K_NEIGHBORS highest similarities over its example vectors.
+   * Pure max-pooling (k=1) lets a single stray phrase hijack a route;
+   * requiring k nearest neighbors to agree is measurably more accurate
+   * on the offline benchmark (scripts/eval_routing.py: 92.9% top-3 vs
+   * 91.2% max on 353 labeled queries) while staying just as cheap.
    */
+  const TOP_K_NEIGHBORS = 3;
   function scoreAll(qVec) {
     const scores = new Array(routes.length);
     for (let i = 0; i < routes.length; i++) {
       const vecs = routes[i].vectors;
-      let best = -1;
+      // Track the k best similarities in a tiny insertion buffer —
+      // avoids allocating + sorting a full per-route score array.
+      const top = [-1, -1, -1];
       for (let j = 0; j < vecs.length; j++) {
         const s = dot(qVec, vecs[j]);
-        if (s > best) best = s;
+        if (s > top[0]) { top[2] = top[1]; top[1] = top[0]; top[0] = s;
+        } else if (s > top[1]) { top[2] = top[1]; top[1] = s;
+        } else if (s > top[2]) { top[2] = s; }
       }
-      scores[i] = { key: routes[i].key, score: best };
+      const k = Math.min(TOP_K_NEIGHBORS, vecs.length);
+      let sum = 0;
+      for (let j = 0; j < k; j++) sum += top[j];
+      scores[i] = { key: routes[i].key, score: sum / k };
     }
     scores.sort((a, b) => b.score - a.score);
     return scores;
@@ -2269,7 +2292,7 @@
   const placeholders = [
     'Type to search...', '2 + 2 * 42', 'pizza near me', '!yt lofi hip hop',
     'explain quantum gravity', 'github.com', 'image of a black hole',
-    'latest AI news', '!gh gemini-cli', 'integral of x^2', 'distance to moon'
+    'latest AI news', '!hn show hn', 'integral of x^2', 'distance to moon'
   ];
   let pIdx = 0;
   setInterval(() => {
