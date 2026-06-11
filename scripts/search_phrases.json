@@ -1,10 +1,10 @@
 {
-  "_comment": "Source phrases for the semantic-routing index. Run scripts/generate_search_embeddings.py to (re)build search-embeddings.json. Keep phrases short, varied in phrasing/style, and unambiguous about which destination they imply. Prefer the kind of thing a real user types (lowercase, no punctuation, fragment-style) over polished prose. RULES OF THUMB learned from eval (scripts/eval_routing.py): (1) never add a single generic word as a phrase — under max-pooling it becomes a universal attractor that hijacks unrelated queries ('buy', 'music', 'guide' each caused multiple misroutes); (2) every phrase must be unambiguous about its destination on its own — if a phrase could plausibly belong to two engines, sharpen it or drop it; (3) routing philosophy: brave = complicated queries that want a synthesized answer (explain / compare / research / creative writing / live sentiment), ddg = simple facts + navigation + quick lookups, wirecutter = buying advice for NEW products, ebay = used / vintage / parts / collectibles, maps = local places + directions, youtube = video + music, hn = tech + startup discussion, images = pictures. Quality-gate any edit with: python3 scripts/eval_routing.py",
+  "_comment": "Source phrases for the semantic-routing index. Run scripts/generate_search_embeddings.py to (re)build search-embeddings.json. Keep phrases short, varied in phrasing/style, and unambiguous about which destination they imply. Prefer the kind of thing a real user types (lowercase, no punctuation, fragment-style) over polished prose. RULES OF THUMB learned from eval (scripts/eval_routing.py): (1) never add a single generic word as a phrase — under max-pooling it becomes a universal attractor that hijacks unrelated queries ('buy', 'music', 'guide' each caused multiple misroutes); (2) every phrase must be unambiguous about its destination on its own — if a phrase could plausibly belong to two engines, sharpen it or drop it; (3) routing philosophy: grok = complicated queries that want a synthesized answer (explain / compare / research / creative writing / live sentiment / agentic deep-dives), ddg = simple facts + navigation + quick lookups, wirecutter = buying advice for NEW products, ebay = used / vintage / parts / collectibles, maps = local places + directions, youtube = video + music, hn = tech + startup discussion, images = pictures. Quality-gate any edit with: python3 scripts/eval_routing.py",
   "_threshold": 0.0,
   "engines": {
     "ddg":         { "name": "DuckDuckGo (html)", "urlTemplate": "https://html.duckduckgo.com/html/?q={q}" },
     "images":      { "name": "Bing Images",   "urlTemplate": "https://www.bing.com/images/search?q={q}" },
-    "brave":       { "name": "Brave Search",  "urlTemplate": "https://search.brave.com/ask?q={q}&source=llmSuggest" },
+    "grok":        { "name": "Grok",          "urlTemplate": "https://grok.com/?q={q}" },
     "maps":        { "name": "Google Maps",   "urlTemplate": "https://maps.google.com/maps?q={q}" },
     "youtube":     { "name": "YouTube",       "urlTemplate": "https://www.youtube.com/results?search_query={q}" },
     "wirecutter":  { "name": "Wirecutter",    "urlTemplate": "https://www.nytimes.com/wirecutter/search/?s={q}" },
@@ -17,8 +17,8 @@
     "wc": "wirecutter",  "nyt": "wirecutter",
     "m": "maps",         "map": "maps",
     "i": "images",       "img": "images",
-    "p": "brave",        "px": "brave",
-    "g": "brave",        "gr": "brave",
+    "p": "grok",        "px": "grok",
+    "g": "grok",        "gr": "grok",
     "hn": "hn",          "h": "hn",
     "eb": "ebay",        "ebay": "ebay",
     "d": "ddg",          "ddg": "ddg"
@@ -43,11 +43,11 @@
     { "engine": "images", "weight": 3, "kw": ["wallpaper", "wallpapers", "lockscreen", "background image", "desktop background", "phone wallpaper", "png", "svg icon", "vector art", "ideas pictures", "ideas photos", "before and after photos", "drawing reference", "reference photos", "tattoo ideas", "tattoo design", "haircut ideas", "paintings", "background for", "high resolution", "high res"] },
     { "engine": "images", "weight": 2, "kw": ["images", "photos", "pictures", "pics"] },
     { "engine": "images", "weight": 1, "kw": ["image", "photo", "picture", "gif", "meme", "diagram", "illustration", "icon", "logo", "poster"] },
-    { "engine": "brave", "weight": 5, "kw": ["pros and cons", "tradeoffs between", "difference between", "comparison of", "detailed comparison", "literature review", "research the", "in depth analysis", "overview of", "history of", "what caused", "explain like", "explain how", "explain why", "explain the", "what would happen if", "arguments for", "for and against", "movies like", "movies similar to", "books like", "books similar to", "best way to learn", "what do people think", "what are people saying", "public opinion", "public reaction", "is it better to", "should i rent or buy"] },
-    { "engine": "brave", "weight": 3, "kw": ["explain", "summarize", "tldr", "tl;dr", "compare", "compared to", "how does", "how do", "why does", "why do", "why is", "walk me through", "breakdown of", "should i", "is it safe", "is it true", "what's the difference", "whats the difference", "similar to", "ideas for", "ideas to", "suggestions for", "evidence for", "research on", "studies on", "analyze", "what did", "tell me about", "tell me something"] },
-    { "engine": "brave", "weight": 5, "kw": ["trending on x", "trending on twitter", "latest news on x", "breaking news live", "current public opinion", "twitter trends", "what's trending", "whats trending", "sentiment around", "sentiment about", "controversy with", "controversy about", "live updates on"] },
-    { "engine": "brave", "weight": 3, "kw": ["twitter", "news trends", "viral video", "social sentiment", "what people think", "reaction to", "hot take"] },
-    { "engine": "brave", "weight": 3, "kw": ["write a", "write me", "write an", "draft a", "draft an", "compose a", "brainstorm", "tell me a joke", "tell me a riddle", "pretend you are", "act as", "roleplay", "make up a story", "caption for", "caption ideas", "name ideas", "name suggestions", "tagline for", "slogan for", "rewrite this", "rewrite my", "make this sound", "help me word", "help me write", "icebreaker", "conversation starters", "debate me", "play a game"] },
+    { "engine": "grok", "weight": 5, "kw": ["pros and cons", "tradeoffs between", "difference between", "comparison of", "detailed comparison", "literature review", "research the", "in depth analysis", "overview of", "history of", "what caused", "explain like", "explain how", "explain why", "explain the", "what would happen if", "arguments for", "for and against", "movies like", "movies similar to", "books like", "books similar to", "best way to learn", "what do people think", "what are people saying", "public opinion", "public reaction", "is it better to", "should i rent or buy"] },
+    { "engine": "grok", "weight": 3, "kw": ["explain", "summarize", "tldr", "tl;dr", "compare", "compared to", "how does", "how do", "why does", "why do", "why is", "walk me through", "breakdown of", "should i", "is it safe", "is it true", "what's the difference", "whats the difference", "similar to", "ideas for", "ideas to", "suggestions for", "evidence for", "research on", "studies on", "analyze", "what did", "tell me about", "tell me something"] },
+    { "engine": "grok", "weight": 5, "kw": ["trending on x", "trending on twitter", "latest news on x", "breaking news live", "current public opinion", "twitter trends", "what's trending", "whats trending", "sentiment around", "sentiment about", "controversy with", "controversy about", "live updates on"] },
+    { "engine": "grok", "weight": 3, "kw": ["twitter", "news trends", "viral video", "social sentiment", "what people think", "reaction to", "hot take"] },
+    { "engine": "grok", "weight": 3, "kw": ["write a", "write me", "write an", "draft a", "draft an", "compose a", "brainstorm", "tell me a joke", "tell me a riddle", "pretend you are", "act as", "roleplay", "make up a story", "caption for", "caption ideas", "name ideas", "name suggestions", "tagline for", "slogan for", "rewrite this", "rewrite my", "make this sound", "help me word", "help me write", "icebreaker", "conversation starters", "debate me", "play a game"] },
     { "engine": "ebay", "weight": 5, "kw": ["buy vintage", "used listing", "buy replacement parts", "bids on", "bid on", "auction for", "hard to find collectible", "rare item for sale", "replacement part", "replacement parts", "replacement battery", "replacement remote", "replacement screen", "replacement blade", "spare part", "spare parts", "oem part", "parts for", "part for", "sold listings", "completed listings", "sold prices", "sell for used", "worth used", "new old stock", "first edition", "out of print", "graded card", "graded cards", "psa 10", "estate sale", "salvage"] },
     { "engine": "ebay", "weight": 3, "kw": ["ebay", "used price", "second hand", "secondhand", "refurbished", "cheap used", "for parts", "vintage", "antique", "collectible", "collectibles", "discontinued", "memorabilia", "pre-owned", "preowned", "thrifted", "for sale", "sealed", "boxed", "original print", "carburetor", "alternator", "typewriter", "film camera", "graded", "door seal", "side mirror", "tail light"] },
     { "engine": "ebay", "weight": 2, "kw": ["used", "replacement", "prints"] },
@@ -297,8 +297,8 @@
       ]
     },
     {
-      "key": "brave",
-      "label": "Brave Search (AI answers, web search)",
+      "key": "grok",
+      "label": "Grok (AI answers, research, social search)",
       "phrases": [
         "explain quantum entanglement in simple terms",
         "summarize the plot of dune",

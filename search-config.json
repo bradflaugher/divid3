@@ -8,9 +8,9 @@
       "name": "Bing Images",
       "urlTemplate": "https://www.bing.com/images/search?q={q}"
     },
-    "brave": {
-      "name": "Brave Search",
-      "urlTemplate": "https://search.brave.com/ask?q={q}&source=llmSuggest"
+    "grok": {
+      "name": "Grok",
+      "urlTemplate": "https://grok.com/?q={q}"
     },
     "maps": {
       "name": "Google Maps",
@@ -46,10 +46,10 @@
     "map": "maps",
     "i": "images",
     "img": "images",
-    "p": "brave",
-    "px": "brave",
-    "g": "brave",
-    "gr": "brave",
+    "p": "grok",
+    "px": "grok",
+    "g": "grok",
+    "gr": "grok",
     "hn": "hn",
     "h": "hn",
     "eb": "ebay",
@@ -624,7 +624,7 @@
       ]
     },
     {
-      "engine": "brave",
+      "engine": "grok",
       "weight": 5,
       "kw": [
         "pros and cons",
@@ -659,7 +659,7 @@
       ]
     },
     {
-      "engine": "brave",
+      "engine": "grok",
       "weight": 3,
       "kw": [
         "explain",
@@ -694,7 +694,7 @@
       ]
     },
     {
-      "engine": "brave",
+      "engine": "grok",
       "weight": 5,
       "kw": [
         "trending on x",
@@ -713,7 +713,7 @@
       ]
     },
     {
-      "engine": "brave",
+      "engine": "grok",
       "weight": 3,
       "kw": [
         "twitter",
@@ -726,7 +726,7 @@
       ]
     },
     {
-      "engine": "brave",
+      "engine": "grok",
       "weight": 3,
       "kw": [
         "write a",

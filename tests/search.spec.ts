@@ -120,12 +120,12 @@ test.describe('search router — bang shortcuts', () => {
     // destination's interstitial is outside our control.
     // { input: '!m coffee shops',    engine: 'maps',        host: /(^|\.)google\.com$/,       qParam: 'q',            qFragment: 'coffee' },
     { input: '!i black hole',      engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'black' },
-    { input: '!p quantum gravity', engine: 'brave',       host: /(^|\.)brave\.com$/,        qParam: 'q',            qFragment: 'quantum' },
+    { input: '!p quantum gravity', engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
     { input: '!y dancing dog',     engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
     { input: '!nyt mattress',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'mattress' },
     { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
-    { input: '!g trending on x',   engine: 'brave',       host: /(^|\.)brave\.com$/,        qParam: 'q',            qFragment: 'trending' },
+    { input: '!g trending on x',   engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'trending' },
     { input: '!eb vintage lens',   engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
   ];
 
@@ -1009,8 +1009,8 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     { query: 'best wireless headphones',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qFragment: 'wireless' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
-    { query: 'explain quantum mechanics',     engine: 'brave',       host: /(^|\.)brave\.com$/,         qFragment: 'quantum' },
-    { query: 'trending on x',                 engine: 'brave',       host: /(^|\.)brave\.com$/,         qFragment: 'trending' },
+    { query: 'explain quantum mechanics',     engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'quantum' },
+    { query: 'trending on x',                 engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'trending' },
     { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
   ];
 
@@ -1111,7 +1111,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     // never loaded. Pick a query with a strong keyword signal.
     const search = page.locator('#search');
     await search.fill('trending on x');
-    const navPromise = page.waitForURL(/brave\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    const navPromise = page.waitForURL(/grok\.com/, { timeout: 15_000, waitUntil: 'commit' });
     await search.press('Enter');
     await navPromise;
   });
