@@ -930,7 +930,8 @@
   //       per-engine intent boundaries, expanded keyword rules; routing
   //       accuracy on scripts/eval_routing.py went 76.8% → ~99% (semantic)
   //       and 45.9% → ~97% (keyword/lite)
-  const EMBEDDINGS_VERSION = '15';
+  //  v16: replaced Brave Search with Grok (grok.com) for the LLM-shaped route
+  const EMBEDDINGS_VERSION = '16';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
