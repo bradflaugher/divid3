@@ -1143,3 +1143,200 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     await navPromise;
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────
+// Arrow-key destination selection
+//
+// Desktop: while typing, ↑/↓ move a highlighted selection through the
+// ranked score rows; the hint mirrors the selection and Enter routes to
+// it (overriding the model). Esc reverts to the model's pick. The same
+// arrows also drive the override buttons on the routing overlay.
+// ───────────────────────────────────────────────────────────────────────
+test.describe('search router — arrow-key destination selection', () => {
+  test('ArrowDown selects the runner-up and the hint follows', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live scores during typing are desktop-only');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('lofi beats');
+    await expect(page.locator('#scores')).toHaveClass(/active/);
+    const modelPick = await page.locator('body').getAttribute('data-engine');
+
+    await search.press('ArrowDown');
+
+    // Exactly one row is highlighted, and it's NOT the model's pick
+    // (the selection starts from the pick, so the first ↓ lands on
+    // the runner-up).
+    await expect(page.locator('#scores .score-row.kbd-selected')).toHaveCount(1);
+    const selected = await page
+      .locator('#scores .score-row.kbd-selected')
+      .getAttribute('data-engine');
+    expect(selected).not.toBe(modelPick);
+
+    // Hint and body accent mirror the selection.
+    await expect(page.locator('body')).toHaveAttribute('data-engine', selected!);
+    const label = await page
+      .locator(`#scores .score-row[data-engine="${selected}"] .score-label`)
+      .textContent();
+    await expect(page.locator('#hint')).toHaveText(label!.trim());
+  });
+
+  test('ArrowUp moves back; selection wraps around the list', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live scores during typing are desktop-only');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('lofi beats');
+    await expect(page.locator('#scores')).toHaveClass(/active/);
+
+    await search.press('ArrowDown');
+    await search.press('ArrowDown');
+    const second = await page
+      .locator('#scores .score-row.kbd-selected')
+      .getAttribute('data-engine');
+
+    await search.press('ArrowUp');
+    const backToFirst = await page
+      .locator('#scores .score-row.kbd-selected')
+      .getAttribute('data-engine');
+    expect(backToFirst).not.toBe(second);
+
+    // Wrap test: ↑ from the top row lands on the LAST row.
+    await search.press('ArrowUp'); // back on the model's pick (top row)
+    await search.press('ArrowUp'); // wraps to the bottom
+    const last = await page.locator('#scores .score-row').last().getAttribute('data-engine');
+    await expect(page.locator('#scores .score-row.kbd-selected')).toHaveAttribute(
+      'data-engine', last!,
+    );
+  });
+
+  test('Enter routes to the arrow-key selection, overriding the model', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live scores during typing are desktop-only');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('lofi beats');
+    await expect(
+      page.locator('#scores .score-row[data-engine="wirecutter"]'),
+    ).toBeVisible({ timeout: 5_000 });
+    const modelPick = await page.locator('body').getAttribute('data-engine');
+    expect(modelPick).not.toBe('wirecutter');
+
+    // Walk the selection down until Wirecutter is highlighted — proves
+    // Enter follows the SELECTION, not the model's decision.
+    const rowCount = await page.locator('#scores .score-row').count();
+    for (let i = 0; i < rowCount; i++) {
+      await search.press('ArrowDown');
+      const sel = await page
+        .locator('#scores .score-row.kbd-selected')
+        .getAttribute('data-engine');
+      if (sel === 'wirecutter') break;
+    }
+    await expect(page.locator('#scores .score-row.kbd-selected')).toHaveAttribute(
+      'data-engine', 'wirecutter',
+    );
+
+    const navPromise = page.waitForURL(/nytimes\.com\/wirecutter/, {
+      timeout: 15_000, waitUntil: 'commit',
+    });
+    await search.press('Enter');
+    await navPromise;
+  });
+
+  test('Escape reverts an active selection to the model pick', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live scores during typing are desktop-only');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('lofi beats');
+    await expect(page.locator('#scores')).toHaveClass(/active/);
+    const modelPick = await page.locator('body').getAttribute('data-engine');
+
+    await search.press('ArrowDown');
+    await expect(page.locator('body')).not.toHaveAttribute('data-engine', modelPick!);
+
+    await search.press('Escape');
+    await expect(page.locator('#scores .score-row.kbd-selected')).toHaveCount(0);
+    await expect(page.locator('body')).toHaveAttribute('data-engine', modelPick!, {
+      timeout: 10_000,
+    });
+  });
+
+  test('typing more resets the selection (no stale override on Enter)', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live scores during typing are desktop-only');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    await search.fill('lofi beats');
+    await expect(page.locator('#scores')).toHaveClass(/active/);
+    await search.press('ArrowDown');
+    await expect(page.locator('#scores .score-row.kbd-selected')).toHaveCount(1);
+
+    // New keystrokes → fresh classification → the panel re-renders and
+    // the old selection (made against a stale ranking) is dropped.
+    await search.pressSequentially(' chill mix');
+    await expect(page.locator('#scores .score-row.kbd-selected')).toHaveCount(0, {
+      timeout: 10_000,
+    });
+  });
+
+  test('arrow keys keep native caret behavior when no scores are showing', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'desktop-only — mobile never shows the scores panel while typing');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+
+    const search = page.locator('#search');
+    // Bang queries classify via rules → scores: [] → panel hidden.
+    await search.fill('!yt cats');
+    await expect(page.locator('#scores')).not.toHaveClass(/active/);
+
+    // ArrowUp in a text input natively moves the caret to position 0.
+    // If we preventDefault'ed it wrongly, the caret would stay at the end.
+    await search.press('ArrowUp');
+    const caret = await search.evaluate(el => (el as HTMLInputElement).selectionStart);
+    expect(caret).toBe(0);
+  });
+
+  test('routing overlay: arrows move the override selection, Enter confirms', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'hardware-key navigation of the overlay is a desktop affordance');
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=lofi+beats`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+
+    const initialKey = await page
+      .locator('#override-engines .override-btn.selected')
+      .getAttribute('data-engine');
+
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('#override-engines .override-btn.selected')).toHaveCount(1);
+    const moved = await page
+      .locator('#override-engines .override-btn.selected')
+      .getAttribute('data-engine');
+    expect(moved).not.toBe(initialKey);
+
+    // The big engine-name display follows the selection.
+    const movedLabel = await page
+      .locator(`#override-engines .override-btn[data-engine="${moved}"] .override-label`)
+      .textContent();
+    await expect(page.locator('#engine-display')).toHaveText(movedLabel!.trim());
+
+    // Enter routes to the SELECTED engine, leaving localhost.
+    const navPromise = page.waitForURL(url => {
+      const host = new URL(url.toString()).hostname;
+      return host !== 'localhost';
+    }, { timeout: 15_000, waitUntil: 'commit' });
+    await page.keyboard.press('Enter');
+    await navPromise;
+  });
+});

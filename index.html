@@ -477,6 +477,13 @@
     border-color: var(--text);
     color: var(--text);
   }
+  /* Arrow-key selection while typing. Higher specificity than the
+     desktop media-query reset below, so one rule covers both layouts. */
+  .scores-panel .score-row.kbd-selected {
+    background: rgba(128,128,128,0.16);
+    border-color: var(--text);
+    color: var(--text);
+  }
   .scores-panel .score-bar {
     width: 32px;
     height: 3px;
@@ -870,6 +877,8 @@
   <div class="shortcuts-panel">
     <h2>Keyboard Shortcuts</h2>
     <div class="sc-row"><span>Focus search</span><kbd>/</kbd></div>
+    <div class="sc-row"><span>Change destination</span><kbd>↑</kbd> <kbd>↓</kbd></div>
+    <div class="sc-row"><span>Route to selection</span><kbd>Enter</kbd></div>
     <div class="sc-row"><span>Close overlay</span><kbd>Esc</kbd></div>
     <div class="sc-row"><span>Toggle theme</span><kbd>T</kbd></div>
     <div class="sc-row"><span>This help</span><kbd>?</kbd></div>
@@ -1921,7 +1930,40 @@
   // ───────────────────────────────────────────────────────────────────────
   let hintSeq = 0;
 
+  // Arrow-key destination selection (desktop). While typing, ↑/↓ move a
+  // highlight through the ranked score rows and Enter routes to the
+  // highlighted engine instead of the model's pick. The key is reset on
+  // every re-render (i.e. every fresh classification) so a selection can
+  // never outlive the ranking it was made against.
+  let kbdSelectedKey = null;
+
+  /** Move the keyboard selection through the score rows. dir = ±1.
+   *  Returns true if a selection was made (so the caller knows to
+   *  preventDefault the arrow key). */
+  function moveKbdSelection(dir) {
+    const rows = [...scoresPanel.querySelectorAll('.score-row')];
+    if (!rows.length) return false;
+    let idx = rows.findIndex(r => r.dataset.engine === kbdSelectedKey);
+    if (idx === -1) {
+      // No selection yet: start from the model's current pick so the
+      // first ↓ lands on the runner-up, not back on the top row.
+      idx = rows.findIndex(r => r.dataset.engine === hint.dataset.routeKey);
+      if (idx === -1) idx = dir > 0 ? -1 : 0;
+    }
+    idx = (idx + dir + rows.length) % rows.length;
+    const row = rows[idx];
+    kbdSelectedKey = row.dataset.engine;
+    rows.forEach(r => r.classList.toggle('kbd-selected', r === row));
+    // Mirror the selection into the hint so the user sees where Enter
+    // will go without having to look down at the panel.
+    hint.textContent = engines[kbdSelectedKey].name;
+    hint.dataset.routeKey = kbdSelectedKey;
+    document.body.dataset.engine = kbdSelectedKey;
+    return true;
+  }
+
   function clearHint() {
+    kbdSelectedKey = null;
     hint.classList.remove('active');
     delete document.body.dataset.engine;
     scoresPanel.classList.remove('active');
@@ -1929,6 +1971,7 @@
   }
 
   function renderScores(result) {
+    kbdSelectedKey = null;
     if (!result.scores.length) {
       scoresPanel.classList.remove('active');
       scoresPanel.replaceChildren();
@@ -2229,9 +2272,32 @@
   // silently flip the theme. That's why some users reported the page
   // "randomly turning to light mode when typing a query".
   search.addEventListener('keydown', e => {
+    // ↑/↓ cycle the keyboard selection through the ranked score rows.
+    // Only when the panel is showing — otherwise the arrows keep their
+    // native caret behavior.
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (scoresPanel.classList.contains('active') &&
+          moveKbdSelection(e.key === 'ArrowDown' ? 1 : -1)) {
+        e.preventDefault();
+      }
+      return;
+    }
+    // Esc with an active arrow-key selection reverts to the model's
+    // pick (re-classifies and re-renders, which clears the selection).
+    if (e.key === 'Escape' && kbdSelectedKey) {
+      e.preventDefault();
+      updateHint();
+      return;
+    }
     if (e.key === 'Enter' && search.value.trim()) {
       if (overlay.classList.contains('active')) {
         performRoute(search.value, true);
+        return;
+      }
+      // An arrow-key selection is an explicit choice — route there
+      // immediately, overriding the classifier.
+      if (kbdSelectedKey) {
+        performRoute(search.value, true, kbdSelectedKey);
         return;
       }
       performRoute(search.value);
@@ -2355,6 +2421,35 @@
     const query = search.value.trim();
     if (!query) return;
     performRoute(query, true, key);
+  });
+
+  // Keyboard navigation for the routing overlay: arrows move the
+  // selection between override buttons, Enter routes to the selected
+  // one. The overlay blurs the search input when it opens, so these
+  // land at the document level; the isTypingTarget guard keeps them
+  // from fighting the input if the user refocuses it underneath.
+  document.addEventListener('keydown', e => {
+    if (overlay.style.display !== 'flex') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isTypingTarget(e.target)) return;
+    const btns = [...overrideEngines.querySelectorAll('.override-btn')];
+    if (!btns.length) return;
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
+        e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const dir = (e.key === 'ArrowDown' || e.key === 'ArrowRight') ? 1 : -1;
+      let idx = btns.findIndex(b => b.classList.contains('selected'));
+      idx = idx === -1 ? 0 : (idx + dir + btns.length) % btns.length;
+      btns.forEach((b, i) => b.classList.toggle('selected', i === idx));
+      display.textContent = engines[btns[idx].dataset.engine].name;
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const sel = btns.find(b => b.classList.contains('selected'));
+      // Reuse the click delegation path so feedback + routing stay
+      // identical to a tap.
+      if (sel) sel.click();
+    }
   });
 
   // ───────────────────────────────────────────────────────────────────────
