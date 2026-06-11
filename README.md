@@ -89,7 +89,7 @@ https://divid3.com/?q=%s
 
 Setup instructions for Chrome, Firefox, Safari, and Arc live at [divid3.com/setup.html](https://divid3.com/setup.html).
 
-Keyboard shortcuts: `/` focus search · `Esc` close overlay · `T` toggle theme · `?` help.
+Keyboard shortcuts: `/` focus search · `↑`/`↓` change destination (while typing, or on the routing overlay) · `Enter` route to selection · `Esc` close overlay / revert selection · `T` toggle theme · `?` help.
 
 ---
 
