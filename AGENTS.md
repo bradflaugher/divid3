@@ -252,4 +252,4 @@ The code builds DOM nodes or uses `document.createDocumentFragment` to avoid XSS
 
 ## License
 
-Code: GNU AGPL v3. Model weights (`models/`): Apache 2.0 (sentence-transformers/all-MiniLM-L6-v2).
+Code: MIT. Model weights (`models/`): Apache 2.0 (sentence-transformers/all-MiniLM-L6-v2).

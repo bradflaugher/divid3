@@ -200,4 +200,4 @@ The Playwright E2E suite (`.github/workflows/search-tests.yml`) runs the full ro
 
 ## 📜 License
 
-Code: **AGPL-3.0** · Bundled model weights: **Apache 2.0** (see [`models/`](models/)).
+Code: **MIT** · Bundled model weights: **Apache 2.0** (see [`models/`](models/)).
