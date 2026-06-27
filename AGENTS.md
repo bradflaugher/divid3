@@ -42,7 +42,7 @@ User types → debounce 150 ms → classify() →
 ```
 
 - **Dot product = cosine similarity** because both query and route vectors are L2-normalized. No `sqrt` in the hot path.
-- **Per-route score = max over examples** (nearest-neighbor pooling), not mean. More robust with varied phrasings.
+- **Per-route score = mean of top-3 cosine similarities** (nearest-neighbor pooling with `TOP_K_NEIGHBORS=3`). Pure max lets a single stray phrase hijack a route; requiring the top-3 nearest neighbors to agree is more robust.
 - **Race safety:** `hintSeq` counter drops stale inferences when the user types faster than embedding latency.
 
 ### Model loading
