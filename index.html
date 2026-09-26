@@ -940,7 +940,11 @@
   //       accuracy on scripts/eval_routing.py went 76.8% → ~99% (semantic)
   //       and 45.9% → ~97% (keyword/lite)
   //  v16: replaced Brave Search with Grok (grok.com) for the LLM-shaped route
-  const EMBEDDINGS_VERSION = '16';
+  //  v17: removed Wirecutter (shopping now falls to DDG / Grok), expanded
+  //       corpus + keyword rules, hybrid keyword boost in scoreAll()
+  //  v18: removed the hn route; Grok now also owns breaking news, opinions,
+  //       reviews and advice; tech lookups fall to DDG
+  const EMBEDDINGS_VERSION = '18';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
@@ -1053,6 +1057,20 @@
    */
   function classifyKeywords(query) {
     if (!query) return null;
+    let bestKey = null, bestScore = 0;
+    for (const [engine, score] of keywordScores(query)) {
+      if (score > bestScore) { bestScore = score; bestKey = engine; }
+    }
+    return bestScore >= MIN_KEYWORD_SCORE ? bestKey : null;
+  }
+
+  /**
+   * Raw per-engine keyword scores for `query` (engines with no match are
+   * absent). Shared by classifyKeywords() and the semantic router's
+   * keyword boost in scoreAll().
+   * @returns {Map<string, number>}
+   */
+  function keywordScores(query) {
     const padded = ' ' + query.toLowerCase().trim() + ' ';
     /** @type {Map<string, number>} */
     const scores = new Map();
@@ -1066,11 +1084,7 @@
         scores.set(rule.engine, (scores.get(rule.engine) || 0) + rule.weight);
       }
     }
-    let bestKey = null, bestScore = 0;
-    for (const [engine, score] of scores) {
-      if (score > bestScore) { bestScore = score; bestKey = engine; }
-    }
-    return bestScore >= MIN_KEYWORD_SCORE ? bestKey : null;
+    return scores;
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -1805,7 +1819,20 @@
    * 91.2% max on 353 labeled queries) while staying just as cheap.
    */
   const TOP_K_NEIGHBORS = 3;
-  function scoreAll(qVec) {
+
+  /**
+   * Hybrid scoring: explicit intent markers the keyword rules already
+   * know about ("near me", "pictures of", "music video", "used", …) nudge
+   * the semantic score. Each keyword point adds KEYWORD_BOOST_PER_POINT,
+   * capped at KEYWORD_BOOST_MAX_POINTS so a pile of weak matches can't
+   * outvote a clear semantic winner. Keep in sync with
+   * scripts/eval_routing.py (tuned there: +2–4% on held-out queries).
+   */
+  const KEYWORD_BOOST_PER_POINT = 0.03;
+  const KEYWORD_BOOST_MAX_POINTS = 5;
+
+  function scoreAll(qVec, query = '') {
+    const kw = query ? keywordScores(query) : new Map();
     const scores = new Array(routes.length);
     for (let i = 0; i < routes.length; i++) {
       const vecs = routes[i].vectors;
@@ -1821,7 +1848,9 @@
       const k = Math.min(TOP_K_NEIGHBORS, vecs.length);
       let sum = 0;
       for (let j = 0; j < k; j++) sum += top[j];
-      scores[i] = { key: routes[i].key, score: sum / k };
+      const boost = KEYWORD_BOOST_PER_POINT *
+        Math.min(kw.get(routes[i].key) || 0, KEYWORD_BOOST_MAX_POINTS);
+      scores[i] = { key: routes[i].key, score: sum / k + boost };
     }
     scores.sort((a, b) => b.score - a.score);
     return scores;
@@ -1901,7 +1930,7 @@
       // JS Array first, wasted work + allocation. dot() is faster on a
       // Float32Array anyway.
       const qVec = output.data;
-      const scores = scoreAll(qVec);
+      const scores = scoreAll(qVec, q);
       const top = scores[0];
       const key = top.key;
       return { key, scores };
@@ -1984,7 +2013,8 @@
     // exactly as a click does.
     const frag = document.createDocumentFragment();
     for (const s of result.scores) {
-      const pct = Math.round(s.score * 100);
+      // The keyword boost can push a score past 1.0; clamp for display.
+      const pct = Math.round(Math.max(0, Math.min(1, s.score)) * 100);
       const isBest = s.key === result.key;
       const row = document.createElement('button');
       row.type = 'button';
@@ -2090,7 +2120,7 @@
       const scoreObj = scores.find(s => s.key === key);
       const isSelected = key === selectedKey;
       if (scoreObj) {
-        const pct = Math.round(scoreObj.score * 100);
+        const pct = Math.round(Math.max(0, Math.min(1, scoreObj.score)) * 100);
         btn.innerHTML =
           `<span class="override-label">${engine.name}</span>` +
           `<div class="override-bar"><div class="override-fill${isSelected ? ' best' : ''}" style="width:${pct}%"></div></div>` +
@@ -2359,7 +2389,7 @@
   const placeholders = [
     'Type to search...', '2 + 2 * 42', 'pizza near me', '!yt lofi hip hop',
     'explain quantum gravity', 'github.com', 'image of a black hole',
-    'latest AI news', '!hn show hn', 'integral of x^2', 'distance to moon'
+    'latest AI news', '!eb vintage lens', 'integral of x^2', 'distance to moon'
   ];
   let pIdx = 0;
   setInterval(() => {

@@ -113,8 +113,7 @@ test.describe('search router — bang shortcuts', () => {
     qFragment: string;
   }[] = [
     { input: '!yt lofi hip hop',   engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
-    { input: '!hn gemini-cli',     engine: 'hn',          host: /(^|\.)algolia\.com$/,      qParam: 'query',        qFragment: 'gemini-cli' },
-    { input: '!wc usb cable',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'usb' },
+    { input: '!gr election news',  engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'election' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
     // destination's interstitial is outside our control.
@@ -123,7 +122,7 @@ test.describe('search router — bang shortcuts', () => {
     { input: '!p quantum gravity', engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
     { input: '!y dancing dog',     engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
-    { input: '!nyt mattress',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qParam: 's',            qFragment: 'mattress' },
+    { input: '!img nebula',        engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'nebula' },
     { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
     { input: '!g trending on x',   engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'trending' },
     { input: '!eb vintage lens',   engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
@@ -135,7 +134,7 @@ test.describe('search router — bang shortcuts', () => {
       // Chromium / Firefox / WebKit. Mobile-safari runs through the same
       // path but adds the overlay-tap step, which makes the inter-test
       // resource contention (slow third-party destinations: eBay anti-bot,
-      // Wirecutter's "Finder" redirect, etc.) bite hard enough to flake.
+      // Maps consent interstitials, etc.) bite hard enough to flake.
       // The mobile-overlay behavior is independently exercised in
       // mobile-and-webkit.spec.ts:`pressing Enter on mobile runs the model
       // once and shows the routing overlay`.
@@ -175,6 +174,20 @@ test.describe('search router — bang shortcuts', () => {
     await navPromise;
   });
 
+  test('retired Wirecutter bangs (!wc, !nyt) no longer route to Wirecutter', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile defers semantic classification to Enter; this test asserts the live preview path');
+    await page.goto(PATH);
+    await waitForModelReady(page);
+    const search = page.locator('#search');
+    for (const q of ['!wc usb cable', '!nyt mattress']) {
+      await search.fill(q);
+      // Unknown bang → falls through to normal classification.
+      await expect(page.locator('body')).toHaveAttribute('data-engine', /.+/, { timeout: 15_000 });
+      await expect(page.locator('body')).not.toHaveAttribute('data-engine', 'wirecutter');
+    }
+    await expect(page.locator('#scores .score-row[data-engine="wirecutter"]')).toHaveCount(0);
+  });
+
   test('unknown bang ("!nope foo") falls back to semantic / DDG', async ({ page, isMobile }) => {
     test.skip(isMobile, 'mobile defers semantic classification to Enter; this test asserts the live preview path');
     await page.goto(PATH);
@@ -197,7 +210,7 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#engine-display')).toHaveText('YouTube');
     // Override buttons should render (all engines except 'direct').
     const btns = page.locator('#override-engines .override-btn');
-    await expect(btns).toHaveCount(8, { timeout: 5_000 });
+    await expect(btns).toHaveCount(6, { timeout: 5_000 });
     // The selected engine should be highlighted.
     await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
   });
@@ -270,9 +283,12 @@ test.describe('search router — query parameter redirect', () => {
     await page.goto(`${PATH}?q=lofi+beats`);
     await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
 
-    // Click the Wirecutter override button — should route there immediately.
-    const navPromise = page.waitForURL(/nytimes\.com\/wirecutter/, { timeout: 15_000, waitUntil: 'commit' });
-    await page.locator('#override-engines .override-btn[data-engine="wirecutter"]').click();
+    // No Wirecutter destination is offered anymore.
+    await expect(page.locator('#override-engines .override-btn[data-engine="wirecutter"]')).toHaveCount(0);
+
+    // Click the Bing Images override button — should route there immediately.
+    const navPromise = page.waitForURL(/bing\.com\/images/, { timeout: 15_000, waitUntil: 'commit' });
+    await page.locator('#override-engines .override-btn[data-engine="images"]').click();
     await navPromise;
   });
 });
@@ -341,10 +357,10 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#hint')).toHaveClass(/active/);
     await expect(page.locator('#scores')).toHaveClass(/active/);
 
-    // 9 score rows (one per route in the embeddings file).
-    await expect(page.locator('#scores .score-row')).toHaveCount(8);
+    // 6 score rows (one per route in the embeddings file).
+    await expect(page.locator('#scores .score-row')).toHaveCount(6);
     // Every row labels itself with its engine key for the test hook.
-    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(8);
+    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(6);
     // Exactly one row is marked best.
     await expect(page.locator('#scores .score-fill.best')).toHaveCount(1);
 
@@ -353,6 +369,32 @@ test.describe('search router — semantic routing', () => {
     expect(engine).not.toBeNull();
     const expectedName = await page.locator(`#scores .score-row[data-engine="${engine}"] .score-label`).textContent();
     await expect(page.locator('#hint')).toHaveText(expectedName!.trim());
+  });
+
+  // End-to-end spec for the live semantic router: unambiguous queries
+  // per destination. The offline counterpart (with many more cases and
+  // benchmark accuracy floors) is tests/unit/test_routing.py.
+  const semanticCases: { query: string; engine: string }[] = [
+    { query: 'thai food near me',                engine: 'maps' },
+    { query: 'explain how a heat pump works',    engine: 'grok' },
+    { query: 'taylor swift official music video', engine: 'youtube' },
+    { query: 'pictures of snow leopards',        engine: 'images' },
+    { query: 'latest news on the mars mission',  engine: 'grok' },
+    { query: 'honest opinions on the pixel watch', engine: 'grok' },
+    { query: 'react documentation hooks',        engine: 'ddg' },
+    { query: 'used thinkpad x1 carbon',          engine: 'ebay' },
+    { query: 'best cordless vacuum for stairs',   engine: 'ddg' },
+  ];
+  test('semantic routing table: each query lands on its expected engine', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live inference is desktop-only');
+
+    await page.goto(PATH);
+    await waitForModelReady(page);
+    const search = page.locator('#search');
+    for (const c of semanticCases) {
+      await search.fill(c.query);
+      await expect(page.locator('body'), c.query).toHaveAttribute('data-engine', c.engine, { timeout: 10_000 });
+    }
   });
 
   test('clearing input hides the hint and scores', async ({ page, isMobile }) => {
@@ -382,9 +424,9 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('body')).toHaveAttribute('data-engine', /.+/, { timeout: 10_000 });
     const first = await page.locator('body').getAttribute('data-engine');
 
-    await search.fill('!hn transformers.js');
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'hn');
-    expect(first).not.toBe('hn');
+    await search.fill('!eb transformers.js');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay');
+    expect(first).not.toBe('ebay');
   });
 
   test('rapid-fire keystrokes settle on the latest query (hintSeq race fix)', async ({ page, isMobile }) => {
@@ -399,9 +441,9 @@ test.describe('search router — semantic routing', () => {
     await search.fill('cats');
     await search.fill('dogs');
     await search.fill('pizza');
-    await search.fill('!hn transformers.js');     // unambiguous final state
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'hn', { timeout: 5_000 });
-    await expect(page.locator('#hint')).toHaveText('Hacker News');
+    await search.fill('!eb transformers.js');     // unambiguous final state
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay', { timeout: 5_000 });
+    await expect(page.locator('#hint')).toHaveText('eBay');
   });
 });
 
@@ -864,16 +906,16 @@ test.describe('search router — click-to-route', () => {
     const search = page.locator('#search');
     await search.fill('lofi beats');
     // Whatever the model picked, we assert the override sends the user
-    // to Wirecutter — that proves the chip click ignored the model's
+    // to Bing Images — that proves the chip click ignored the model's
     // decision rather than coincidentally agreeing with it.
-    await expect(page.locator('#scores .score-row[data-engine="wirecutter"]')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#scores .score-row[data-engine="images"]')).toBeVisible({ timeout: 5_000 });
     const modelPick = await page.locator('body').getAttribute('data-engine');
-    expect(modelPick).not.toBe('wirecutter');
+    expect(modelPick).not.toBe('images');
 
-    const navPromise = page.waitForURL(/nytimes\.com\/wirecutter/, { timeout: 15_000, waitUntil: 'commit' });
-    await page.locator('#scores .score-row[data-engine="wirecutter"]').click();
+    const navPromise = page.waitForURL(/bing\.com\/images/, { timeout: 15_000, waitUntil: 'commit' });
+    await page.locator('#scores .score-row[data-engine="images"]').click();
     await navPromise;
-    expect(new URL(page.url()).hostname).toMatch(/nytimes\.com$/);
+    expect(new URL(page.url()).hostname).toMatch(/bing\.com$/);
   });
 
   test('every score chip is keyboard-activatable as a real <button>', async ({ page, isMobile }) => {
@@ -905,12 +947,12 @@ test.describe('search router — click-to-route', () => {
     await waitForModelReady(page);
 
     await page.locator('#search').fill('lofi beats');
-    await expect(page.locator('#scores .score-row[data-engine="hn"]')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#scores .score-row[data-engine="ddg"]')).toBeVisible({ timeout: 5_000 });
 
-    const navPromise = page.waitForURL(/hn\.algolia\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 15_000, waitUntil: 'commit' });
     // `.focus()` then space is more deterministic than tabbing through
     // the document because some engines focus the URL bar instead.
-    await page.locator('#scores .score-row[data-engine="hn"]').focus();
+    await page.locator('#scores .score-row[data-engine="ddg"]').focus();
     await page.keyboard.press('Enter');
     await navPromise;
   });
@@ -1005,8 +1047,11 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
   // no model nondeterminism, no thresholds to drift past.
   const cases: { query: string; engine: string; host: RegExp; qFragment: string }[] = [
     { query: 'lofi beats',                    engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qFragment: 'lofi' },
-    { query: 'show hn react server components', engine: 'hn',        host: /(^|\.)algolia\.com$/,      qFragment: 'react' },
-    { query: 'best wireless headphones',      engine: 'wirecutter',  host: /(^|\.)nytimes\.com$/,      qFragment: 'wireless' },
+    { query: 'opinions on react server components', engine: 'grok',  host: /(^|\.)grok\.com$/,          qFragment: 'react' },
+    { query: 'breaking news in chicago',      engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'chicago' },
+    { query: 'best wireless headphones',      engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,  qFragment: 'wireless' },
+    { query: 'pictures of golden retrievers', engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'golden' },
+    { query: 'itinerary for a weekend in lisbon', engine: 'grok',    host: /(^|\.)grok\.com$/,          qFragment: 'lisbon' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
     { query: 'explain quantum mechanics',     engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'quantum' },
@@ -1223,12 +1268,12 @@ test.describe('search router — arrow-key destination selection', () => {
     const search = page.locator('#search');
     await search.fill('lofi beats');
     await expect(
-      page.locator('#scores .score-row[data-engine="wirecutter"]'),
+      page.locator('#scores .score-row[data-engine="images"]'),
     ).toBeVisible({ timeout: 5_000 });
     const modelPick = await page.locator('body').getAttribute('data-engine');
-    expect(modelPick).not.toBe('wirecutter');
+    expect(modelPick).not.toBe('images');
 
-    // Walk the selection down until Wirecutter is highlighted — proves
+    // Walk the selection down until Bing Images is highlighted — proves
     // Enter follows the SELECTION, not the model's decision.
     const rowCount = await page.locator('#scores .score-row').count();
     for (let i = 0; i < rowCount; i++) {
@@ -1236,13 +1281,13 @@ test.describe('search router — arrow-key destination selection', () => {
       const sel = await page
         .locator('#scores .score-row.kbd-selected')
         .getAttribute('data-engine');
-      if (sel === 'wirecutter') break;
+      if (sel === 'images') break;
     }
     await expect(page.locator('#scores .score-row.kbd-selected')).toHaveAttribute(
-      'data-engine', 'wirecutter',
+      'data-engine', 'images',
     );
 
-    const navPromise = page.waitForURL(/nytimes\.com\/wirecutter/, {
+    const navPromise = page.waitForURL(/bing\.com\/images/, {
       timeout: 15_000, waitUntil: 'commit',
     });
     await search.press('Enter');

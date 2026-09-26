@@ -43,6 +43,7 @@ User types → debounce 150 ms → classify() →
 
 - **Dot product = cosine similarity** because both query and route vectors are L2-normalized. No `sqrt` in the hot path.
 - **Per-route score = mean of top-3 cosine similarities** (nearest-neighbor pooling with `TOP_K_NEIGHBORS=3`). Pure max lets a single stray phrase hijack a route; requiring the top-3 nearest neighbors to agree is more robust.
+- **Hybrid keyword boost.** `scoreAll(qVec, query)` adds `KEYWORD_BOOST_PER_POINT` (0.03) × the engine's keyword score from `keywordScores()` (capped at `KEYWORD_BOOST_MAX_POINTS` = 5, so at most +0.15). Explicit intent markers (`near me`, `pictures of`, `music video`, `used`) then win over fuzzy semantic neighbors. The same constants live in `scripts/eval_routing.py`; `tests/unit/test_routing.py` fails if they drift. Score chips clamp the displayed % to 100.
 - **Race safety:** `hintSeq` counter drops stale inferences when the user types faster than embedding latency.
 
 ### Model loading
@@ -68,11 +69,16 @@ User types → debounce 150 ms → classify() →
 ├── models/sentence-transformers/all-MiniLM-L6-v2/
 │   ├── config.json, tokenizer*.json, special_tokens_map.json
 │   └── onnx/model_quantized.onnx    # 22 MB q8-quantized ONNX
-├── tests/search.spec.ts          # Playwright E2E suite (45 specs)
+├── tests/search.spec.ts          # Playwright E2E suite
+├── tests/unit/test_routing.py    # Python unit tests: config checks, routing example tables, accuracy floors
 ├── playwright.config.ts          # Auto-starts dev server, workers=2 in CI
 ├── scripts/
 │   ├── search_phrases.json       # Source phrases for the semantic index (editable)
 │   ├── generate_search_embeddings.py # Rebuild search-embeddings.json from phrases
+│   ├── eval_routing.py           # Offline routing eval (mirrors index.html scoring)
+│   ├── routing_benchmark.json    # Held-out labeled queries (never copy into phrases)
+│   ├── validate_config.py        # Schema + corpus-rule validator (npm run lint:config)
+│   ├── requirements.txt          # numpy / onnxruntime / tokenizers for eval + unit tests
 │   ├── generate_brand_assets.py  # Regenerate favicons, icons, OG images
 │   └── review_brand_assets.py    # Contact-sheet reviewer
 └── favicon-*.png, icon-*.png, apple-touch-icon-*.png, og-image.png, …
@@ -84,7 +90,7 @@ User types → debounce 150 ms → classify() →
 
 ## Testing
 
-- **Playwright E2E only** — no unit tests, no Jest/Vitest.
+- **Playwright E2E** for the page, plus **Python unit tests** for routing (`npm run test:unit` → `python3 -m unittest discover -s tests/unit -v`). The unit tests need `pip install -r scripts/requirements.txt` for the semantic cases (they're skipped otherwise); they run in the `unit` job of `lint.yml`. When you edit phrases or keyword rules, add example cases to the tables in `tests/unit/test_routing.py` (`KEYWORD_CASES`, `KEYWORD_FALSE_POSITIVES`, `SEMANTIC_CASES`) and keep the benchmark accuracy floors green.
 - Each test gets a **fresh browser context**, so every test re-downloads the ~22 MB model from the local server. `workers: 2` in CI keeps wall-clock time bounded.
 - `playwright.config.ts` auto-starts `npx serve -l 3000 .` via `webServer` block.
 - Tests assert on `data-*` attributes (`data-state`, `data-engine`) rather than visible text, so copy changes don't break specs.
@@ -186,7 +192,18 @@ Activation paths (each independently sets `keywordMode = true`):
 When *adding* a new keyword:
 - Multi-word phrases (`pull request`, `buy usb-c cable`) are stable — pretty much always specific enough.
 - Single words need a sanity check: would adding ` foo ` falsely match a query like `comfort` or `foothold`? If yes, prefer a longer phrase form, or accept the false positive only if the engine is a reasonable destination for the false-match query anyway.
-- The `cases[]` table in `tests/search.spec.ts > keyword mode (low-memory fallback)` has 8 per-engine routing assertions — add a case there for any new engine destination, and the word-boundary regression test catches accidental bare-word matches.
+- The `cases[]` table in `tests/search.spec.ts > keyword mode (low-memory fallback)` has per-engine routing assertions — add a case there for any new engine destination, and the word-boundary regression test catches accidental bare-word matches. `KEYWORD_FALSE_POSITIVES` in `tests/unit/test_routing.py` pins known traps (`street fighter 6`, `browser console log`, `cinnamon bun recipe`).
+
+### Removed destinations: Wirecutter and Hacker News
+There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
+- "best X" product shopping → **DDG**.
+- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **Grok**.
+- Tech discussion: opinions / debates / engineering war stories / explainers → **Grok**; docs, installs, downloads, project lookups → **DDG**.
+
+`ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
+
+### Grok's scope
+Grok is connected to X, so besides explainers / research / writing it is the destination for **breaking news, live updates, opinions and social sentiment ("what are people saying…"), product reviews, and advice**. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
 
 The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 

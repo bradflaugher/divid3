@@ -13,7 +13,7 @@ divid3 is a meta-search router that runs entirely in your browser. It uses a sma
 - **Private by design.** Classification happens in your browser's WASM heap. No telemetry, no server logs, no query stream for someone else to monetize.
 - **You decide where queries go.** All routing is configured by a single JSON file you control. Self-host with only the destinations you trust; remove anything you don't.
 - **Semantic intent.** A 22 MB `all-MiniLM-L6-v2` model embeds your query and picks the best-matching destination from your configured set.
-- **Bangs.** DuckDuckGo-style shortcuts (`!yt`, `!hn`, `!m`, …) that always win over the semantic router.
+- **Bangs.** DuckDuckGo-style shortcuts (`!yt`, `!eb`, `!m`, …) that always win over the semantic router.
 - **Rule-based fallbacks.** Bare domains (`github.com`) and `localhost:3000` route directly. Low-memory phones get a deterministic keyword router instead of the model.
 - **Choose-don't-autoroute on mobile + `?q=` URLs.** No 4-second countdown. On mobile and on any link with a query string (e.g. browser-bar searches), the router shows you the top match plus the ranked alternatives and waits for you to tap. Desktop typing still routes immediately because the live score chips already let you click any destination.
 - **No build step.** Pure HTML / CSS / vanilla JS. Easy to audit. Easy to self-host.
@@ -34,20 +34,20 @@ You're welcome to ship a fork that points only at Kagi, Brave, SearXNG, your own
 
 ## 🛠 How routing works
 
-1. **Bangs.** Regex match for `!yt`, `!hn`, etc. Always wins.
+1. **Bangs.** Regex match for `!yt`, `!eb`, etc. Always wins.
 2. **Explicit rules.** Bare-domain (`github.com`) and `localhost:port` detection.
-3. **Semantic match.** Transformers.js embeds the query and scores each destination by the **mean of its top-3 cosine similarities** against that destination's phrase corpus. Top-3 pooling (instead of plain nearest-neighbor) means a single stray phrase can't hijack a route — three examples have to agree.
+3. **Semantic match.** Transformers.js embeds the query and scores each destination by the **mean of its top-3 cosine similarities** against that destination's phrase corpus. Top-3 pooling (instead of plain nearest-neighbor) means a single stray phrase can't hijack a route — three examples have to agree. Explicit intent markers the keyword rules know about (`near me`, `pictures of`, `music video`, `used`, …) add a small, capped boost on top (0.03 per keyword point, max 5 points), so an unambiguous cue isn't outvoted by a fuzzy semantic neighbor.
 4. **Keyword fallback.** When the model isn't usable (low-memory device, repeated crashes, `?lite=1`), a deterministic weighted-keyword scorer takes over.
 5. **DDG as the universal fallback.** In keyword mode, queries with no matching keywords fall back to DuckDuckGo (HTML) by default.
 
 ### Measured accuracy
 
-Routing quality is measured by `scripts/eval_routing.py` against a **held-out benchmark** of 353 labeled real-world queries (`scripts/routing_benchmark.json` — the validator enforces that no benchmark query is ever copied into the training phrases):
+Routing quality is measured by `scripts/eval_routing.py` against a **held-out benchmark** of 582 labeled real-world queries (`scripts/routing_benchmark.json` — the validator enforces that no benchmark query is ever copied into the training phrases):
 
 | Router                  | Accuracy |
 |-------------------------|----------|
-| Semantic (top-3 cosine) | **98.9%** |
-| Keyword (`?lite=1`)     | **97.5%** |
+| Semantic (top-3 cosine + keyword boost) | **98.8%** |
+| Keyword (`?lite=1`)     | **98.1%** |
 
 Run it yourself after any corpus edit:
 
@@ -66,14 +66,12 @@ The shipped configuration routes between:
 
 | Engine        | Used for                                   | Bang(s)            |
 |---------------|--------------------------------------------|--------------------|
-| DuckDuckGo    | Generic web search; fallback for anything ambiguous | `!d`, `!ddg`       |
+| DuckDuckGo    | Generic web search, quick facts, product shopping; fallback for anything ambiguous | `!d`, `!ddg`       |
 | Bing Images   | Image queries                              | `!i`, `!img`       |
-| Grok          | Conversational / agentic AI answers, research, social search | `!g`, `!gr`, `!p`, `!px` |
+| Grok          | Breaking news, opinions & social (X) sentiment, reviews, advice, explainers, research, writing | `!g`, `!gr`, `!p`, `!px` |
 | Google Maps   | Locations, "near me", directions           | `!m`, `!map`       |
 | YouTube       | Music, video, tutorials                    | `!y`, `!yt`        |
-| Wirecutter    | Buying advice, product recommendations     | `!wc`, `!nyt`      |
 | eBay          | Used / vintage / parts / hard-to-find items | `!eb`, `!ebay`     |
-| Hacker News   | Tech news, startup discussion              | `!h`, `!hn`        |
 
 Plus the `direct` virtual engine, which opens a typed URL (`github.com`) literally instead of searching for it.
 
@@ -104,6 +102,11 @@ npm run serve
 
 # end-to-end tests (Chromium / Firefox / WebKit / mobile Safari)
 npm test
+
+# routing unit tests (config checks, keyword + semantic routing examples,
+# benchmark accuracy floors). Semantic tests need the Python deps:
+pip install -r scripts/requirements.txt
+npm run test:unit
 
 # lint everything (ESLint + Ruff + JSON config validator)
 npm run lint
@@ -178,6 +181,7 @@ python3 scripts/generate_search_embeddings.py
 
 # 5. Sanity-check the change locally.
 npm run lint     # validates schema + corpus rules + drift with search-config.json
+npm run test:unit  # routing examples + accuracy floors
 npm run serve
 npm test
 ```
@@ -188,11 +192,13 @@ That's it — no JS edits required.
 
 ## 🔬 Lint & CI
 
-Three checks run on every PR via `.github/workflows/lint.yml`:
+Four checks run on every PR via `.github/workflows/lint.yml`:
 
 - **ESLint** over the `<script>` blocks in `index.html` and `setup.html` (via `eslint-plugin-html`).
 - **Ruff** over the `scripts/` directory.
 - **Config validator** (`scripts/validate_config.py`) that catches missing engines, broken bang references, urlTemplates without `{q}`, and drift between `search_phrases.json` and the generated `search-config.json`.
+
+Routing unit tests (`tests/unit/test_routing.py`, the `unit` job in `lint.yml`) run the keyword and semantic routers against example tables and the benchmark, and fail if accuracy drops below the floors (97% semantic, 95% keyword).
 
 The Playwright E2E suite (`.github/workflows/search-tests.yml`) runs the full router on Chromium, Firefox, WebKit, and mobile Safari.
 

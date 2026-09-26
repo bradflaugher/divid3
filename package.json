@@ -125,13 +125,14 @@
   },
   "scripts": {
     "test": "playwright test",
+    "test:unit": "python3 -m unittest discover -s tests/unit -v",
     "test:ci": "CI=1 playwright test",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
     "serve": "serve -l 3000 .",
     "lint": "npm run lint:js && npm run lint:py && npm run lint:config",
     "lint:js": "eslint index.html setup.html eslint.config.js",
-    "lint:py": "ruff check scripts",
+    "lint:py": "ruff check scripts tests/unit",
     "lint:config": "python3 scripts/validate_config.py"
   },
   "repository": {
