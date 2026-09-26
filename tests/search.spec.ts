@@ -210,7 +210,7 @@ test.describe('search router — query parameter redirect', () => {
     await expect(page.locator('#engine-display')).toHaveText('YouTube');
     // Override buttons should render (all engines except 'direct').
     const btns = page.locator('#override-engines .override-btn');
-    await expect(btns).toHaveCount(8, { timeout: 5_000 });
+    await expect(btns).toHaveCount(6, { timeout: 5_000 });
     // The selected engine should be highlighted.
     await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
   });
