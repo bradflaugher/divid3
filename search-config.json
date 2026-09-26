@@ -24,10 +24,6 @@
       "name": "eBay",
       "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}"
     },
-    "hn": {
-      "name": "Hacker News",
-      "urlTemplate": "https://hn.algolia.com/?query={q}&sort=byPopularity"
-    },
     "direct": {
       "name": "Direct Link",
       "urlTemplate": "{q}"
@@ -44,8 +40,6 @@
     "px": "grok",
     "g": "grok",
     "gr": "grok",
-    "hn": "hn",
-    "h": "hn",
     "eb": "ebay",
     "ebay": "ebay",
     "d": "ddg",
@@ -212,118 +206,6 @@
         "vlog",
         "podcast",
         "documentary"
-      ]
-    },
-    {
-      "engine": "hn",
-      "weight": 5,
-      "kw": [
-        "show hn",
-        "ask hn",
-        "hacker news",
-        "y combinator",
-        "yc startup",
-        "yc application",
-        "post mortem",
-        "postmortem",
-        "engineering blog",
-        "why we built",
-        "why we moved",
-        "why we switched",
-        "why we migrated",
-        "lessons learned scaling",
-        "side project",
-        "indie hacker",
-        "bootstrapped",
-        "technical cofounder",
-        "self hosting",
-        "self hosted",
-        "homelab",
-        "monorepo",
-        "tech layoffs",
-        "faang"
-      ]
-    },
-    {
-      "engine": "hn",
-      "weight": 3,
-      "kw": [
-        "startup",
-        "founder",
-        "vc funding",
-        "rfc",
-        "rant about",
-        "we built",
-        "lessons learned",
-        "kubernetes",
-        "postgres",
-        "postgresql",
-        "sqlite",
-        "mongodb",
-        "docker",
-        "linux kernel",
-        "compiler",
-        "distributed systems",
-        "open source",
-        "rust",
-        "golang",
-        "neovim",
-        "emacs",
-        "systemd",
-        "microservices",
-        "monolith",
-        "saas",
-        "mrr",
-        "devops",
-        "terraform",
-        "llm",
-        "llms",
-        "llama",
-        "llama.cpp",
-        "huggingface",
-        "copilot",
-        "tailwind",
-        "htmx",
-        "openbsd",
-        "freebsd",
-        "linux",
-        "salary negotiation",
-        "consensus algorithm",
-        "inference",
-        "scaling",
-        "scaled"
-      ]
-    },
-    {
-      "engine": "hn",
-      "weight": 2,
-      "kw": [
-        "react",
-        "pytorch",
-        "tensorflow",
-        "nextjs",
-        "fastapi",
-        "transformers",
-        "langchain",
-        "programming",
-        "coding",
-        "javascript",
-        "typescript",
-        "python",
-        "api",
-        "database",
-        "github",
-        "vim",
-        "vscode",
-        "frontend",
-        "backend",
-        "software engineer",
-        "tech interview",
-        "code review",
-        "css",
-        "gpu",
-        "gpus",
-        "consensus"
       ]
     },
     {
@@ -869,41 +751,6 @@
       ]
     },
     {
-      "engine": "hn",
-      "weight": 5,
-      "kw": [
-        "why we left",
-        "demo day",
-        "yc batch",
-        "nixos",
-        "cursor ide",
-        "crdt",
-        "crdts",
-        "local first",
-        "local-first",
-        "engineering culture",
-        "developers think",
-        "programmers think",
-        "self hosted alternative",
-        "self-hosted"
-      ]
-    },
-    {
-      "engine": "hn",
-      "weight": 3,
-      "kw": [
-        "yc",
-        "zig",
-        "htmx",
-        "bun runtime",
-        "bun vs",
-        "deno",
-        "wasm",
-        "webassembly",
-        "llm inference"
-      ]
-    },
-    {
       "engine": "ebay",
       "weight": 5,
       "kw": [
@@ -1003,6 +850,76 @@
         "mtg cards",
         "super nintendo",
         "snes console"
+      ]
+    },
+    {
+      "engine": "grok",
+      "weight": 5,
+      "kw": [
+        "breaking news",
+        "latest news",
+        "news today",
+        "world news",
+        "what just happened",
+        "live updates",
+        "reactions to",
+        "reaction to the",
+        "people saying",
+        "everyone saying",
+        "honest review",
+        "honest opinions",
+        "user reviews",
+        "owners say",
+        "real opinions",
+        "hot takes",
+        "advice for",
+        "advice on",
+        "what do developers think",
+        "what do engineers think",
+        "thoughts on"
+      ]
+    },
+    {
+      "engine": "grok",
+      "weight": 3,
+      "kw": [
+        "reviews",
+        "review of",
+        "opinions",
+        "opinion",
+        "drama",
+        "advice",
+        "recommend",
+        "recommendations",
+        "gift ideas",
+        "gifts for",
+        "debate"
+      ]
+    },
+    {
+      "engine": "grok",
+      "weight": 5,
+      "kw": [
+        "what's going on with",
+        "whats going on with",
+        "what's happening with",
+        "whats happening with",
+        "worth upgrading",
+        "worth learning",
+        "developers think",
+        "people think"
+      ]
+    },
+    {
+      "engine": "ddg",
+      "weight": 5,
+      "kw": [
+        "documentation",
+        "docs",
+        "npm install",
+        "pip install",
+        "download",
+        "latest version"
       ]
     }
   ]

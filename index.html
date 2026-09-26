@@ -942,7 +942,9 @@
   //  v16: replaced Brave Search with Grok (grok.com) for the LLM-shaped route
   //  v17: removed Wirecutter (shopping now falls to DDG / Grok), expanded
   //       corpus + keyword rules, hybrid keyword boost in scoreAll()
-  const EMBEDDINGS_VERSION = '17';
+  //  v18: removed the hn route; Grok now also owns breaking news, opinions,
+  //       reviews and advice; tech lookups fall to DDG
+  const EMBEDDINGS_VERSION = '18';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
@@ -2387,7 +2389,7 @@
   const placeholders = [
     'Type to search...', '2 + 2 * 42', 'pizza near me', '!yt lofi hip hop',
     'explain quantum gravity', 'github.com', 'image of a black hole',
-    'latest AI news', '!hn show hn', 'integral of x^2', 'distance to moon'
+    'latest AI news', '!eb vintage lens', 'integral of x^2', 'distance to moon'
   ];
   let pIdx = 0;
   setInterval(() => {

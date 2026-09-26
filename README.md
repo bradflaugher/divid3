@@ -13,7 +13,7 @@ divid3 is a meta-search router that runs entirely in your browser. It uses a sma
 - **Private by design.** Classification happens in your browser's WASM heap. No telemetry, no server logs, no query stream for someone else to monetize.
 - **You decide where queries go.** All routing is configured by a single JSON file you control. Self-host with only the destinations you trust; remove anything you don't.
 - **Semantic intent.** A 22 MB `all-MiniLM-L6-v2` model embeds your query and picks the best-matching destination from your configured set.
-- **Bangs.** DuckDuckGo-style shortcuts (`!yt`, `!hn`, `!m`, …) that always win over the semantic router.
+- **Bangs.** DuckDuckGo-style shortcuts (`!yt`, `!eb`, `!m`, …) that always win over the semantic router.
 - **Rule-based fallbacks.** Bare domains (`github.com`) and `localhost:3000` route directly. Low-memory phones get a deterministic keyword router instead of the model.
 - **Choose-don't-autoroute on mobile + `?q=` URLs.** No 4-second countdown. On mobile and on any link with a query string (e.g. browser-bar searches), the router shows you the top match plus the ranked alternatives and waits for you to tap. Desktop typing still routes immediately because the live score chips already let you click any destination.
 - **No build step.** Pure HTML / CSS / vanilla JS. Easy to audit. Easy to self-host.
@@ -34,7 +34,7 @@ You're welcome to ship a fork that points only at Kagi, Brave, SearXNG, your own
 
 ## 🛠 How routing works
 
-1. **Bangs.** Regex match for `!yt`, `!hn`, etc. Always wins.
+1. **Bangs.** Regex match for `!yt`, `!eb`, etc. Always wins.
 2. **Explicit rules.** Bare-domain (`github.com`) and `localhost:port` detection.
 3. **Semantic match.** Transformers.js embeds the query and scores each destination by the **mean of its top-3 cosine similarities** against that destination's phrase corpus. Top-3 pooling (instead of plain nearest-neighbor) means a single stray phrase can't hijack a route — three examples have to agree. Explicit intent markers the keyword rules know about (`near me`, `pictures of`, `music video`, `used`, …) add a small, capped boost on top (0.03 per keyword point, max 5 points), so an unambiguous cue isn't outvoted by a fuzzy semantic neighbor.
 4. **Keyword fallback.** When the model isn't usable (low-memory device, repeated crashes, `?lite=1`), a deterministic weighted-keyword scorer takes over.
@@ -42,12 +42,12 @@ You're welcome to ship a fork that points only at Kagi, Brave, SearXNG, your own
 
 ### Measured accuracy
 
-Routing quality is measured by `scripts/eval_routing.py` against a **held-out benchmark** of 558 labeled real-world queries (`scripts/routing_benchmark.json` — the validator enforces that no benchmark query is ever copied into the training phrases):
+Routing quality is measured by `scripts/eval_routing.py` against a **held-out benchmark** of 582 labeled real-world queries (`scripts/routing_benchmark.json` — the validator enforces that no benchmark query is ever copied into the training phrases):
 
 | Router                  | Accuracy |
 |-------------------------|----------|
-| Semantic (top-3 cosine + keyword boost) | **99.3%** |
-| Keyword (`?lite=1`)     | **98.2%** |
+| Semantic (top-3 cosine + keyword boost) | **98.8%** |
+| Keyword (`?lite=1`)     | **98.1%** |
 
 Run it yourself after any corpus edit:
 
@@ -68,11 +68,10 @@ The shipped configuration routes between:
 |---------------|--------------------------------------------|--------------------|
 | DuckDuckGo    | Generic web search, quick facts, product shopping; fallback for anything ambiguous | `!d`, `!ddg`       |
 | Bing Images   | Image queries                              | `!i`, `!img`       |
-| Grok          | Conversational / agentic AI answers, research, social search | `!g`, `!gr`, `!p`, `!px` |
+| Grok          | Breaking news, opinions & social (X) sentiment, reviews, advice, explainers, research, writing | `!g`, `!gr`, `!p`, `!px` |
 | Google Maps   | Locations, "near me", directions           | `!m`, `!map`       |
 | YouTube       | Music, video, tutorials                    | `!y`, `!yt`        |
 | eBay          | Used / vintage / parts / hard-to-find items | `!eb`, `!ebay`     |
-| Hacker News   | Tech news, startup discussion              | `!h`, `!hn`        |
 
 Plus the `direct` virtual engine, which opens a typed URL (`github.com`) literally instead of searching for it.
 

@@ -113,7 +113,7 @@ test.describe('search router — bang shortcuts', () => {
     qFragment: string;
   }[] = [
     { input: '!yt lofi hip hop',   engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
-    { input: '!hn gemini-cli',     engine: 'hn',          host: /(^|\.)algolia\.com$/,      qParam: 'query',        qFragment: 'gemini-cli' },
+    { input: '!gr election news',  engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'election' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
     // destination's interstitial is outside our control.
@@ -357,10 +357,10 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#hint')).toHaveClass(/active/);
     await expect(page.locator('#scores')).toHaveClass(/active/);
 
-    // 7 score rows (one per route in the embeddings file).
-    await expect(page.locator('#scores .score-row')).toHaveCount(7);
+    // 6 score rows (one per route in the embeddings file).
+    await expect(page.locator('#scores .score-row')).toHaveCount(6);
     // Every row labels itself with its engine key for the test hook.
-    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(7);
+    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(6);
     // Exactly one row is marked best.
     await expect(page.locator('#scores .score-fill.best')).toHaveCount(1);
 
@@ -379,7 +379,9 @@ test.describe('search router — semantic routing', () => {
     { query: 'explain how a heat pump works',    engine: 'grok' },
     { query: 'taylor swift official music video', engine: 'youtube' },
     { query: 'pictures of snow leopards',        engine: 'images' },
-    { query: 'show hn my weekend project',       engine: 'hn' },
+    { query: 'latest news on the mars mission',  engine: 'grok' },
+    { query: 'honest opinions on the pixel watch', engine: 'grok' },
+    { query: 'react documentation hooks',        engine: 'ddg' },
     { query: 'used thinkpad x1 carbon',          engine: 'ebay' },
     { query: 'best cordless vacuum for stairs',   engine: 'ddg' },
   ];
@@ -422,9 +424,9 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('body')).toHaveAttribute('data-engine', /.+/, { timeout: 10_000 });
     const first = await page.locator('body').getAttribute('data-engine');
 
-    await search.fill('!hn transformers.js');
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'hn');
-    expect(first).not.toBe('hn');
+    await search.fill('!eb transformers.js');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay');
+    expect(first).not.toBe('ebay');
   });
 
   test('rapid-fire keystrokes settle on the latest query (hintSeq race fix)', async ({ page, isMobile }) => {
@@ -439,9 +441,9 @@ test.describe('search router — semantic routing', () => {
     await search.fill('cats');
     await search.fill('dogs');
     await search.fill('pizza');
-    await search.fill('!hn transformers.js');     // unambiguous final state
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'hn', { timeout: 5_000 });
-    await expect(page.locator('#hint')).toHaveText('Hacker News');
+    await search.fill('!eb transformers.js');     // unambiguous final state
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay', { timeout: 5_000 });
+    await expect(page.locator('#hint')).toHaveText('eBay');
   });
 });
 
@@ -945,12 +947,12 @@ test.describe('search router — click-to-route', () => {
     await waitForModelReady(page);
 
     await page.locator('#search').fill('lofi beats');
-    await expect(page.locator('#scores .score-row[data-engine="hn"]')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#scores .score-row[data-engine="ddg"]')).toBeVisible({ timeout: 5_000 });
 
-    const navPromise = page.waitForURL(/hn\.algolia\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    const navPromise = page.waitForURL(/duckduckgo\.com/, { timeout: 15_000, waitUntil: 'commit' });
     // `.focus()` then space is more deterministic than tabbing through
     // the document because some engines focus the URL bar instead.
-    await page.locator('#scores .score-row[data-engine="hn"]').focus();
+    await page.locator('#scores .score-row[data-engine="ddg"]').focus();
     await page.keyboard.press('Enter');
     await navPromise;
   });
@@ -1045,7 +1047,8 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
   // no model nondeterminism, no thresholds to drift past.
   const cases: { query: string; engine: string; host: RegExp; qFragment: string }[] = [
     { query: 'lofi beats',                    engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qFragment: 'lofi' },
-    { query: 'show hn react server components', engine: 'hn',        host: /(^|\.)algolia\.com$/,      qFragment: 'react' },
+    { query: 'opinions on react server components', engine: 'grok',  host: /(^|\.)grok\.com$/,          qFragment: 'react' },
+    { query: 'breaking news in chicago',      engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'chicago' },
     { query: 'best wireless headphones',      engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,  qFragment: 'wireless' },
     { query: 'pictures of golden retrievers', engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'golden' },
     { query: 'itinerary for a weekend in lisbon', engine: 'grok',    host: /(^|\.)grok\.com$/,          qFragment: 'lisbon' },

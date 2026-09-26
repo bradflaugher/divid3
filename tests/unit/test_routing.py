@@ -41,7 +41,7 @@ BENCH = json.loads((SCRIPTS / "routing_benchmark.json").read_text(encoding="utf-
 INDEX_HTML = (REPO_ROOT / "index.html").read_text(encoding="utf-8")
 RULES = PHRASES["keywordRules"]
 
-ENGINES = {"ddg", "grok", "maps", "youtube", "images", "hn", "ebay"}
+ENGINES = {"ddg", "grok", "maps", "youtube", "images", "ebay"}
 
 try:
     import eval_routing  # needs numpy (+ onnxruntime/tokenizers for the model)
@@ -104,9 +104,13 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("what does a black widow look like", "images"),
     ("kitchen backsplash design ideas", "images"),
     ("funny office memes", "images"),
-    ("ask hn remote jobs", "hn"),
-    ("why we left heroku", "hn"),
-    ("nixos flakes", "hn"),
+    ("breaking news in denver", "grok"),
+    ("what are people saying about the fed", "grok"),
+    ("honest review of the kindle colorsoft", "grok"),
+    ("advice for a new grad engineer", "grok"),
+    ("thoughts on the new react compiler", "grok"),
+    ("react documentation", "ddg"),
+    ("pip install numpy", "ddg"),
     ("used road bike", "ebay"),
     ("vintage seiko watch", "ebay"),
     ("replacement parts for kitchenaid mixer", "ebay"),
@@ -129,7 +133,8 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("healthy chicken recipes", None),  # 'healthy' is not a grok signal
     ("browser console log", None),      # 'console' alone is not ebay
     ("xbox series x console", None),
-    ("cinnamon bun recipe", "ddg"),     # 'bun' the runtime, not the pastry
+    ("cinnamon bun recipe", "ddg"),
+    ("lakers vs celtics score", None),  # bare 'vs' is not an opinion signal
     ("decode base64 string", None),     # 'code' must not match 'decode'
     ("comfort food ideas", None),
 ]
@@ -163,10 +168,16 @@ SEMANTIC_CASES: list[tuple[str, str]] = [
     ("pictures of the aurora", "images"),
     ("wallpaper of a forest at dawn", "images"),
     ("tattoo designs for forearm", "images"),
-    # hn
-    ("show hn my side project", "hn"),
-    ("postgres performance tuning discussion", "hn"),
-    ("self hosting a git server", "hn"),
+    # grok — breaking news, opinions / social, reviews, advice
+    ("breaking news about the wildfire", "grok"),
+    ("what is everyone saying about the new pope", "grok"),
+    ("honest opinions on the framework laptop", "grok"),
+    ("is the switch 2 worth upgrading to", "grok"),
+    ("advice for surviving a long distance relationship", "grok"),
+    ("what do developers think of htmx", "grok"),
+    # ddg — tech lookups (no Hacker News route anymore)
+    ("python requests documentation", "ddg"),
+    ("node js download", "ddg"),
     # ebay
     ("used nikon d750 body", "ebay"),
     ("vintage pyrex bowls", "ebay"),
@@ -189,6 +200,7 @@ class ConfigTests(unittest.TestCase):
     def test_wirecutter_fully_removed(self):
         """Wirecutter is no longer a destination: no engine, bang, keyword
         rule, route, embedding, or benchmark expectation may reference it."""
+        self.assertNotIn("wirecutter", PHRASES["engines"])
         blobs = {
             "scripts/search_phrases.json": json.dumps(PHRASES),
             "search-config.json": json.dumps(CONFIG),
@@ -208,6 +220,20 @@ class ConfigTests(unittest.TestCase):
             self.assertFalse(needle in html, f"index.html contains {needle}")
         for bang in ("wc", "nyt"):
             self.assertNotIn(bang, PHRASES["bangs"])
+
+    def test_hacker_news_fully_removed(self):
+        """Hacker News is no longer a destination."""
+        self.assertNotIn("hn", PHRASES["engines"])
+        self.assertNotIn("hn", CONFIG["engines"])
+        for bang in ("hn", "h"):
+            self.assertNotIn(bang, PHRASES["bangs"])
+        self.assertFalse(any(r["engine"] == "hn" for r in RULES))
+        self.assertNotIn("hn", [r["key"] for r in EMBEDDINGS])
+        for q in BENCH:
+            self.assertNotIn("hn", [q["expect"], *q.get("also_ok", [])], q["q"])
+        for blob in (json.dumps(CONFIG), INDEX_HTML):
+            self.assertFalse("algolia.com" in blob.lower(), "hn.algolia.com still referenced")
+            self.assertFalse("hacker news" in blob.lower(), "Hacker News still referenced")
 
     def test_bangs_and_rules_point_at_real_engines(self):
         for bang, target in PHRASES["bangs"].items():

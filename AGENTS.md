@@ -194,8 +194,16 @@ When *adding* a new keyword:
 - Single words need a sanity check: would adding ` foo ` falsely match a query like `comfort` or `foothold`? If yes, prefer a longer phrase form, or accept the false positive only if the engine is a reasonable destination for the false-match query anyway.
 - The `cases[]` table in `tests/search.spec.ts > keyword mode (low-memory fallback)` has per-engine routing assertions — add a case there for any new engine destination, and the word-boundary regression test catches accidental bare-word matches. `KEYWORD_FALSE_POSITIVES` in `tests/unit/test_routing.py` pins known traps (`street fighter 6`, `browser console log`, `cinnamon bun recipe`).
 
-### Wirecutter was removed
-There is no Wirecutter engine anymore (no bangs `!wc`/`!nyt`, no route, no keyword rules). Product-shopping queries ("best X", gift ideas, recommendations) now route to **DDG**, and "is X worth it / which X should I buy" advice goes to **Grok**. `ConfigTests.test_wirecutter_fully_removed` guards against it creeping back.
+### Removed destinations: Wirecutter and Hacker News
+There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
+- "best X" product shopping → **DDG**.
+- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **Grok**.
+- Tech discussion: opinions / debates / engineering war stories / explainers → **Grok**; docs, installs, downloads, project lookups → **DDG**.
+
+`ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
+
+### Grok's scope
+Grok is connected to X, so besides explainers / research / writing it is the destination for **breaking news, live updates, opinions and social sentiment ("what are people saying…"), product reviews, and advice**. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
 
 The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 
