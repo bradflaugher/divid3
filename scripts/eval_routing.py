@@ -6,7 +6,8 @@ Replicates the browser's routing pipeline exactly (see index.html):
   1. classifyRules  — bangs, bare domains, localhost
   2. semantic match — embed query with the same quantized ONNX MiniLM the
                       page uses, score each route by the mean of its top-3
-                      cosine similarities (matching scoreAll), highest wins
+                      cosine similarities plus a small capped keyword boost
+                      (matching scoreAll), highest wins
   3. (separately) the keyword fallback router used in ?lite=1 / low-memory
      mode, so corpus edits keep BOTH routers consistent
 
@@ -40,12 +41,17 @@ PHRASES_FILE = REPO_ROOT / "scripts" / "search_phrases.json"
 BENCH_FILE = REPO_ROOT / "scripts" / "routing_benchmark.json"
 
 MIN_KEYWORD_SCORE = 2  # keep in sync with index.html
+# Hybrid keyword boost applied on top of semantic scores (scoreAll in
+# index.html). Keep in sync with KEYWORD_BOOST_* there.
+KEYWORD_BOOST_PER_POINT = 0.03
+KEYWORD_BOOST_MAX_POINTS = 5
 
 
 # ───────────────────────────────────────────────────────────────────────
 # Keyword router (mirror of classifyKeywords in index.html)
 # ───────────────────────────────────────────────────────────────────────
-def classify_keywords(query: str, rules: list) -> str | None:
+def keyword_scores(query: str, rules: list) -> dict[str, float]:
+    """Mirror of keywordScores in index.html."""
     padded = " " + query.lower().strip() + " "
     scores: dict[str, float] = defaultdict(float)
     for rule in rules:
@@ -56,6 +62,11 @@ def classify_keywords(query: str, rules: list) -> str | None:
             if needle in padded:
                 scores[rule["engine"]] += rule["weight"]
                 break
+    return scores
+
+
+def classify_keywords(query: str, rules: list) -> str | None:
+    scores = keyword_scores(query, rules)
     if not scores:
         return None
     best_engine, best_score = None, 0
@@ -69,11 +80,12 @@ def classify_keywords(query: str, rules: list) -> str | None:
 # Semantic router (mirror of scoreAll in index.html)
 # ───────────────────────────────────────────────────────────────────────
 class SemanticRouter:
-    def __init__(self, pooling: str = "max", k: int = 3):
+    def __init__(self, pooling: str = "max", k: int = 3, boost: bool = True):
         cfg = json.loads(PHRASES_FILE.read_text(encoding="utf-8"))
         self.cfg = cfg
         self.pooling = pooling
         self.k = k
+        self.boost = boost
         tok, sess = load_pipeline()
         self.tok, self.sess = tok, sess
         self.routes = []
@@ -95,6 +107,7 @@ class SemanticRouter:
     def score(self, query: str):
         """Returns (best_key, ranked [(key, score)], winning_phrase)."""
         qv = self.embed_query(query)
+        kw = keyword_scores(query, self.cfg["keywordRules"]) if self.boost else {}
         ranked = []
         winners = {}
         for r in self.routes:
@@ -104,6 +117,7 @@ class SemanticRouter:
             else:  # topk mean
                 k = min(self.k, len(sims))
                 s = float(np.sort(sims)[-k:].mean())
+            s += KEYWORD_BOOST_PER_POINT * min(kw.get(r["key"], 0), KEYWORD_BOOST_MAX_POINTS)
             ranked.append((r["key"], s))
             winners[r["key"]] = r["phrases"][int(sims.argmax())]
         ranked.sort(key=lambda t: -t[1])
@@ -116,11 +130,13 @@ def main() -> int:
     # default mirrors index.html scoreAll(): mean of top-3 neighbors
     ap.add_argument("--pooling", choices=["max", "topk"], default="topk")
     ap.add_argument("--k", type=int, default=3)
+    ap.add_argument("--no-boost", action="store_true",
+                    help="disable the hybrid keyword boost (pure semantic)")
     ap.add_argument("--misses-only", action="store_true")
     ap.add_argument("--query", help="probe a single query and exit")
     args = ap.parse_args()
 
-    router = SemanticRouter(pooling=args.pooling, k=args.k)
+    router = SemanticRouter(pooling=args.pooling, k=args.k, boost=not args.no_boost)
     rules = router.cfg["keywordRules"]
 
     if args.query:

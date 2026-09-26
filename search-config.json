@@ -20,10 +20,6 @@
       "name": "YouTube",
       "urlTemplate": "https://www.youtube.com/results?search_query={q}"
     },
-    "wirecutter": {
-      "name": "Wirecutter",
-      "urlTemplate": "https://www.nytimes.com/wirecutter/search/?s={q}"
-    },
     "ebay": {
       "name": "eBay",
       "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}"
@@ -40,8 +36,6 @@
   "bangs": {
     "yt": "youtube",
     "y": "youtube",
-    "wc": "wirecutter",
-    "nyt": "wirecutter",
     "m": "maps",
     "map": "maps",
     "i": "images",
@@ -330,110 +324,6 @@
         "gpu",
         "gpus",
         "consensus"
-      ]
-    },
-    {
-      "engine": "wirecutter",
-      "weight": 5,
-      "kw": [
-        "best wireless",
-        "best mechanical",
-        "best budget",
-        "best cheap",
-        "wirecutter pick",
-        "noise cancelling",
-        "standing desk",
-        "office chair",
-        "usb-c cable",
-        "usb c cable",
-        "should i buy",
-        "should i get",
-        "worth the money",
-        "worth buying",
-        "top rated",
-        "highest rated",
-        "gift guide",
-        "gift ideas",
-        "gifts for",
-        "recommend a",
-        "recommendations for",
-        "what should i buy"
-      ]
-    },
-    {
-      "engine": "wirecutter",
-      "weight": 3,
-      "kw": [
-        "where to buy",
-        "buy",
-        "purchase",
-        "wirecutter",
-        "budget pick",
-        "review of",
-        "is it worth it",
-        "worth it",
-        "best rated",
-        "recommendation",
-        "recommendations",
-        "recommend"
-      ]
-    },
-    {
-      "engine": "wirecutter",
-      "weight": 2,
-      "kw": [
-        "best",
-        "headphones",
-        "earbuds",
-        "mechanical keyboard",
-        "gaming mouse",
-        "monitor",
-        "webcam",
-        "mattress",
-        "hdmi cable",
-        "power bank",
-        "travel adapter",
-        "french press",
-        "air purifier",
-        "air fryer",
-        "robot vacuum",
-        "vacuum",
-        "humidifier",
-        "espresso machine",
-        "coffee maker",
-        "blender",
-        "stroller",
-        "luggage",
-        "backpack",
-        "screen protector",
-        "charger",
-        "kettle",
-        "toothbrush",
-        "thermostat",
-        "soundbar",
-        "router",
-        "cordless drill",
-        "headlamp",
-        "winter jacket",
-        "rain jacket",
-        "dog bed",
-        "car seat",
-        "printer",
-        "umbrella",
-        "desk lamp",
-        "hdmi"
-      ]
-    },
-    {
-      "engine": "wirecutter",
-      "weight": 3,
-      "kw": [
-        "what laptop",
-        "which laptop",
-        "what tv",
-        "which tv",
-        "what phone",
-        "which phone"
       ]
     },
     {
@@ -850,6 +740,269 @@
         "auction",
         "vinyl",
         "salvage"
+      ]
+    },
+    {
+      "engine": "grok",
+      "weight": 5,
+      "kw": [
+        "itinerary for",
+        "trip itinerary",
+        "help me plan",
+        "day trip to",
+        "meal plan",
+        "workout plan",
+        "plan a trip",
+        "plan a week",
+        "plan my",
+        "fix the grammar",
+        "fix my grammar",
+        "proofread",
+        "what led to",
+        "why did the",
+        "is it cheaper to",
+        "word game",
+        "going to crash",
+        "under the hood"
+      ]
+    },
+    {
+      "engine": "grok",
+      "weight": 3,
+      "kw": [
+        "worth it",
+        "is it worth",
+        "plan a",
+        "is it bad",
+        "is it healthy",
+        "is it good for",
+        "best way to",
+        "how should i",
+        "how much should i",
+        "itinerary",
+        "why did",
+        "how does a",
+        "how do i handle",
+        "tips for"
+      ]
+    },
+    {
+      "engine": "maps",
+      "weight": 5,
+      "kw": [
+        "car wash",
+        "post office",
+        "atm near",
+        "avoiding tolls",
+        "avoid tolls",
+        "avoiding highways",
+        "hiking trails",
+        "trails around",
+        "trails near",
+        "vet clinic",
+        "on main street",
+        "on main st",
+        "scenic drive"
+      ]
+    },
+    {
+      "engine": "maps",
+      "weight": 2,
+      "kw": [
+        "atm"
+      ]
+    },
+    {
+      "engine": "youtube",
+      "weight": 5,
+      "kw": [
+        "ted talk",
+        "live aid",
+        "music for studying",
+        "piano for studying",
+        "jazz for studying",
+        "music for sleep",
+        "asmr",
+        "mr beast",
+        "mrbeast",
+        "mkbhd",
+        "hiit workout",
+        "lofi"
+      ]
+    },
+    {
+      "engine": "youtube",
+      "weight": 3,
+      "kw": [
+        "hiit",
+        "live at"
+      ]
+    },
+    {
+      "engine": "images",
+      "weight": 3,
+      "kw": [
+        "look like"
+      ]
+    },
+    {
+      "engine": "images",
+      "weight": 5,
+      "kw": [
+        "memes",
+        "hairstyles",
+        "decor ideas",
+        "decor inspiration",
+        "backsplash ideas",
+        "landscaping ideas",
+        "inspiration photos",
+        "at night photo"
+      ]
+    },
+    {
+      "engine": "images",
+      "weight": 3,
+      "kw": [
+        "inspiration",
+        "decor",
+        "tattoo designs"
+      ]
+    },
+    {
+      "engine": "hn",
+      "weight": 5,
+      "kw": [
+        "why we left",
+        "demo day",
+        "yc batch",
+        "nixos",
+        "cursor ide",
+        "crdt",
+        "crdts",
+        "local first",
+        "local-first",
+        "engineering culture",
+        "developers think",
+        "programmers think",
+        "self hosted alternative",
+        "self-hosted"
+      ]
+    },
+    {
+      "engine": "hn",
+      "weight": 3,
+      "kw": [
+        "yc",
+        "zig",
+        "htmx",
+        "bun runtime",
+        "bun vs",
+        "deno",
+        "wasm",
+        "webassembly",
+        "llm inference"
+      ]
+    },
+    {
+      "engine": "ebay",
+      "weight": 5,
+      "kw": [
+        "baseball card",
+        "trading card",
+        "pokemon cards",
+        "retired set",
+        "retired lego",
+        "action figures",
+        "action figure",
+        "headlight assembly",
+        "first edition"
+      ]
+    },
+    {
+      "engine": "ebay",
+      "weight": 3,
+      "kw": [
+        "retro console",
+        "console with games",
+        "console bundle",
+        "nintendo 64",
+        "headlight",
+        "polaroid",
+        "used golf",
+        "textbooks",
+        "kenner",
+        "autographed",
+        "signed jersey"
+      ]
+    },
+    {
+      "engine": "grok",
+      "weight": 5,
+      "kw": [
+        "shows like",
+        "series like",
+        "games like",
+        "anime like",
+        "podcasts like",
+        "benefits of",
+        "study schedule",
+        "study plan",
+        "plan a road trip",
+        "road trip itinerary"
+      ]
+    },
+    {
+      "engine": "maps",
+      "weight": 3,
+      "kw": [
+        "bookstores in",
+        "stores in",
+        "shops in",
+        "bars in",
+        "on broadway"
+      ]
+    },
+    {
+      "engine": "youtube",
+      "weight": 5,
+      "kw": [
+        "live performance",
+        "bloopers",
+        "piano cover",
+        "guitar cover",
+        "yoga for beginners",
+        "workout for beginners"
+      ]
+    },
+    {
+      "engine": "images",
+      "weight": 5,
+      "kw": [
+        "design ideas",
+        "art ideas",
+        "cake designs"
+      ]
+    },
+    {
+      "engine": "images",
+      "weight": 3,
+      "kw": [
+        "designs",
+        "map of the",
+        "anatomy of",
+        "diagram"
+      ]
+    },
+    {
+      "engine": "ebay",
+      "weight": 5,
+      "kw": [
+        "original pressing",
+        "first pressing",
+        "magic the gathering",
+        "mtg cards",
+        "super nintendo",
+        "snes console"
       ]
     }
   ]
