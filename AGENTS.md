@@ -28,7 +28,7 @@ No build step, no bundler, no transpilation. The app is `index.html` + static fi
 
 ### Three-layer routing (fastest → slowest)
 
-1. **Bangs** — DuckDuckGo-style shortcuts (`!yt`, `!gh`, `!w`, etc.). Synchronous regex, no model.
+1. **Bangs** — DuckDuckGo-style shortcuts (`!yt`, `!eb`, `!m`, etc.; see `bangs` in `search-config.json`). Synchronous regex, no model.
 2. **Direct URL detection** — `DOMAIN_RE` / `LOCALHOST_RE` catch domains like `github.com` or `localhost:3000`. Also rule-based, no model.
 3. **Semantic routing** — Query is embedded via `@huggingface/transformers` v3 (WebGPU/WASM), compared against pre-computed vectors in `search-embeddings.json`.
 
@@ -65,7 +65,7 @@ User types → debounce 150 ms → classify() →
 ├── search-embeddings.json        # ~1.8 MB pre-computed L2-normalized vectors
 ├── search.webmanifest            # PWA manifest
 ├── serve.json                    # Dev-server config: cleanUrls=false (preserves ?q=)
-├── _headers                      # Cloudflare Pages cache-control rules
+├── _headers                      # Cloudflare Pages cache-control + security headers
 ├── models/sentence-transformers/all-MiniLM-L6-v2/
 │   ├── config.json, tokenizer*.json, special_tokens_map.json
 │   └── onnx/model_quantized.onnx    # 22 MB q8-quantized ONNX
@@ -250,9 +250,31 @@ The code builds DOM nodes or uses `document.createDocumentFragment` to avoid XSS
 
 ---
 
+### Direct-link and bang edge cases
+- `toDirectUrl()` adds a scheme only when there isn't one (`/^https?:\/\//`), never via `startsWith('http')` — `httpbin.org` is a bare domain. `localhost` targets get `http://`.
+- `isDirectTarget()` rejects file-extension "TLDs" (`node.js`, `package.json`) via `FILE_EXT_TLD_RE`. Only list extensions that are **not** delegated TLDs (`.py`, `.md`, `.rs`, `.sh`, `.zip` are real TLDs).
+- Look up bangs only through `bangEngine()` (own-property check), so `!constructor` can't resolve to `Object.prototype`. `buildTargetUrl()` strips the leading `!token` only when it's a known bang.
+- URL templates use `replace('{q}', () => q)`: a string replacement would expand `$&` / `` $` `` in the query.
+
+### `_headers` rules are additive
+Cloudflare Pages applies every matching rule and **comma-joins** duplicate headers instead of overriding them. Never set `Cache-Control` in the `/*` catch-all, because it would be glued onto the `/models/*` immutable rule. Each path should match at most one `Cache-Control` rule. The `/*` block carries only the security headers (CSP `frame-ancestors`/`base-uri`/`object-src`/`form-action`, HSTS, nosniff, etc.). It deliberately has no `script-src`: the inline module would need a hash re-pinned on every edit.
+
+---
+
+## Dependencies & supply chain
+
+- `package.json` has **devDependencies only**. The site has no runtime npm deps. Don't add transitive packages to `dependencies`.
+- Python deps are pinned in `scripts/requirements.txt` (model/eval) and `scripts/requirements-dev.txt` (Ruff).
+- Node version for CI lives in `.nvmrc`.
+- Every GitHub Action is pinned to a full commit SHA with a `# vX.Y.Z` comment. Dependabot (`.github/dependabot.yml`) bumps Actions, npm and pip weekly, after a 7-day cooldown. Keep `permissions:` least-privilege and `persist-credentials: false` on checkout.
+- CodeQL (`.github/workflows/codeql.yml`) scans the Actions workflows, the inline JS in the HTML files, and the Python scripts.
+- transformers.js is imported from jsdelivr at an exact version. Treat a version bump as a real change: run the full four-browser E2E suite and test on a real iPhone.
+
+---
+
 ## CI / Deploy
 
-- **Cloudflare Pages** deploys on every push to `main` via `.github/workflows/deploy.yml`.
+- **Cloudflare Pages** deploys on every push to `main` via `.github/workflows/deploy.yml`. It stages only the public files into `_site/` (no `tests/`, `scripts/`, `*.md`, package or CI files) and deploys that. **If you add a new top-level dev-only file, add it to the rsync excludes there.** The job runs in the `production` environment.
 - **E2E tests** run on PRs and pushes that touch `index.html`, `search-embeddings.json`, `tests/`, `models/`, or workflow files.
 - Tests cache Playwright browsers between runs.
 - Failed CI runs upload the HTML report as an artifact.
