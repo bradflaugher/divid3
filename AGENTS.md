@@ -14,6 +14,8 @@ A private, on-device meta search engine. Single HTML file with inline CSS/JS, st
 | `npm run test:ui` | Playwright UI mode for debugging |
 | `npm run test:report` | Open last HTML report |
 | `npm run serve` | Start dev server on `localhost:3000` |
+| `npm run lint` | ESLint + TypeScript (`typecheck`) + Ruff + config validator |
+| `npm run test:unit` | Python routing unit tests |
 | `python3 scripts/generate_brand_assets.py` | Regenerate all favicons, icons, OG images |
 | `python3 scripts/review_brand_assets.py` | Generate contact sheet of key assets |
 | `python3 scripts/generate_search_embeddings.py` | Rebuild `search-embeddings.json` from `scripts/search_phrases.json` (uses local ONNX model) |
@@ -268,7 +270,9 @@ Cloudflare Pages applies every matching rule and **comma-joins** duplicate heade
 - Python deps are pinned in `scripts/requirements.txt` (model/eval) and `scripts/requirements-dev.txt` (Ruff).
 - Node version for CI lives in `.nvmrc`.
 - Every GitHub Action is pinned to a full commit SHA with a `# vX.Y.Z` comment. Dependabot (`.github/dependabot.yml`) bumps Actions, npm and pip weekly, after a 7-day cooldown. Keep `permissions:` least-privilege and `persist-credentials: false` on checkout.
-- CodeQL (`.github/workflows/codeql.yml`) scans the Actions workflows, the inline JS in the HTML files, and the Python scripts.
+- CodeQL (`.github/workflows/codeql.yml`) scans the Actions workflows, the inline JS in the HTML files, and the Python scripts. Dependency Review (`dependency-review.yml`) blocks PRs that add vulnerable (≥ moderate) or GPL/AGPL dependencies. OpenSSF Scorecard (`scorecard.yml`) runs weekly and feeds the README badge.
+- The lint job runs `npm audit signatures`. The specs are type-checked with `strict` TypeScript (`tsconfig.json`, no emit).
+- Community files: `SECURITY.md` (private advisories), `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/CODEOWNERS`, `.editorconfig`, `.gitattributes` (marks generated JSON).
 - transformers.js is imported from jsdelivr at an exact version. Treat a version bump as a real change: run the full four-browser E2E suite and test on a real iPhone.
 
 ---

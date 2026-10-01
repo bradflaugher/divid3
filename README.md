@@ -1,5 +1,11 @@
 # divid3
 
+[![E2E tests](https://github.com/bradflaugher/divid3/actions/workflows/search-tests.yml/badge.svg)](https://github.com/bradflaugher/divid3/actions/workflows/search-tests.yml)
+[![Lint](https://github.com/bradflaugher/divid3/actions/workflows/lint.yml/badge.svg)](https://github.com/bradflaugher/divid3/actions/workflows/lint.yml)
+[![CodeQL](https://github.com/bradflaugher/divid3/actions/workflows/codeql.yml/badge.svg)](https://github.com/bradflaugher/divid3/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bradflaugher/divid3/badge)](https://scorecard.dev/viewer/?uri=github.com/bradflaugher/divid3)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Private, on-device search routing.**
 
 divid3 is a meta-search router that runs entirely in your browser. It uses a small local ML model to read your intent, then sends you to whichever search engine you've decided handles that kind of query best — without a server, an account, or a middleman.
@@ -94,7 +100,7 @@ Keyboard shortcuts: `/` focus search · `↑`/`↓` change destination (while ty
 ## 💻 Development
 
 ```bash
-# install deps (Playwright + serve + ESLint)
+# install deps (Playwright + serve + ESLint + TypeScript)
 npm ci
 
 # local dev server
@@ -108,7 +114,7 @@ npm test
 pip install -r scripts/requirements.txt
 npm run test:unit
 
-# lint everything (ESLint + Ruff + JSON config validator)
+# lint everything (ESLint + TypeScript + Ruff + JSON config validator)
 npm run lint
 ```
 
@@ -192,15 +198,24 @@ That's it — no JS edits required.
 
 ## 🔬 Lint & CI
 
-Four checks run on every PR via `.github/workflows/lint.yml`:
+Every PR runs:
 
-- **ESLint** over the `<script>` blocks in `index.html` and `setup.html` (via `eslint-plugin-html`).
-- **Ruff** over the `scripts/` directory.
-- **Config validator** (`scripts/validate_config.py`) that catches missing engines, broken bang references, urlTemplates without `{q}`, and drift between `search_phrases.json` and the generated `search-config.json`.
+- **ESLint** over the `<script>` blocks in `index.html` and `setup.html` (via `eslint-plugin-html`), and **TypeScript** (`strict`) over the Playwright specs.
+- **Ruff** over `scripts/` and `tests/unit/`.
+- **Config validator** (`scripts/validate_config.py`). It catches missing engines, broken bang references, urlTemplates without `{q}`, and drift between `search_phrases.json` and the generated `search-config.json`.
+- **Routing unit tests** (`tests/unit/test_routing.py`). They run the keyword and semantic routers against example tables and the held-out benchmark, and fail below the accuracy floors (97% semantic, 95% keyword).
+- **Playwright E2E** (`.github/workflows/search-tests.yml`) on Chromium, Firefox, WebKit and mobile Safari.
+- **CodeQL** over the workflows, the inline JS and the Python scripts. **Dependency Review** blocks new vulnerable or copyleft dependencies.
 
-Routing unit tests (`tests/unit/test_routing.py`, the `unit` job in `lint.yml`) run the keyword and semantic routers against example tables and the benchmark, and fail if accuracy drops below the floors (97% semantic, 95% keyword).
+### Supply chain
 
-The Playwright E2E suite (`.github/workflows/search-tests.yml`) runs the full router on Chromium, Firefox, WebKit, and mobile Safari.
+- Zero runtime npm dependencies. `package.json` is dev tooling only, and `npm audit signatures` verifies every package's registry signature in CI.
+- Every GitHub Action is pinned to a full commit SHA with least-privilege `permissions`. Python deps are pinned too.
+- Dependabot proposes grouped weekly updates after a 7-day cooldown. OpenSSF Scorecard grades the setup weekly.
+- Deploys publish only the files the site serves (`_site/`), from a `production` environment.
+- `_headers` sets HSTS, `frame-ancestors 'none'`, `nosniff`, `no-referrer` and a restrictive `Permissions-Policy`.
+
+Security issues: see [SECURITY.md](SECURITY.md). Contributing: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
