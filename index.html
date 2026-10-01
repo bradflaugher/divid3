@@ -1004,16 +1004,41 @@
   // safety net so the page still routes *something* if /search-config.json
   // is missing or malformed.
   // ───────────────────────────────────────────────────────────────────────
+  const DOMAIN_RE    = /^[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,10}(:[0-9]{1,5})?(\/.*)?$/i;
+  const LOCALHOST_RE = /^localhost(:[0-9]{1,5})?(\/.*)?$/i;
+  // "TLDs" that are really file extensions: `node.js`, `package.json`,
+  // `index.html` are searches, not hosts. Only extensions that are not
+  // delegated TLDs are listed (so `.py`, `.md`, `.rs`, `.sh` still work).
+  const FILE_EXT_TLD_RE = /\.(js|mjs|cjs|jsx|ts|tsx|json|html?|css|scss|txt|ya?ml|toml|xml|csv|exe|dll|pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|svg|mp3|mp4|wav|tar|gz|log|ini|cfg|conf|lock|java|kt|cpp|hpp|swift|php|rb|lua|vue|svelte)(\/.*)?$/i;
+
+  function isDirectTarget(q) {
+    if (LOCALHOST_RE.test(q)) return true;
+    return DOMAIN_RE.test(q) && !FILE_EXT_TLD_RE.test(q.split(/[:/]/, 1)[0]);
+  }
+
+  // Prefix a scheme only when the target lacks one. `httpbin.org` has no
+  // scheme even though it starts with "http"; localhost dev servers are
+  // almost always plain http.
+  function toDirectUrl(target) {
+    if (/^https?:\/\//i.test(target)) return target;
+    return (LOCALHOST_RE.test(target) ? 'http://' : 'https://') + target;
+  }
+
   let engines = {
     ddg:    { name: 'DuckDuckGo (html)', url: q => `https://html.duckduckgo.com/html/?q=${q}` },
-    direct: { name: 'Direct Link',       url: q => q.startsWith('http') ? q : `https://${q}` }
+    direct: { name: 'Direct Link',       url: toDirectUrl }
   };
 
   // Bang shortcuts (always win over semantic routing). Populated by config.
   let BANG_MAP = { d: 'ddg', ddg: 'ddg' };
 
-  const DOMAIN_RE    = /^[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,10}(:[0-9]{1,5})?(\/.*)?$/i;
-  const LOCALHOST_RE = /^localhost(:[0-9]{1,5})?(\/.*)?$/i;
+  // Own-property lookups only: `!constructor` / `!__proto__` must not
+  // resolve to Object.prototype members.
+  function bangEngine(cmd) {
+    if (!Object.hasOwn(BANG_MAP, cmd)) return null;
+    const key = BANG_MAP[cmd];
+    return Object.hasOwn(engines, key) ? key : null;
+  }
 
   // ───────────────────────────────────────────────────────────────────────
   // Keyword routing rules
@@ -1077,7 +1102,7 @@
     for (const rule of KEYWORD_RULES) {
       let matched = false;
       for (const kw of rule.kw) {
-        const needle = _BARE_WORD_RE.test(kw) ? ` ${kw} ` : kw.toLowerCase();
+        const needle = _BARE_WORD_RE.test(kw) ? ` ${kw.toLowerCase()} ` : kw.toLowerCase();
         if (padded.indexOf(needle) >= 0) { matched = true; break; }
       }
       if (matched) {
@@ -1450,8 +1475,12 @@
   async function loadConfigOnce() {
     if (configPromise) return configPromise;
     configPromise = (async () => {
+      // A stalled config fetch would otherwise block initModel() and the
+      // `?q=` redirect forever; same timeout as the embeddings fetch.
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
       try {
-        const response = await fetch(`/search-config.json?v=${EMBEDDINGS_VERSION}`);
+        const response = await fetch(`/search-config.json?v=${EMBEDDINGS_VERSION}`, { signal: ctl.signal });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -1465,11 +1494,8 @@
           newEngines[key] = {
             name: val.name,
             url: key === 'direct'
-              ? (q => {
-                  const target = val.urlTemplate.replace('{q}', q);
-                  return target.startsWith('http') ? target : `https://${target}`;
-                })
-              : (q => val.urlTemplate.replace('{q}', q))
+              ? (q => toDirectUrl(val.urlTemplate.replace('{q}', () => q)))
+              : (q => val.urlTemplate.replace('{q}', () => q))
           };
         }
         if (!newEngines.ddg) {
@@ -1487,6 +1513,8 @@
       } catch (err) {
         console.error('Search router: failed to load /search-config.json — using DDG-only fallback', err);
         showError('Search config failed to load; routing to DuckDuckGo only.');
+      } finally {
+        clearTimeout(timer);
       }
     })();
     return configPromise;
@@ -1761,6 +1789,7 @@
 
     // Hide overlays that may have been mid-animation when we left.
     overlay.style.display = 'none';
+    overlay.classList.remove('active');
     loadingOverlay.classList.remove('active');
 
     // If we landed here via a `?q=` URL, restore the user's query into
@@ -1858,10 +1887,10 @@
 
   function classifyRules(query) {
     if (query.startsWith('!')) {
-      const cmd = query.split(' ', 1)[0].slice(1);
-      if (BANG_MAP[cmd]) return BANG_MAP[cmd];
+      const key = bangEngine(query.split(' ', 1)[0].slice(1));
+      if (key) return key;
     }
-    if (!query.includes(' ') && (DOMAIN_RE.test(query) || LOCALHOST_RE.test(query))) {
+    if (!query.includes(' ') && isDirectTarget(query)) {
       return 'direct';
     }
     return null;
@@ -1877,6 +1906,9 @@
    * path to skip the model for ultra-short queries.
    */
   let inferenceInflight = false;
+  // Resolves when the in-flight inference (if any) settles, so a
+  // committing caller (Enter, `?q=`) can wait instead of being dropped.
+  let inferenceSettled = Promise.resolve();
   let inferenceCount = 0;
   async function classify(rawQuery, staleCheck, options = {}) {
     const q = rawQuery.toLowerCase().trim();
@@ -1921,6 +1953,8 @@
     // fast typers stack concurrent WASM allocations.
     if (inferenceInflight) return null;
     inferenceInflight = true;
+    let settle;
+    inferenceSettled = new Promise(r => { settle = r; });
     let output = null;
     try {
       output = await extractor([q], { pooling: 'mean', normalize: true });
@@ -1943,6 +1977,7 @@
       // future runtime returns a non-disposable view.
       try { output && output.dispose && output.dispose(); } catch (_) {}
       inferenceInflight = false;
+      settle();
       inferenceCount++;
       // Periodically recycle the pipeline to bound long-session heap
       // drift. Scheduled, not awaited — the next keystroke continues
@@ -2097,6 +2132,25 @@
     overrideEngines.replaceChildren();
     const frag = document.createDocumentFragment();
 
+    // `?q=<domain>`: offer the link itself as the top choice so the user
+    // confirms where they're going (see performRoute). The host is user
+    // input, so it goes in via textContent, never innerHTML.
+    if (selectedKey === 'direct') {
+      const target = buildTargetUrl(search.value, 'direct');
+      let host = target;
+      try { host = new URL(target).host; } catch (_) {}
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'override-btn selected top-match';
+      btn.dataset.engine = 'direct';
+      btn.setAttribute('aria-label', `Open ${host}`);
+      const label = document.createElement('span');
+      label.className = 'override-label';
+      label.textContent = `Open ${host}`;
+      btn.appendChild(label);
+      frag.appendChild(btn);
+    }
+
     // Rank by score if available; otherwise use default order (with the
     // currently-selected engine first). scores is already sorted desc.
     const rankedKeys = scores.length > 0
@@ -2136,8 +2190,10 @@
   function buildTargetUrl(rawQuery, key) {
     let q = rawQuery.trim();
     if (q.startsWith('!')) {
+      // Strip the bang token only when it is a known bang; `!important css`
+      // is a query, not a shortcut. A lone `!yt` searches for nothing.
       const parts = q.split(/\s+/);
-      if (parts.length > 1) q = parts.slice(1).join(' ');
+      if (bangEngine(parts[0].slice(1).toLowerCase())) q = parts.slice(1).join(' ');
     }
     return key === 'direct'
       ? engines.direct.url(q)
@@ -2171,16 +2227,19 @@
     if (overrideKey && engines[overrideKey]) {
       key = overrideKey;
     } else {
-      const result = await classify(rawQuery);
+      let result = await classify(rawQuery);
       if (!result) {
-        // classify() returned null because another inference was
-        // in-flight (single-flight guard). On the immediate path —
-        // `?q=` redirect, Enter, click-to-route — the user is
-        // committing to a route, so silently bailing would strand
-        // them on the loading overlay or do nothing on Enter.
-        // Fall back to deterministic classification: rules first
-        // (bangs, direct URLs), then keyword scoring, then DDG.
-        if (!immediate) return;
+        // classify() returned null because a live-typing inference was
+        // in flight (single-flight guard). Every caller here — `?q=`
+        // redirect, Enter, click-to-route — is committing to a route,
+        // so silently bailing would strand them on the loading overlay
+        // or swallow Enter. Wait for that inference and retry once.
+        await inferenceSettled;
+        result = await classify(rawQuery);
+      }
+      if (!result) {
+        // Still contended: fall back to deterministic classification —
+        // rules first (bangs, direct URLs), then keywords, then DDG.
         const q = rawQuery.toLowerCase().trim();
         key = classifyRules(q) || classifyKeywords(q) || 'ddg';
       } else {
@@ -2189,11 +2248,13 @@
       }
     }
 
-    // Mobile and ?q= paths require an explicit tap — except for the
-    // `direct` engine, where the user already typed the literal URL
-    // they want to visit. Asking them to re-confirm a domain they just
-    // typed is friction without information value.
-    const shouldShowOverlay = !immediate && key !== 'direct' && (mobileMedia.matches || isRedirecting);
+    // Mobile and ?q= paths require an explicit tap. A `direct` link typed
+    // into the page skips the overlay (the user just typed the URL), but
+    // a `direct` link arriving via `?q=` does NOT: otherwise
+    // divid3.com/?q=evil.example/login is an open redirect that lends
+    // our domain to phishing links.
+    const typedDirect = key === 'direct' && !isRedirecting;
+    const shouldShowOverlay = !immediate && !typedDirect && (mobileMedia.matches || isRedirecting);
 
     if (!shouldShowOverlay) {
       location.replace(buildTargetUrl(rawQuery, key));
@@ -2474,6 +2535,9 @@
       btns.forEach((b, i) => b.classList.toggle('selected', i === idx));
       display.textContent = engines[btns[idx].dataset.engine].name;
     } else if (e.key === 'Enter') {
+      // A focused non-engine button (Cancel, Retry) handles its own Enter
+      // activation instead of being overridden by the selected engine.
+      if (e.target instanceof HTMLButtonElement && !overrideEngines.contains(e.target)) return;
       e.preventDefault();
       const sel = btns.find(b => b.classList.contains('selected'));
       // Reuse the click delegation path so feedback + routing stay

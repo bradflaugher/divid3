@@ -1,8 +1,12 @@
 # Cache control for Cloudflare Pages.
 #
-# Rules below are evaluated in order; later rules override earlier ones for
-# the same header on a matching path. So put the catch-all first and
-# progressively narrower overrides afterwards.
+# Cloudflare Pages applies EVERY rule that matches a path, and when two
+# matching rules set the same header the values are comma-joined (not
+# overridden). So the catch-all below must not set Cache-Control: it would
+# be glued onto every narrower rule (`max-age=0, …, max-age=31536000`).
+# Pages already defaults to `public, max-age=0, must-revalidate`, which is
+# what HTML wants. Each path below should match at most one Cache-Control
+# rule.
 #
 # Goal:
 #   - HTML: always revalidate (so iOS Safari can't pin a stale page).
@@ -16,8 +20,18 @@
 #     in place.
 #   - Visual assets: 1 week is plenty.
 
+# Security headers for every response. No script-src here on purpose: the
+# app is an inline <script type="module"> that would need a hash pinned to
+# every edit. frame-ancestors blocks clickjacking (e.g. of the Retry button,
+# which wipes caches).
 /*
-  Cache-Control: public, max-age=0, must-revalidate
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=31536000
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()
 
 # Long-lived immutable assets — model weights + tokenizer files.
 # Path is effectively content-addressed (we never mutate a file in place).

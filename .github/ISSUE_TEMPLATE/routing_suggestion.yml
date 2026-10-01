@@ -1,0 +1,16 @@
+name: Routing or feature suggestion
+description: Suggest a new destination, bang, or better routing for a kind of query.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Suggestion
+      description: For routing changes, list example queries and where each should go.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What's the current behavior, and why is the suggestion better?

@@ -1,0 +1,39 @@
+name: Bug report
+description: Something is broken or routed somewhere wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the exact query or URL (for example `divid3.com/?q=…`).
+      placeholder: Typed "lofi beats", pressed Enter, landed on DuckDuckGo instead of YouTube.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser, version and device
+      placeholder: Safari 19 on iPhone 15, Chrome 140 on macOS, …
+    validations:
+      required: true
+  - type: dropdown
+    id: dot
+    attributes:
+      label: Status dot colour
+      options:
+        - Green (model ready)
+        - Purple (keyword mode)
+        - Grey (still loading)
+        - Didn't check
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors (optional)
+      render: text

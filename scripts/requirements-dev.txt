@@ -1,0 +1,2 @@
+# Lint tooling (CI `py` job). Kept separate from the model deps above.
+ruff==0.16.10

@@ -188,6 +188,33 @@ test.describe('search router — bang shortcuts', () => {
     await expect(page.locator('#scores .score-row[data-engine="wirecutter"]')).toHaveCount(0);
   });
 
+  test('Object.prototype names are not bangs ("!constructor x" does not throw)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(PATH);
+    const search = page.locator('#search');
+    for (const q of ['!constructor x', '!__proto__ x', '!toString x']) {
+      await search.fill(q);
+      await page.waitForTimeout(400);
+    }
+    expect(errors).toEqual([]);
+  });
+
+  test('unknown bang keeps its token in the outgoing query', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'desktop Enter routes immediately; mobile overlay covered separately');
+    // Stub every off-site navigation so the test doesn't depend on which
+    // engine the classifier picks, only on the query it sends.
+    await page.route(url => url.hostname !== 'localhost', r =>
+      r.request().isNavigationRequest() ? r.fulfill({ body: 'ok' }) : r.continue());
+    await page.goto(PATH);
+    const search = page.locator('#search');
+    await search.fill('!nope foo');
+    const navPromise = page.waitForURL(url => url.hostname !== 'localhost', { timeout: 30_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await navPromise;
+    expect(decodeURIComponent(page.url().replace(/\+/g, ' '))).toContain('!nope foo');
+  });
+
   test('unknown bang ("!nope foo") falls back to semantic / DDG', async ({ page, isMobile }) => {
     test.skip(isMobile, 'mobile defers semantic classification to Enter; this test asserts the live preview path');
     await page.goto(PATH);
@@ -278,6 +305,24 @@ test.describe('search router — query parameter redirect', () => {
     expect(page.url()).toContain('/index.html?q=');
   });
 
+  test('?q=<domain> is not an open redirect: overlay asks before leaving', async ({ page }) => {
+    // Regression: `direct` used to skip the overlay on ?q= too, so
+    // divid3.com/?q=evil.example/login bounced visitors straight there.
+    await page.route('https://example.com/**', r => r.fulfill({ body: 'ok' }));
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=example.com/login`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    expect(new URL(page.url()).hostname).toBe('localhost');
+
+    const open = page.locator('#override-engines .override-btn[data-engine="direct"]');
+    await expect(open).toHaveText('Open example.com');
+    await expect(open).toHaveClass(/selected/);
+
+    const navPromise = page.waitForURL(/^https:\/\/example\.com\/login$/, { timeout: 15_000, waitUntil: 'commit' });
+    await open.click();
+    await navPromise;
+  });
+
   test('?q= override button routes immediately to chosen engine', async ({ page }) => {
     await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=lofi+beats`);
@@ -314,6 +359,29 @@ test.describe('search router — direct URL detection', () => {
     await page.goto(PATH);
     await page.locator('#search').fill('localhost:3000');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
+  });
+
+  test('"httpbin.org" (bare domain starting with "http") navigates to https://httpbin.org', async ({ page }) => {
+    // Regression: a `startsWith('http')` scheme check passed this through
+    // unprefixed, so location.replace resolved it relative to divid3.
+    await page.route('https://httpbin.org/**', r => r.fulfill({ body: 'ok' }));
+    await page.goto(PATH);
+    const search = page.locator('#search');
+    await search.fill('httpbin.org');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'direct');
+    const navPromise = page.waitForURL(/^https:\/\/httpbin\.org\/?$/, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await navPromise;
+  });
+
+  test('file names ("node.js", "package.json") are NOT Direct Links', async ({ page }) => {
+    await page.goto(PATH);
+    const search = page.locator('#search');
+    for (const q of ['node.js', 'package.json', 'index.html']) {
+      await search.fill(q);
+      await page.waitForTimeout(400);
+      await expect(page.locator('body')).not.toHaveAttribute('data-engine', 'direct');
+    }
   });
 
   test('"bing.com cool search" (with space) does NOT classify as Direct Link', async ({ page }) => {
