@@ -254,6 +254,7 @@ The code builds DOM nodes or uses `document.createDocumentFragment` to avoid XSS
 - `toDirectUrl()` adds a scheme only when there isn't one (`/^https?:\/\//`), never via `startsWith('http')` — `httpbin.org` is a bare domain. `localhost` targets get `http://`.
 - `isDirectTarget()` rejects file-extension "TLDs" (`node.js`, `package.json`) via `FILE_EXT_TLD_RE`. Only list extensions that are **not** delegated TLDs (`.py`, `.md`, `.rs`, `.sh`, `.zip` are real TLDs).
 - Look up bangs only through `bangEngine()` (own-property check), so `!constructor` can't resolve to `Object.prototype`. `buildTargetUrl()` strips the leading `!token` only when it's a known bang.
+- **`?q=<domain>` is never auto-followed.** A direct link typed into the page navigates right away. One that arrives via `?q=` shows the overlay with an `Open <host>` button (`data-engine="direct"`), otherwise `divid3.com/?q=evil.example` would be an open redirect. Keep it that way.
 - URL templates use `replace('{q}', () => q)`: a string replacement would expand `$&` / `` $` `` in the query.
 
 ### `_headers` rules are additive

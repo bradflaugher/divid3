@@ -305,6 +305,24 @@ test.describe('search router — query parameter redirect', () => {
     expect(page.url()).toContain('/index.html?q=');
   });
 
+  test('?q=<domain> is not an open redirect: overlay asks before leaving', async ({ page }) => {
+    // Regression: `direct` used to skip the overlay on ?q= too, so
+    // divid3.com/?q=evil.example/login bounced visitors straight there.
+    await page.route('https://example.com/**', r => r.fulfill({ body: 'ok' }));
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=example.com/login`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    expect(new URL(page.url()).hostname).toBe('localhost');
+
+    const open = page.locator('#override-engines .override-btn[data-engine="direct"]');
+    await expect(open).toHaveText('Open example.com');
+    await expect(open).toHaveClass(/selected/);
+
+    const navPromise = page.waitForURL(/^https:\/\/example\.com\/login$/, { timeout: 15_000, waitUntil: 'commit' });
+    await open.click();
+    await navPromise;
+  });
+
   test('?q= override button routes immediately to chosen engine', async ({ page }) => {
     await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=lofi+beats`);

@@ -2132,6 +2132,25 @@
     overrideEngines.replaceChildren();
     const frag = document.createDocumentFragment();
 
+    // `?q=<domain>`: offer the link itself as the top choice so the user
+    // confirms where they're going (see performRoute). The host is user
+    // input, so it goes in via textContent, never innerHTML.
+    if (selectedKey === 'direct') {
+      const target = buildTargetUrl(search.value, 'direct');
+      let host = target;
+      try { host = new URL(target).host; } catch (_) {}
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'override-btn selected top-match';
+      btn.dataset.engine = 'direct';
+      btn.setAttribute('aria-label', `Open ${host}`);
+      const label = document.createElement('span');
+      label.className = 'override-label';
+      label.textContent = `Open ${host}`;
+      btn.appendChild(label);
+      frag.appendChild(btn);
+    }
+
     // Rank by score if available; otherwise use default order (with the
     // currently-selected engine first). scores is already sorted desc.
     const rankedKeys = scores.length > 0
@@ -2229,11 +2248,13 @@
       }
     }
 
-    // Mobile and ?q= paths require an explicit tap — except for the
-    // `direct` engine, where the user already typed the literal URL
-    // they want to visit. Asking them to re-confirm a domain they just
-    // typed is friction without information value.
-    const shouldShowOverlay = !immediate && key !== 'direct' && (mobileMedia.matches || isRedirecting);
+    // Mobile and ?q= paths require an explicit tap. A `direct` link typed
+    // into the page skips the overlay (the user just typed the URL), but
+    // a `direct` link arriving via `?q=` does NOT: otherwise
+    // divid3.com/?q=evil.example/login is an open redirect that lends
+    // our domain to phishing links.
+    const typedDirect = key === 'direct' && !isRedirecting;
+    const shouldShowOverlay = !immediate && !typedDirect && (mobileMedia.matches || isRedirecting);
 
     if (!shouldShowOverlay) {
       location.replace(buildTargetUrl(rawQuery, key));
