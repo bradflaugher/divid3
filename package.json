@@ -9,10 +9,12 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.1",
     "eslint": "^10.11.0",
     "eslint-plugin-html": "^8.2.1",
     "globals": "^17.13.0",
-    "serve": "^14.2.6"
+    "serve": "^14.2.6",
+    "typescript": "^7.0.2"
   },
   "scripts": {
     "test": "playwright test",
@@ -21,10 +23,11 @@
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
     "serve": "serve -l 3000 .",
-    "lint": "npm run lint:js && npm run lint:py && npm run lint:config",
+    "lint": "npm run lint:js && npm run typecheck && npm run lint:py && npm run lint:config",
     "lint:js": "eslint index.html setup.html eslint.config.js",
     "lint:py": "ruff check scripts tests/unit",
-    "lint:config": "python3 scripts/validate_config.py"
+    "lint:config": "python3 scripts/validate_config.py",
+    "typecheck": "tsc -p ."
   },
   "repository": {
     "type": "git",
