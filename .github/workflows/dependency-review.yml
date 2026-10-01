@@ -21,7 +21,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      # The action hard-fails when the repo's Dependency graph is off
+      # (Settings → Code security). Probe first so the job skips with a
+      # warning instead, and starts enforcing as soon as it's enabled.
+      - name: Check that the dependency graph is enabled
+        id: graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/dependency-graph/sbom" --silent 2>/dev/null; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=Dependency review skipped::Enable the Dependency graph in Settings → Code security to turn this check on."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.graph.outputs.enabled == 'true'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: moderate
           deny-licenses: GPL-2.0-only, GPL-3.0-only, AGPL-3.0-only
