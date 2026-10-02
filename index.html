@@ -2187,6 +2187,21 @@
     overrideEngines.appendChild(frag);
   }
 
+  // The only place the page navigates away. Every destination is built
+  // from an https engine template or toDirectUrl(), so it is always
+  // http(s) today; parsing here makes that a guarantee instead of an
+  // accident, so a future engine template or direct-link edge case can't
+  // smuggle in a `javascript:` / `data:` URL. Anything else falls back to
+  // a DuckDuckGo search for the raw text.
+  function navigateTo(url) {
+    let parsed;
+    try { parsed = new URL(url); } catch (_) { parsed = null; }
+    if (!parsed || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
+      parsed = new URL(engines.ddg.url(encodeURIComponent(String(url))));
+    }
+    location.replace(parsed.href);
+  }
+
   function buildTargetUrl(rawQuery, key) {
     let q = rawQuery.trim();
     if (q.startsWith('!')) {
@@ -2257,7 +2272,7 @@
     const shouldShowOverlay = !immediate && !typedDirect && (mobileMedia.matches || isRedirecting);
 
     if (!shouldShowOverlay) {
-      location.replace(buildTargetUrl(rawQuery, key));
+      navigateTo(buildTargetUrl(rawQuery, key));
       return;
     }
 

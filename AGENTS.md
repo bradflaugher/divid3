@@ -80,7 +80,8 @@ User types → debounce 150 ms → classify() →
 │   ├── eval_routing.py           # Offline routing eval (mirrors index.html scoring)
 │   ├── routing_benchmark.json    # Held-out labeled queries (never copy into phrases)
 │   ├── validate_config.py        # Schema + corpus-rule validator (npm run lint:config)
-│   ├── requirements.txt          # numpy / onnxruntime / tokenizers for eval + unit tests
+│   ├── requirements.in           # Direct Python deps (numpy / onnxruntime / tokenizers) for eval + unit tests
+│   ├── requirements.txt          # Hash-locked from requirements.in by `uv pip compile` (don't hand-edit)
 │   ├── generate_brand_assets.py  # Regenerate favicons, icons, OG images
 │   └── review_brand_assets.py    # Contact-sheet reviewer
 └── favicon-*.png, icon-*.png, apple-touch-icon-*.png, og-image.png, …
@@ -267,7 +268,7 @@ Cloudflare Pages applies every matching rule and **comma-joins** duplicate heade
 ## Dependencies & supply chain
 
 - `package.json` has **devDependencies only**. The site has no runtime npm deps. Don't add transitive packages to `dependencies`.
-- Python deps are pinned in `scripts/requirements.txt` (model/eval) and `scripts/requirements-dev.txt` (Ruff).
+- Python deps: direct pins live in `scripts/requirements.in` (model/eval) and `scripts/requirements-dev.in` (Ruff). The `.txt` files next to them are hash-locked with `uv pip compile --universal --python-version 3.13 --generate-hashes` (exact command in each `.in` header), and CI installs them with `--require-hashes`. Edit the `.in`, re-run the compile, and commit both.
 - Node version for CI lives in `.nvmrc`.
 - Every GitHub Action is pinned to a full commit SHA with a `# vX.Y.Z` comment. Dependabot (`.github/dependabot.yml`) bumps Actions, npm and pip weekly, after a 7-day cooldown. Keep `permissions:` least-privilege and `persist-credentials: false` on checkout.
 - CodeQL (`.github/workflows/codeql.yml`) scans the Actions workflows, the inline JS in the HTML files, and the Python scripts. Dependency Review (`dependency-review.yml`) blocks PRs that add vulnerable (≥ moderate) or GPL/AGPL dependencies. OpenSSF Scorecard (`scorecard.yml`) runs weekly and feeds the README badge.

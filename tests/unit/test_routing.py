@@ -211,13 +211,13 @@ class ConfigTests(unittest.TestCase):
         }
         for name, blob in blobs.items():
             with self.subTest(file=name):
-                self.assertFalse("wirecutter" in blob.lower(), f"{name} mentions wirecutter")
-                self.assertFalse("nytimes.com" in blob.lower(), f"{name} links nytimes.com")
+                self.assertNotIn("wirecutter", blob.lower(), f"{name} mentions wirecutter")
+                self.assertNotIn("nytimes.com", blob.lower(), f"{name} links nytimes.com")
         # index.html may mention the removal in a changelog comment, but
         # must not reference the engine key or its domain.
         html = INDEX_HTML.lower()
         for needle in ("'wirecutter'", '"wirecutter"', "nytimes.com"):
-            self.assertFalse(needle in html, f"index.html contains {needle}")
+            self.assertNotIn(needle, html, f"index.html contains {needle}")
         for bang in ("wc", "nyt"):
             self.assertNotIn(bang, PHRASES["bangs"])
 
@@ -232,8 +232,8 @@ class ConfigTests(unittest.TestCase):
         for q in BENCH:
             self.assertNotIn("hn", [q["expect"], *q.get("also_ok", [])], q["q"])
         for blob in (json.dumps(CONFIG), INDEX_HTML):
-            self.assertFalse("algolia.com" in blob.lower(), "hn.algolia.com still referenced")
-            self.assertFalse("hacker news" in blob.lower(), "Hacker News still referenced")
+            self.assertNotIn("algolia.com", blob.lower(), "hn.algolia.com still referenced")
+            self.assertNotIn("hacker news", blob.lower(), "Hacker News still referenced")
 
     def test_bangs_and_rules_point_at_real_engines(self):
         for bang, target in PHRASES["bangs"].items():
