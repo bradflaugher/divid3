@@ -1,0 +1,6 @@
+# Direct deps for the eval + unit tests. Lock with:
+#   uv pip compile --universal --python-version 3.13 --generate-hashes scripts/requirements.in -o scripts/requirements.txt
+# Dependabot bumps the pins here and in the lockfile.
+numpy==2.5.3
+onnxruntime==1.30.0
+tokenizers==0.23.2

@@ -79,7 +79,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install Ruff
-        run: python3 -m pip install -r scripts/requirements-dev.txt
+        run: python3 -m pip install --require-hashes -r scripts/requirements-dev.txt
       - name: Run Ruff
         run: ruff check scripts tests/unit
 
@@ -111,6 +111,6 @@ jobs:
           cache: 'pip'
           cache-dependency-path: scripts/requirements.txt
       - name: Install model deps
-        run: python3 -m pip install -r scripts/requirements.txt
+        run: python3 -m pip install --require-hashes -r scripts/requirements.txt
       - name: Run routing unit tests
         run: python3 -m unittest discover -s tests/unit -v

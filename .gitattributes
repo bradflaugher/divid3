@@ -9,3 +9,4 @@
 search-embeddings.json linguist-generated=true -diff
 search-config.json     linguist-generated=true
 package-lock.json      linguist-generated=true
+scripts/requirements*.txt linguist-generated=true
