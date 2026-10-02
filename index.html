@@ -887,13 +887,13 @@
 </div>
 
 <script type="module">
-  import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.2.4';
+  import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
 
   // ───────────────────────────────────────────────────────────────────────
   // Config
   //
   // We ship a single quantized ONNX file (model_quantized.onnx, ~22 MB).
-  // dtype: 'q8' tells transformers.js v3 to load that exact filename.
+  // dtype: 'q8' tells transformers.js to load that exact filename.
   // Using any other dtype (e.g. 'fp32' → model.onnx) would 404; on
   // Cloudflare Pages a 404 is served as HTML, which the ONNX runtime
   // then tries to parse as protobuf and fails with the cryptic
@@ -1441,7 +1441,7 @@
   // ───────────────────────────────────────────────────────────────────────
   // Safer pipeline config for iOS Safari:
   //
-  // - WebGPU on Safari is gated/buggy as of 2025. transformers.js v3's
+  // - WebGPU on Safari is gated/buggy as of 2025. transformers.js's
   //   `device: 'auto'` will probe WebGPU first, which on iOS has been
   //   observed to crash the WebContent process. Pinning to 'wasm'
   //   forces the well-trodden ONNX-WASM path everywhere — slightly
@@ -1972,7 +1972,7 @@
       console.error('Inference error', e);
       return { key: 'ddg', scores: [] };
     } finally {
-      // Free the WASM-backed tensor before returning. v3 Tensor has a
+      // Free the WASM-backed tensor before returning. The Tensor has a
       // dispose() method but we guard with optional chaining in case a
       // future runtime returns a non-disposable view.
       try { output && output.dispose && output.dispose(); } catch (_) {}
