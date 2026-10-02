@@ -1,4 +1,4 @@
 # Pinned so CI and local eval runs are reproducible; Dependabot bumps these.
-numpy==2.4.6
+numpy==2.5.3
 onnxruntime==1.30.0
 tokenizers==0.23.2
