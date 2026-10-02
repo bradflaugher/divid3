@@ -32,7 +32,7 @@ No build step, no bundler, no transpilation. The app is `index.html` + static fi
 
 1. **Bangs** — DuckDuckGo-style shortcuts (`!yt`, `!eb`, `!m`, etc.; see `bangs` in `search-config.json`). Synchronous regex, no model.
 2. **Direct URL detection** — `DOMAIN_RE` / `LOCALHOST_RE` catch domains like `github.com` or `localhost:3000`. Also rule-based, no model.
-3. **Semantic routing** — Query is embedded via `@huggingface/transformers` v3 (WebGPU/WASM), compared against pre-computed vectors in `search-embeddings.json`.
+3. **Semantic routing** — Query is embedded via `@huggingface/transformers` v4 (WASM), compared against pre-computed vectors in `search-embeddings.json`.
 
 ### Key data flow
 
@@ -145,7 +145,7 @@ The **Retry** button in the error banner does a full cache nuke: clears all `cac
 `env.backends.onnx.wasm.numThreads = 1` and `proxy = false` are intentional. iOS Safari does not give pages cross-origin isolation (no `SharedArrayBuffer`), so the multi-threaded ONNX path either no-ops or crashes with a confusing "protobuf parsing failed". Keep the single-thread pin even if the desktop story improves — it's the iOS pain point.
 
 ### Pipeline pinned to `device: 'wasm'`
-`pipeline('feature-extraction', MODEL_ID, { dtype: 'q8', device: 'wasm' })` deliberately bypasses transformers.js v3's `device: 'auto'` probe. The auto-probe tries WebGPU first; on Safari (where WebGPU is gated/buggy as of 2025) this has been observed to crash the WebContent process. The WASM path is fast enough for a 22 MB MiniLM and predictable across browsers.
+`pipeline('feature-extraction', MODEL_ID, { dtype: 'q8', device: 'wasm' })` deliberately bypasses transformers.js's `device: 'auto'` probe. The auto-probe tries WebGPU first; on Safari (where WebGPU is gated/buggy as of 2025) this has been observed to crash the WebContent process. The WASM path is fast enough for a 22 MB MiniLM and predictable across browsers.
 
 ### Mobile = NO live semantic inference (the iOS reliability fix)
 On viewports `(max-width: 767px)`, `updateHint()` only runs `classifyRules()` (bangs, direct URLs). Semantic queries get **no live preview** — the engine hint stays cleared until the user presses Enter, at which point `performRoute()` runs the model exactly once. Equivalent to the `?q=` redirect path, which iOS users already report as reliable. The cumulative-inference WASM-heap drift that used to crash mobile Safari tabs is eliminated, not mitigated.
@@ -156,7 +156,7 @@ Desktop keeps the live-typing loop. Don't restore live inference on mobile — t
 The classify path tracks `inferenceInflight`; a keystroke arriving while a previous inference is running is dropped (returns `null` to `updateHint`, which does nothing). The next debounced tick will run with the latest input. Without this, fast typers stack concurrent WASM allocations on the desktop live loop.
 
 ### Tensor disposal + typed-array path
-`extractor([q], …)` returns a v3 `Tensor`. Read the embedding via `output.data` (the underlying `Float32Array`), not `output.tolist()[0]` (which copies into a boxed JS Array first). After reading, call `output.dispose()` to free the WASM-side buffer. Both reduce per-call allocation pressure on iOS.
+`extractor([q], …)` returns a `Tensor`. Read the embedding via `output.data` (the underlying `Float32Array`), not `output.tolist()[0]` (which copies into a boxed JS Array first). After reading, call `output.dispose()` to free the WASM-side buffer. Both reduce per-call allocation pressure on iOS.
 
 ### Periodic pipeline recycle
 Every `INFERENCES_PER_RECYCLE` inferences (40), `scheduleRecycle()` queues a dispose-and-reload of the extractor on a 1.5 s idle delay. Reload reads from IndexedDB cache, so it's ~100 ms with no network. The recycle path uses `disposeExtractor()` + `silentReload()`, deliberately bypassing `initModel()` so the crash-loop sentinel and loading overlay stay quiet — those exist for *cold-boot* failures, not deliberate recycles. Don't route the recycle through `initModel()`.
@@ -273,7 +273,7 @@ Cloudflare Pages applies every matching rule and **comma-joins** duplicate heade
 - CodeQL (`.github/workflows/codeql.yml`) scans the Actions workflows, the inline JS in the HTML files, and the Python scripts. Dependency Review (`dependency-review.yml`) blocks PRs that add vulnerable (≥ moderate) or GPL/AGPL dependencies. OpenSSF Scorecard (`scorecard.yml`) runs weekly and feeds the README badge.
 - The lint job runs `npm audit signatures`. The specs are type-checked with `strict` TypeScript (`tsconfig.json`, no emit).
 - Community files: `SECURITY.md` (private advisories), `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/CODEOWNERS`, `.editorconfig`, `.gitattributes` (marks generated JSON).
-- transformers.js is imported from jsdelivr at an exact version. Treat a version bump as a real change: run the full four-browser E2E suite and test on a real iPhone.
+- transformers.js is imported from jsdelivr at an exact version. Treat a version bump as a real change: run the full four-browser E2E suite and test on a real iPhone. Since v4 the ONNX WASM runtime is fetched from the separate `onnxruntime-web` package on jsdelivr (not from inside the transformers.js dist), so a CSP `connect-src`/`script-src` would need to allow both.
 
 ---
 
