@@ -1074,11 +1074,8 @@
    *  signal (one weight-2+ rule, or two weight-1 rules). */
   const MIN_KEYWORD_SCORE = 2;
 
-  /** True when the keyword passed to KEYWORD_RULES is a bare word —
-   *  needs word-boundary anchoring so "code" doesn't match "decode". */
-  const _BARE_WORD_RE = /^[a-z0-9]+$/i;
-  /** Punctuation and symbols become spaces before matching, so a phrase
-   *  still starts at a word after a quote, bracket or dash. */
+  /** Punctuation and symbols become spaces before matching, so keywords
+   *  match whole words even next to a quote, bracket or dash. */
   const _NON_WORD_RE = /[^\p{L}\p{N}']+/gu;
 
   /** `text` lowercased, curly apostrophes straightened (iOS smart
@@ -1127,14 +1124,10 @@
   }
 
   /** True when any of `rule.kw` occurs in `padded` (the normalized query
-   *  wrapped in spaces). Bare words match whole words; phrases must start
-   *  at a word ("craft a" must not match "minecraft armor"). */
+   *  wrapped in spaces) as whole words: "craft a" matches neither
+   *  "minecraft armor" nor "craft armor". */
   function ruleMatches(rule, padded) {
-    return rule.kw.some(kw => {
-      const k = normalizeForKeywords(kw);
-      const needle = _BARE_WORD_RE.test(kw) ? ` ${k} ` : ` ${k}`;
-      return padded.indexOf(needle) >= 0;
-    });
+    return rule.kw.some(kw => padded.indexOf(` ${normalizeForKeywords(kw)} `) >= 0);
   }
 
   // ───────────────────────────────────────────────────────────────────────

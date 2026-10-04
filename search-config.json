@@ -170,6 +170,7 @@
         "full episodes",
         "song lyrics",
         "acoustic cover",
+        "acoustic covers",
         "drum cover",
         "piano tutorial",
         "piano lesson",
@@ -893,7 +894,6 @@
         "breaking news",
         "latest news",
         "news today",
-        "world news",
         "what just happened",
         "live updates",
         "public reactions to",
@@ -1043,7 +1043,11 @@
         "suggest a",
         "suggestions for",
         "advice for",
-        "advice on"
+        "advice on",
+        "review of",
+        "reviews of",
+        "honest review",
+        "user reviews"
       ]
     },
     {

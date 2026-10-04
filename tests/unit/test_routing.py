@@ -69,7 +69,7 @@ def normalize_for_keywords(text: str) -> str:
 
 def rule_matches(rule: dict, padded: str) -> bool:
     return any(
-        (f" {normalize_for_keywords(kw)} " if kw.isalnum() else f" {normalize_for_keywords(kw)}") in padded
+        f" {normalize_for_keywords(kw)} " in padded
         for kw in rule["kw"]
     )
 
@@ -157,6 +157,8 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("sign in on twitter", "ddg"),
     ("log in to x", "ddg"),
     ("recommend a live coverage source", "lumo"),
+    ("reviews of breaking news apps", "lumo"),
+    ("review of live coverage services", "lumo"),
     ("people’s reactions to the verdict", "x"),  # iOS curly apostrophe
     ("why is the new pope trending", "x"),
     ("itinerary for a weekend in lisbon", "lumo"),
@@ -198,6 +200,11 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("minecraft armor recipe", "ddg"),
     ("warcraft addon download", "ddg"),
     ("aircraft accident report", None),
+    # keyword phrases end at a word too: 'craft a' is not in 'craft armor'
+    ("craft armor minecraft", "youtube"),
+    ("write ahead log postgres", None),
+    ("write amplification ssd", None),
+    ("world news", None),  # generic news navigation stays on the web
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.

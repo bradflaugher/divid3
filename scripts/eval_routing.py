@@ -71,10 +71,9 @@ def normalize_for_keywords(text: str) -> str:
 
 
 def rule_matches(rule: dict, padded: str) -> bool:
-    """Mirror of ruleMatches in index.html: bare words match whole words,
-    phrases must start at a word."""
+    """Mirror of ruleMatches in index.html: keywords match whole words."""
     return any(
-        (f" {normalize_for_keywords(kw)} " if kw.isalnum() else f" {normalize_for_keywords(kw)}") in padded
+        f" {normalize_for_keywords(kw)} " in padded
         for kw in rule["kw"]
     )
 
