@@ -190,10 +190,11 @@ Activation paths (each independently sets `keywordMode = true`):
 - Crash-loop sentinel detects ≥ `MAX_CRASHES_BEFORE_FALLBACK` unfinished loads.
 - `initModel()` exhausts retries on a transient failure or hits a deterministic 4xx.
 
-`KEYWORD_RULES` is the source of truth: a flat list of `{ engine, weight, kw: [...] }` rules. Each rule contributes its `weight` to the engine's score if ANY of its `kw` strings match the query. Highest-scoring engine wins, with `MIN_KEYWORD_SCORE` (= 2) gating ambiguous matches into the DDG fallback. Single bare words match on word boundaries (`code` doesn't match `decode`); multi-word phrases match as substrings.
+`KEYWORD_RULES` is the source of truth: a flat list of `{ engine, weight, kw: [...] }` rules. Each rule contributes its `weight` to the engine's score if ANY of its `kw` strings match the query. Highest-scoring engine wins, with `MIN_KEYWORD_SCORE` (= 2) gating ambiguous matches into the DDG fallback. A rule marked `"priority": true` short-circuits that: if it matches, its engine wins outright no matter how other rules' weights stack. Only the Lumo writing-intent rule (`write a`, `draft a`, `craft a`, …) uses it, so "write a breaking news post on twitter" stays on Lumo instead of going to X. `classifyKeywords()` in `index.html` and both Python mirrors (`eval_routing.py`, `tests/unit/test_routing.py`) implement it. Single bare words match on word boundaries (`code` doesn't match `decode`); multi-word phrases match as substrings.
 
 When *adding* a new keyword:
 - Multi-word phrases (`pull request`, `buy usb-c cable`) are stable — pretty much always specific enough.
+- Polysemous words (`opinion`, `drama`, `reaction to`) need a sense check too: `second opinion`, `korean drama` and `allergic reaction` are not X queries. A weight-8 DDG rule pins those senses to the web.
 - Single words need a sanity check: would adding ` foo ` falsely match a query like `comfort` or `foothold`? If yes, prefer a longer phrase form, or accept the false positive only if the engine is a reasonable destination for the false-match query anyway.
 - The `cases[]` table in `tests/search.spec.ts > keyword mode (low-memory fallback)` has per-engine routing assertions — add a case there for any new engine destination, and the word-boundary regression test catches accidental bare-word matches. `KEYWORD_FALSE_POSITIVES` in `tests/unit/test_routing.py` pins known traps (`street fighter 6`, `browser console log`, `cinnamon bun recipe`).
 

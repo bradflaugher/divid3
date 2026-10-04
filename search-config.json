@@ -508,7 +508,6 @@
         "viral video",
         "social sentiment",
         "what people think",
-        "reaction to",
         "hot take"
       ]
     },
@@ -892,7 +891,9 @@
         "what just happened",
         "live updates",
         "reactions to",
-        "reaction to the",
+        "public reaction to",
+        "fan reaction to",
+        "internet reaction to",
         "people saying",
         "everyone saying",
         "honest opinions",
@@ -921,9 +922,12 @@
       "engine": "x",
       "weight": 3,
       "kw": [
-        "opinions",
-        "opinion",
-        "drama"
+        "opinions on",
+        "opinions about",
+        "celebrity drama",
+        "drama between",
+        "drama with",
+        "drama around"
       ]
     },
     {
@@ -959,8 +963,30 @@
       ]
     },
     {
+      "engine": "ddg",
+      "weight": 8,
+      "kw": [
+        "allergic reaction",
+        "allergic reactions",
+        "skin reaction",
+        "chemical reaction",
+        "chemical reactions",
+        "drug reaction",
+        "second opinion",
+        "legal opinion",
+        "medical opinion",
+        "k drama",
+        "kdrama",
+        "korean drama",
+        "drama series",
+        "drama movie",
+        "drama movies"
+      ]
+    },
+    {
       "engine": "lumo",
-      "weight": 6,
+      "weight": 3,
+      "priority": true,
       "kw": [
         "write a",
         "write me",

@@ -65,7 +65,20 @@ def keyword_scores(query: str, rules: list) -> dict[str, float]:
     return scores
 
 
+def rule_matches(rule: dict, padded: str) -> bool:
+    """Mirror of ruleMatches in index.html."""
+    return any(
+        (f" {kw.lower()} " if kw.isalnum() else kw.lower()) in padded
+        for kw in rule["kw"]
+    )
+
+
 def classify_keywords(query: str, rules: list) -> str | None:
+    # A matching priority rule (explicit writing intent) wins outright.
+    padded = " " + query.lower().strip() + " "
+    for rule in rules:
+        if rule.get("priority") and rule_matches(rule, padded):
+            return rule["engine"]
     scores = keyword_scores(query, rules)
     if not scores:
         return None

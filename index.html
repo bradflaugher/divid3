@@ -1081,11 +1081,17 @@
   /**
    * Score `query` against the keyword rules and return the best engine
    * key, or null if no rule scored at or above MIN_KEYWORD_SCORE.
+   * A matching `priority` rule (explicit writing intent: "write a…")
+   * wins outright, however many other rules' weights add up.
    * Used by `classify()` whenever the model isn't usable (loading, in
    * keyword-mode fallback, or load-failed).
    */
   function classifyKeywords(query) {
     if (!query) return null;
+    const padded = ' ' + query.toLowerCase().trim() + ' ';
+    for (const rule of KEYWORD_RULES) {
+      if (rule.priority && ruleMatches(rule, padded)) return rule.engine;
+    }
     let bestKey = null, bestScore = 0;
     for (const [engine, score] of keywordScores(query)) {
       if (score > bestScore) { bestScore = score; bestKey = engine; }
@@ -1104,16 +1110,20 @@
     /** @type {Map<string, number>} */
     const scores = new Map();
     for (const rule of KEYWORD_RULES) {
-      let matched = false;
-      for (const kw of rule.kw) {
-        const needle = _BARE_WORD_RE.test(kw) ? ` ${kw.toLowerCase()} ` : kw.toLowerCase();
-        if (padded.indexOf(needle) >= 0) { matched = true; break; }
-      }
-      if (matched) {
+      if (ruleMatches(rule, padded)) {
         scores.set(rule.engine, (scores.get(rule.engine) || 0) + rule.weight);
       }
     }
     return scores;
+  }
+
+  /** True when any of `rule.kw` occurs in `padded` (the query, lowercased
+   *  and wrapped in spaces). Bare words match on word boundaries. */
+  function ruleMatches(rule, padded) {
+    return rule.kw.some(kw => {
+      const needle = _BARE_WORD_RE.test(kw) ? ` ${kw.toLowerCase()} ` : kw.toLowerCase();
+      return padded.indexOf(needle) >= 0;
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────────

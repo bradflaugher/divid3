@@ -73,6 +73,12 @@ def keyword_scores(query: str) -> dict[str, float]:
 
 
 def classify_keywords(query: str) -> str | None:
+    padded = " " + query.lower().strip() + " "
+    for rule in RULES:
+        if rule.get("priority") and any(
+            (f" {kw.lower()} " if kw.isalnum() else kw.lower()) in padded for kw in rule["kw"]
+        ):
+            return rule["engine"]
     best, best_score = None, 0
     for engine, score in keyword_scores(query).items():
         if score > best_score:
@@ -127,6 +133,9 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("draft a reaction to the new policy", "lumo"),
     ("write a hot take about javascript", "lumo"),
     ("craft a twitter thread about our launch", "lumo"),
+    ("write a breaking news post on twitter", "lumo"),  # priority beats stacked X rules
+    ("opinions on the cybertruck", "x"),
+    ("fan reaction to the finale", "x"),
     ("itinerary for a weekend in lisbon", "lumo"),
     ("is a masters degree worth it", "lumo"),
     ("shows like severance", "lumo"),
@@ -151,6 +160,13 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("how to fix roof leaks", None),    # 'leaks' is not a news signal
     ("viral infection symptoms", None), # bare 'viral' is not an X signal
     ("cross threaded box thread", None),
+    # non-social senses of opinion / drama / reaction stay on the web
+    ("second opinion on cancer diagnosis", "ddg"),
+    ("legal opinion pdf", "ddg"),
+    ("best korean drama 2026", "ddg"),
+    ("allergic reaction to penicillin", "ddg"),
+    ("skin reaction to retinol", "ddg"),
+    ("chemical reaction to water", "ddg"),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.
