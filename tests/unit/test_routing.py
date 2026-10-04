@@ -41,7 +41,7 @@ BENCH = json.loads((SCRIPTS / "routing_benchmark.json").read_text(encoding="utf-
 INDEX_HTML = (REPO_ROOT / "index.html").read_text(encoding="utf-8")
 RULES = PHRASES["keywordRules"]
 
-ENGINES = {"ddg", "lumo", "maps", "youtube", "images", "ebay"}
+ENGINES = {"ddg", "lumo", "x", "maps", "youtube", "images", "ebay"}
 
 try:
     import eval_routing  # needs numpy (+ onnxruntime/tokenizers for the model)
@@ -104,11 +104,14 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("what does a black widow look like", "images"),
     ("kitchen backsplash design ideas", "images"),
     ("funny office memes", "images"),
-    ("breaking news in denver", "lumo"),
-    ("what are people saying about the fed", "lumo"),
+    ("breaking news in denver", "x"),
+    ("what are people saying about the fed", "x"),
+    ("thoughts on the new react compiler", "x"),
+    ("tweets from the nws about the storm", "x"),
+    ("why is the new pope trending", "x"),
+    ("fans react to the finale", "x"),
     ("honest review of the kindle colorsoft", "lumo"),
     ("advice for a new grad engineer", "lumo"),
-    ("thoughts on the new react compiler", "lumo"),
     ("react documentation", "ddg"),
     ("pip install numpy", "ddg"),
     ("used road bike", "ebay"),
@@ -137,6 +140,10 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("lakers vs celtics score", None),  # bare 'vs' is not an opinion signal
     ("decode base64 string", None),     # 'code' must not match 'decode'
     ("comfort food ideas", None),
+    ("twitter login", "ddg"),           # navigation, not an X search
+    ("how to fix roof leaks", None),    # 'leaks' is not a news signal
+    ("viral infection symptoms", None), # bare 'viral' is not an X signal
+    ("cross threaded box thread", None),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.
@@ -168,13 +175,16 @@ SEMANTIC_CASES: list[tuple[str, str]] = [
     ("pictures of the aurora", "images"),
     ("wallpaper of a forest at dawn", "images"),
     ("tattoo designs for forearm", "images"),
-    # lumo — breaking news, opinions / social, reviews, advice
-    ("breaking news about the wildfire", "lumo"),
-    ("what is everyone saying about the new pope", "lumo"),
-    ("honest opinions on the framework laptop", "lumo"),
+    # x — breaking news, live events, opinions / social sentiment
+    ("breaking news about the wildfire", "x"),
+    ("what is everyone saying about the new pope", "x"),
+    ("honest opinions on the framework laptop", "x"),
+    ("what do developers think of htmx", "x"),
+    ("live updates on the mars landing", "x"),
+    ("public reaction to the verdict", "x"),
+    # lumo — reviews, advice
     ("is the switch 2 worth upgrading to", "lumo"),
     ("advice for surviving a long distance relationship", "lumo"),
-    ("what do developers think of htmx", "lumo"),
     # ddg — tech lookups (no Hacker News route anymore)
     ("python requests documentation", "ddg"),
     ("node js download", "ddg"),
@@ -243,6 +253,16 @@ class ConfigTests(unittest.TestCase):
             PHRASES["engines"]["lumo"]["urlTemplate"],
             "https://lumo.proton.me/guest#q={q}",
         )
+
+    def test_x_search_url_and_bangs(self):
+        """X search: `src=typed_query` makes x.com treat it as a typed search
+        (same as its own search box). `!x`, `!tw` and `!twitter` reach it."""
+        self.assertEqual(
+            PHRASES["engines"]["x"]["urlTemplate"],
+            "https://x.com/search?q={q}&src=typed_query",
+        )
+        for bang in ("x", "tw", "twitter"):
+            self.assertEqual(PHRASES["bangs"][bang], "x", bang)
 
     def test_hacker_news_fully_removed(self):
         """Hacker News is no longer a destination."""

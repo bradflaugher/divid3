@@ -201,12 +201,12 @@ When *adding* a new keyword:
 There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
 - "best X" product shopping → **DDG**.
 - Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **Lumo**.
-- Tech discussion: opinions / debates / engineering war stories / explainers → **Lumo**; docs, installs, downloads, project lookups → **DDG**.
+- Tech discussion: "what do developers think of…" / hot takes → **X**; debates, engineering war stories, explainers → **Lumo**; docs, installs, downloads, project lookups → **DDG**.
 
 `ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
 
 ### Lumo's scope (replaced Grok)
-Lumo is Proton's privacy-first assistant. Besides explainers / research / writing it is the destination for **breaking news, live updates, opinions and sentiment ("what are people saying…"), product reviews, and advice**: in guest mode it searches the web on its own for current-events questions. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
+Lumo is Proton's privacy-first assistant. Besides explainers / research / writing it is the destination for **product reviews, recommendations and advice**. Breaking news and opinions moved to X (see below); the benchmark still accepts Lumo for those, since guest-mode Lumo searches the web on its own. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
 
 The URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
 - `lumo.proton.me/?q=` does **not** work for signed-out visitors: Lumo redirects them to `/guest` and drops the query. `/guest` reads `q` from the query string or the fragment and auto-sends it (`?prefill=` only fills the box).
@@ -215,6 +215,17 @@ The URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
 - lumo.proton.me publishes no `apple-app-site-association` / `assetlinks.json`, so links open the web app, not the native Lumo app. That's Proton's side; if they add it, the same URL will open the app.
 
 `!l` / `!lumo` are the Lumo bangs; `!g`, `!gr`, `!p`, `!px` are kept as aliases from the Grok/Perplexity days. `ConfigTests.test_grok_fully_removed` guards against Grok creeping back.
+
+### X's scope (news and opinions)
+X (`x` engine) is the destination for **breaking news, live updates, current events, opinions, hot takes, drama/controversy and social sentiment ("what are people saying…", "what do developers think of…")**. The line against Lumo: *what people are saying right now* → X; *a product review, recommendation or advice* → Lumo. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG, and `twitter login` stays on DDG (the `login` rule outweighs `twitter`).
+
+The URL is `https://x.com/search?q={q}&src=typed_query` (`src=typed_query` is what X's own search box sends). Trade-offs:
+- X requires sign-in to search. Signed-out visitors get a 307 to X's login page with the search in `redirect_after_login`, so it resumes after they log in.
+- X also refuses headless browsers, so the E2E specs that route to X call `stubX(page)` to answer x.com with a stub page and assert on the URL we built.
+- x.com publishes `apple-app-site-association`, so on iOS with the X app installed the link opens the app.
+- Unlike Lumo's `#q=`, the query is in the request line and goes to X's servers. That's inherent to searching X.
+
+Bangs: `!x`, `!tw`, `!twitter`. The phrases live in the `x` route of `scripts/search_phrases.json`; keyword rules are the `x` entries in `keywordRules`.
 
 The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 

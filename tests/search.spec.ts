@@ -47,6 +47,14 @@ async function freezeRouteTimer(page: Page) {
   });
 }
 
+/** Answer x.com navigations with a stub page. X serves signed-out
+ *  visitors a login redirect and refuses headless browsers outright, so
+ *  the X specs check the URL we built instead of X's response. */
+async function stubX(page: Page) {
+  await page.route(/^https:\/\/x\.com\//, (route: Route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>x stub</title>' }));
+}
+
 // ───────────────────────────────────────────────────────────────────────
 // Boot
 // ───────────────────────────────────────────────────────────────────────
@@ -125,6 +133,8 @@ test.describe('search router — bang shortcuts', () => {
     { input: '!img nebula',        engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'nebula' },
     { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
     { input: '!g trending on x',   engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'trending' },
+    { input: '!x election night',  engine: 'x',           host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'election' },
+    { input: '!tw world cup',      engine: 'x',           host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'world' },
     { input: '!lumo rust vs go',   engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'rust' },
     { input: '!eb vintage lens',   engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
   ];
@@ -141,6 +151,7 @@ test.describe('search router — bang shortcuts', () => {
       // once and shows the routing overlay`.
       test.skip(isMobile, 'bang routing covered on desktop projects; mobile overlay covered separately');
 
+      if (c.engine === 'x') await stubX(page);
       await page.goto(PATH);
       // Bangs short-circuit the model entirely, so no need to wait for it.
       const search = page.locator('#search');
@@ -429,10 +440,10 @@ test.describe('search router — semantic routing', () => {
     await expect(page.locator('#hint')).toHaveClass(/active/);
     await expect(page.locator('#scores')).toHaveClass(/active/);
 
-    // 6 score rows (one per route in the embeddings file).
-    await expect(page.locator('#scores .score-row')).toHaveCount(6);
+    // 7 score rows (one per route in the embeddings file).
+    await expect(page.locator('#scores .score-row')).toHaveCount(7);
     // Every row labels itself with its engine key for the test hook.
-    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(6);
+    await expect(page.locator('#scores .score-row[data-engine]')).toHaveCount(7);
     // Exactly one row is marked best.
     await expect(page.locator('#scores .score-fill.best')).toHaveCount(1);
 
@@ -451,8 +462,8 @@ test.describe('search router — semantic routing', () => {
     { query: 'explain how a heat pump works',    engine: 'lumo' },
     { query: 'taylor swift official music video', engine: 'youtube' },
     { query: 'pictures of snow leopards',        engine: 'images' },
-    { query: 'latest news on the mars mission',  engine: 'lumo' },
-    { query: 'honest opinions on the pixel watch', engine: 'lumo' },
+    { query: 'latest news on the mars mission',  engine: 'x' },
+    { query: 'honest opinions on the pixel watch', engine: 'x' },
     { query: 'react documentation hooks',        engine: 'ddg' },
     { query: 'used thinkpad x1 carbon',          engine: 'ebay' },
     { query: 'best cordless vacuum for stairs',   engine: 'ddg' },
@@ -1119,15 +1130,15 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
   // no model nondeterminism, no thresholds to drift past.
   const cases: { query: string; engine: string; host: RegExp; qFragment: string }[] = [
     { query: 'lofi beats',                    engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qFragment: 'lofi' },
-    { query: 'opinions on react server components', engine: 'lumo',  host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'react' },
-    { query: 'breaking news in chicago',      engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'chicago' },
+    { query: 'opinions on react server components', engine: 'x',     host: /(^|\.)x\.com$/,           qFragment: 'react' },
+    { query: 'breaking news in chicago',      engine: 'x',           host: /(^|\.)x\.com$/,           qFragment: 'chicago' },
     { query: 'best wireless headphones',      engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,  qFragment: 'wireless' },
     { query: 'pictures of golden retrievers', engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'golden' },
     { query: 'itinerary for a weekend in lisbon', engine: 'lumo',    host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'lisbon' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
     { query: 'explain quantum mechanics',     engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'quantum' },
-    { query: 'trending on x',                 engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'trending' },
+    { query: 'trending on x',                 engine: 'x',           host: /(^|\.)x\.com$/,           qFragment: 'trending' },
     { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
   ];
 
@@ -1137,6 +1148,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
       // a click step that compounds with third-party destination flake. The
       // keyword classifier is platform-agnostic; desktop coverage is enough.
       test.skip(isMobile, 'keyword routing logic covered on desktop projects');
+      if (c.engine === 'x') await stubX(page);
       await bootKeywordMode(page);
 
       const search = page.locator('#search');
@@ -1213,6 +1225,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     test.skip(isMobile, 'keyword routing logic covered on desktop projects');
     // Break the embeddings fetch — initModel will fail after retries
     // and flip to keywordMode automatically (without needing ?lite=1).
+    await stubX(page);
     await page.route('**/search-embeddings.json*', (route: Route) => {
       route.fulfill({ status: 500, body: 'simulated failure' });
     });
@@ -1228,7 +1241,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     // never loaded. Pick a query with a strong keyword signal.
     const search = page.locator('#search');
     await search.fill('trending on x');
-    const navPromise = page.waitForURL(/lumo\.proton\.me/, { timeout: 15_000, waitUntil: 'commit' });
+    const navPromise = page.waitForURL(/^https:\/\/x\.com\/search\?q=trending/, { timeout: 15_000, waitUntil: 'commit' });
     await search.press('Enter');
     await navPromise;
   });

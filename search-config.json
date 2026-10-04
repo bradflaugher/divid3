@@ -24,6 +24,10 @@
       "name": "eBay",
       "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}"
     },
+    "x": {
+      "name": "X",
+      "urlTemplate": "https://x.com/search?q={q}&src=typed_query"
+    },
     "direct": {
       "name": "Direct Link",
       "urlTemplate": "{q}"
@@ -44,6 +48,9 @@
     "gr": "lumo",
     "eb": "ebay",
     "ebay": "ebay",
+    "x": "x",
+    "tw": "x",
+    "twitter": "x",
     "d": "ddg",
     "ddg": "ddg"
   },
@@ -424,12 +431,18 @@
         "books like",
         "books similar to",
         "best way to learn",
+        "is it better to",
+        "should i rent or buy"
+      ]
+    },
+    {
+      "engine": "x",
+      "weight": 5,
+      "kw": [
         "what do people think",
         "what are people saying",
         "public opinion",
-        "public reaction",
-        "is it better to",
-        "should i rent or buy"
+        "public reaction"
       ]
     },
     {
@@ -468,7 +481,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "x",
       "weight": 5,
       "kw": [
         "trending on x",
@@ -487,7 +500,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "x",
       "weight": 3,
       "kw": [
         "twitter",
@@ -858,6 +871,17 @@
       "engine": "lumo",
       "weight": 5,
       "kw": [
+        "honest review",
+        "user reviews",
+        "owners say",
+        "advice for",
+        "advice on"
+      ]
+    },
+    {
+      "engine": "x",
+      "weight": 5,
+      "kw": [
         "breaking news",
         "latest news",
         "news today",
@@ -868,14 +892,9 @@
         "reaction to the",
         "people saying",
         "everyone saying",
-        "honest review",
         "honest opinions",
-        "user reviews",
-        "owners say",
         "real opinions",
         "hot takes",
-        "advice for",
-        "advice on",
         "what do developers think",
         "what do engineers think",
         "thoughts on"
@@ -887,9 +906,6 @@
       "kw": [
         "reviews",
         "review of",
-        "opinions",
-        "opinion",
-        "drama",
         "advice",
         "recommend",
         "recommendations",
@@ -899,15 +915,30 @@
       ]
     },
     {
+      "engine": "x",
+      "weight": 3,
+      "kw": [
+        "opinions",
+        "opinion",
+        "drama"
+      ]
+    },
+    {
       "engine": "lumo",
+      "weight": 5,
+      "kw": [
+        "worth upgrading",
+        "worth learning"
+      ]
+    },
+    {
+      "engine": "x",
       "weight": 5,
       "kw": [
         "what's going on with",
         "whats going on with",
         "what's happening with",
         "whats happening with",
-        "worth upgrading",
-        "worth learning",
         "developers think",
         "people think"
       ]
@@ -922,6 +953,59 @@
         "pip install",
         "download",
         "latest version"
+      ]
+    },
+    {
+      "engine": "x",
+      "weight": 5,
+      "kw": [
+        "on twitter",
+        "search twitter",
+        "search x for",
+        "tweets about",
+        "tweets from",
+        "tweet from",
+        "tweeted",
+        "posts on x",
+        "posting on x",
+        "saying on x",
+        "people on x",
+        "twitter thread",
+        "going viral",
+        "went viral",
+        "viral post",
+        "viral tweet",
+        "community notes",
+        "fans react",
+        "fans reacting",
+        "fans saying",
+        "critics saying",
+        "internet reacts",
+        "live reactions",
+        "live coverage",
+        "developing story",
+        "top headlines",
+        "headlines today",
+        "news right now",
+        "latest on the",
+        "latest updates",
+        "breaking:",
+        "is trending",
+        "why is everyone talking",
+        "trending"
+      ]
+    },
+    {
+      "engine": "x",
+      "weight": 3,
+      "kw": [
+        "headlines",
+        "controversy",
+        "outrage",
+        "backlash",
+        "rumors",
+        "tweet",
+        "tweets"
       ]
     }
   ]
