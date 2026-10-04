@@ -200,13 +200,21 @@ When *adding* a new keyword:
 ### Removed destinations: Wirecutter and Hacker News
 There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
 - "best X" product shopping → **DDG**.
-- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **Grok**.
-- Tech discussion: opinions / debates / engineering war stories / explainers → **Grok**; docs, installs, downloads, project lookups → **DDG**.
+- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **Lumo**.
+- Tech discussion: opinions / debates / engineering war stories / explainers → **Lumo**; docs, installs, downloads, project lookups → **DDG**.
 
 `ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
 
-### Grok's scope
-Grok is connected to X, so besides explainers / research / writing it is the destination for **breaking news, live updates, opinions and social sentiment ("what are people saying…"), product reviews, and advice**. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
+### Lumo's scope (replaced Grok)
+Lumo is Proton's privacy-first assistant. Besides explainers / research / writing it is the destination for **breaking news, live updates, opinions and sentiment ("what are people saying…"), product reviews, and advice**: in guest mode it searches the web on its own for current-events questions. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
+
+The URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
+- `lumo.proton.me/?q=` does **not** work for signed-out visitors: Lumo redirects them to `/guest` and drops the query. `/guest` reads `q` from the query string or the fragment and auto-sends it (`?prefill=` only fills the box).
+- The `#` fragment keeps the query out of the request line, so it isn't in Proton's server logs or a `Referer`.
+- Trade-off: signed-in Proton users land in a guest chat (not saved to their account, guest limits).
+- lumo.proton.me publishes no `apple-app-site-association` / `assetlinks.json`, so links open the web app, not the native Lumo app. That's Proton's side; if they add it, the same URL will open the app.
+
+`!l` / `!lumo` are the Lumo bangs; `!g`, `!gr`, `!p`, `!px` are kept as aliases from the Grok/Perplexity days. `ConfigTests.test_grok_fully_removed` guards against Grok creeping back.
 
 The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 

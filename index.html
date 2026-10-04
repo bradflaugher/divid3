@@ -944,7 +944,9 @@
   //       corpus + keyword rules, hybrid keyword boost in scoreAll()
   //  v18: removed the hn route; Grok now also owns breaking news, opinions,
   //       reviews and advice; tech lookups fall to DDG
-  const EMBEDDINGS_VERSION = '18';
+  //  v19: replaced Grok with Proton Lumo (lumo.proton.me/guest#q=) for the
+  //       LLM-shaped route; same phrases and vectors, route key renamed
+  const EMBEDDINGS_VERSION = '19';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
