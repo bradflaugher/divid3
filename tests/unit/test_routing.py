@@ -122,6 +122,11 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("write a poem about the ocean", "lumo"),
     ("help me craft a tweet about my product launch", "lumo"),  # writing, not an X search
     ("generate a tweet announcing our sale", "lumo"),
+    # writing intent outranks X news / opinion keywords
+    ("write a breaking news article about climate change", "lumo"),
+    ("draft a reaction to the new policy", "lumo"),
+    ("write a hot take about javascript", "lumo"),
+    ("craft a twitter thread about our launch", "lumo"),
     ("itinerary for a weekend in lisbon", "lumo"),
     ("is a masters degree worth it", "lumo"),
     ("shows like severance", "lumo"),

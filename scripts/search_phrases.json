@@ -70,6 +70,7 @@
     { "engine": "lumo", "weight": 5, "kw": ["worth upgrading", "worth learning"] },
     { "engine": "x", "weight": 5, "kw": ["what's going on with", "whats going on with", "what's happening with", "whats happening with", "developers think", "people think"] },
     { "engine": "ddg", "weight": 5, "kw": ["documentation", "docs", "npm install", "pip install", "download", "latest version"] },
+    { "engine": "lumo", "weight": 6, "kw": ["write a", "write me", "write an", "draft a", "draft an", "compose a", "craft a", "help me craft", "generate a", "help me write", "help me word"] },
     { "engine": "x", "weight": 5, "kw": ["on twitter", "search twitter", "search x for", "tweets about", "tweets from", "tweet from", "tweeted", "posts on x", "posting on x", "saying on x", "people on x", "twitter thread", "going viral", "went viral", "viral post", "viral tweet", "community notes", "fans react", "fans reacting", "fans saying", "critics saying", "internet reacts", "live reactions", "live coverage", "developing story", "top headlines", "headlines today", "news right now", "latest on the", "latest updates", "breaking:", "is trending", "why is everyone talking", "trending"] },
     { "engine": "x", "weight": 3, "kw": ["headlines", "controversy", "outrage", "backlash", "rumors"] }
   ],

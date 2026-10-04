@@ -959,6 +959,23 @@
       ]
     },
     {
+      "engine": "lumo",
+      "weight": 6,
+      "kw": [
+        "write a",
+        "write me",
+        "write an",
+        "draft a",
+        "draft an",
+        "compose a",
+        "craft a",
+        "help me craft",
+        "generate a",
+        "help me write",
+        "help me word"
+      ]
+    },
+    {
       "engine": "x",
       "weight": 5,
       "kw": [
