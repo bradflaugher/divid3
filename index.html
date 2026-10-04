@@ -1125,11 +1125,21 @@
     return scores;
   }
 
-  /** True when any of `rule.kw` occurs in `padded` (the normalized query
+  /** True when any of `list` occurs in `padded` (the normalized query
    *  wrapped in spaces) as whole words: "craft a" matches neither
    *  "minecraft armor" nor "craft armor". */
+  function anyKeyword(list, padded) {
+    return list.some(kw => padded.indexOf(` ${normalizeForKeywords(kw)} `) >= 0);
+  }
+
+  /** A rule matches when one of its `kw` is present, plus one of its
+   *  optional `with` words, and none of its optional `unless` words
+   *  ("create a" with "account" = account creation; "recommend" unless
+   *  "near me" = leave local places to Maps). */
   function ruleMatches(rule, padded) {
-    return rule.kw.some(kw => padded.indexOf(` ${normalizeForKeywords(kw)} `) >= 0);
+    return anyKeyword(rule.kw, padded)
+      && (!rule.with || anyKeyword(rule.with, padded))
+      && !(rule.unless && anyKeyword(rule.unless, padded));
   }
 
   // ───────────────────────────────────────────────────────────────────────

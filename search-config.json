@@ -955,8 +955,8 @@
         "whats going on with",
         "what's happening with",
         "whats happening with",
-        "developers think",
-        "people think"
+        "what developers think",
+        "what engineers think"
       ]
     },
     {
@@ -1003,14 +1003,21 @@
       "weight": 5,
       "priority": true,
       "kw": [
-        "create an account",
-        "create a twitter account",
-        "create an x account",
-        "create a new twitter account",
-        "create a new account",
-        "create account",
-        "make an account",
-        "make a twitter account"
+        "create a",
+        "create an",
+        "create my",
+        "make a",
+        "make an",
+        "open a",
+        "open an",
+        "sign up for",
+        "register a",
+        "register an",
+        "new"
+      ],
+      "with": [
+        "account",
+        "accounts"
       ]
     },
     {
@@ -1054,8 +1061,14 @@
         "delete account",
         "deactivate my account",
         "delete my twitter account",
-        "twitter account",
-        "x account",
+        "twitter account suspended",
+        "twitter account locked",
+        "twitter account hacked",
+        "recover twitter account",
+        "recover my twitter account",
+        "deactivate twitter account",
+        "x account suspended",
+        "recover x account",
         "twitter password",
         "twitter help",
         "x help center",
@@ -1079,6 +1092,14 @@
         "reviews of",
         "honest review",
         "user reviews"
+      ],
+      "unless": [
+        "near me",
+        "nearby",
+        "near my",
+        "around here",
+        "closest",
+        "nearest"
       ]
     },
     {
@@ -1112,6 +1133,11 @@
         "developing story",
         "top headlines",
         "headlines today",
+        "news headlines",
+        "today's headlines",
+        "todays headlines",
+        "latest headlines",
+        "morning headlines",
         "news right now",
         "latest on the war",
         "latest on the election",
@@ -1135,7 +1161,6 @@
       "engine": "x",
       "weight": 3,
       "kw": [
-        "headlines",
         "controversy",
         "outrage",
         "backlash over",

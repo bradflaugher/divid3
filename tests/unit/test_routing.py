@@ -67,10 +67,17 @@ def normalize_for_keywords(text: str) -> str:
     return _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower())).strip()
 
 
+def _any_keyword(words: list, padded: str) -> bool:
+    return any(f" {normalize_for_keywords(kw)} " in padded for kw in words)
+
+
 def rule_matches(rule: dict, padded: str) -> bool:
-    return any(
-        f" {normalize_for_keywords(kw)} " in padded
-        for kw in rule["kw"]
+    """Mirror of ruleMatches in index.html: a `kw` match, plus a `with`
+    match when given, and no `unless` match."""
+    return (
+        _any_keyword(rule["kw"], padded)
+        and (not rule.get("with") or _any_keyword(rule["with"], padded))
+        and not (rule.get("unless") and _any_keyword(rule["unless"], padded))
     )
 
 
@@ -171,6 +178,15 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("how to create a twitter account", "ddg"),
     ("recommend a help center platform", "lumo"),
     ("advice for choosing help center software", "lumo"),
+    ("create a google account", "ddg"),  # 'create a' + 'account' = navigation
+    ("create a github account", "ddg"),
+    ("create an instagram account", "ddg"),
+    ("recommend a twitter account to follow", "lumo"),
+    ("advice for twitter account growth", "lumo"),
+    ("recommend a restaurant near me", "maps"),  # local intent beats recommend
+    ("suggest a hotel near me", "maps"),
+    ("recommend a coffee shop nearby", "maps"),
+    ("today's top headlines", "x"),
     ("review of live coverage services", "lumo"),
     ("people’s reactions to the verdict", "x"),  # iOS curly apostrophe
     ("itinerary for a weekend in lisbon", "lumo"),
@@ -226,6 +242,10 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("bbc news today", None),
     ("temperature is trending warmer", None),  # data trends, not social
     ("cases are trending sideways", None),
+    ("resume headlines examples", None),  # not news headlines
+    ("linkedin headlines examples", None),
+    ("how do people think without an inner monologue", "lumo"),  # explainer, not sentiment
+    ("why do people think dreams have meaning", "lumo"),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.

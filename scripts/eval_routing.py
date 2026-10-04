@@ -70,11 +70,17 @@ def normalize_for_keywords(text: str) -> str:
     return _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower())).strip()
 
 
+def _any_keyword(words: list, padded: str) -> bool:
+    return any(f" {normalize_for_keywords(kw)} " in padded for kw in words)
+
+
 def rule_matches(rule: dict, padded: str) -> bool:
-    """Mirror of ruleMatches in index.html: keywords match whole words."""
-    return any(
-        f" {normalize_for_keywords(kw)} " in padded
-        for kw in rule["kw"]
+    """Mirror of ruleMatches in index.html: a `kw` match, plus a `with`
+    match when given, and no `unless` match."""
+    return (
+        _any_keyword(rule["kw"], padded)
+        and (not rule.get("with") or _any_keyword(rule["with"], padded))
+        and not (rule.get("unless") and _any_keyword(rule["unless"], padded))
     )
 
 
