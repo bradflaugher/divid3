@@ -60,24 +60,26 @@ except ImportError:  # pragma: no cover - depends on the environment
 MIN_KEYWORD_SCORE = 2
 
 
+def rule_matches(rule: dict, padded: str) -> bool:
+    return any(
+        (f" {kw.lower()} " if kw.isalnum() else f" {kw.lower()}") in padded
+        for kw in rule["kw"]
+    )
+
+
 def keyword_scores(query: str) -> dict[str, float]:
     padded = " " + query.lower().strip() + " "
     scores: dict[str, float] = {}
     for rule in RULES:
-        for kw in rule["kw"]:
-            needle = f" {kw.lower()} " if kw.isalnum() else kw.lower()
-            if needle in padded:
-                scores[rule["engine"]] = scores.get(rule["engine"], 0) + rule["weight"]
-                break
+        if rule_matches(rule, padded):
+            scores[rule["engine"]] = scores.get(rule["engine"], 0) + rule["weight"]
     return scores
 
 
 def classify_keywords(query: str) -> str | None:
     padded = " " + query.lower().strip() + " "
     for rule in RULES:
-        if rule.get("priority") and any(
-            (f" {kw.lower()} " if kw.isalnum() else kw.lower()) in padded for kw in rule["kw"]
-        ):
+        if rule.get("priority") and rule_matches(rule, padded):
             return rule["engine"]
     best, best_score = None, 0
     for engine, score in keyword_scores(query).items():
@@ -136,6 +138,7 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("write a breaking news post on twitter", "lumo"),  # priority beats stacked X rules
     ("opinions on the cybertruck", "x"),
     ("fan reaction to the finale", "x"),
+    ("twitter reactions to the trade", "x"),
     ("itinerary for a weekend in lisbon", "lumo"),
     ("is a masters degree worth it", "lumo"),
     ("shows like severance", "lumo"),
@@ -167,6 +170,12 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("allergic reaction to penicillin", "ddg"),
     ("skin reaction to retinol", "ddg"),
     ("chemical reaction to water", "ddg"),
+    ("adverse reactions to antibiotics", None),
+    ("immune reactions to vaccines", None),
+    # phrases must start at a word: 'craft a' is not in 'minecraft armor'
+    ("minecraft armor recipe", "ddg"),
+    ("warcraft addon download", "ddg"),
+    ("aircraft accident report", None),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.

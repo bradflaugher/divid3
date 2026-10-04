@@ -55,20 +55,16 @@ def keyword_scores(query: str, rules: list) -> dict[str, float]:
     padded = " " + query.lower().strip() + " "
     scores: dict[str, float] = defaultdict(float)
     for rule in rules:
-        for kw in rule["kw"]:
-            # mirror of _BARE_WORD_RE in index.html: bare words get
-            # word-boundary padding, phrases match as substrings
-            needle = f" {kw.lower()} " if kw.isalnum() else kw.lower()
-            if needle in padded:
-                scores[rule["engine"]] += rule["weight"]
-                break
+        if rule_matches(rule, padded):
+            scores[rule["engine"]] += rule["weight"]
     return scores
 
 
 def rule_matches(rule: dict, padded: str) -> bool:
-    """Mirror of ruleMatches in index.html."""
+    """Mirror of ruleMatches in index.html: bare words match whole words,
+    phrases must start at a word."""
     return any(
-        (f" {kw.lower()} " if kw.isalnum() else kw.lower()) in padded
+        (f" {kw.lower()} " if kw.isalnum() else f" {kw.lower()}") in padded
         for kw in rule["kw"]
     )
 

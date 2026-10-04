@@ -1118,10 +1118,11 @@
   }
 
   /** True when any of `rule.kw` occurs in `padded` (the query, lowercased
-   *  and wrapped in spaces). Bare words match on word boundaries. */
+   *  and wrapped in spaces). Bare words match whole words; phrases must
+   *  start at a word ("craft a" must not match "minecraft armor"). */
   function ruleMatches(rule, padded) {
     return rule.kw.some(kw => {
-      const needle = _BARE_WORD_RE.test(kw) ? ` ${kw.toLowerCase()} ` : kw.toLowerCase();
+      const needle = _BARE_WORD_RE.test(kw) ? ` ${kw.toLowerCase()} ` : ` ${kw.toLowerCase()}`;
       return padded.indexOf(needle) >= 0;
     });
   }

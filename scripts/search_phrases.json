@@ -64,7 +64,7 @@
     { "engine": "images", "weight": 3, "kw": ["designs", "map of the", "anatomy of", "diagram"] },
     { "engine": "ebay", "weight": 5, "kw": ["original pressing", "first pressing", "magic the gathering", "mtg cards", "super nintendo", "snes console"] },
     { "engine": "lumo", "weight": 5, "kw": ["honest review", "user reviews", "owners say", "advice for", "advice on"] },
-    { "engine": "x", "weight": 5, "kw": ["breaking news", "latest news", "news today", "world news", "what just happened", "live updates", "reactions to", "public reaction to", "fan reaction to", "internet reaction to", "people saying", "everyone saying", "honest opinions", "real opinions", "hot takes", "what do developers think", "what do engineers think", "thoughts on"] },
+    { "engine": "x", "weight": 5, "kw": ["breaking news", "latest news", "news today", "world news", "what just happened", "live updates", "public reactions to", "fan reactions to", "internet reactions to", "twitter reactions to", "people's reactions to", "public reaction to", "fan reaction to", "internet reaction to", "people saying", "everyone saying", "honest opinions", "real opinions", "hot takes", "what do developers think", "what do engineers think", "thoughts on"] },
     { "engine": "lumo", "weight": 3, "kw": ["reviews", "review of", "advice", "recommend", "recommendations", "gift ideas", "gifts for", "debate"] },
     { "engine": "x", "weight": 3, "kw": ["opinions on", "opinions about", "celebrity drama", "drama between", "drama with", "drama around"] },
     { "engine": "lumo", "weight": 5, "kw": ["worth upgrading", "worth learning"] },
