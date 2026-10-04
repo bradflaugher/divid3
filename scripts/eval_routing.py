@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -52,7 +53,7 @@ KEYWORD_BOOST_MAX_POINTS = 5
 # ───────────────────────────────────────────────────────────────────────
 def keyword_scores(query: str, rules: list) -> dict[str, float]:
     """Mirror of keywordScores in index.html."""
-    padded = " " + query.lower().strip() + " "
+    padded = " " + normalize_for_keywords(query) + " "
     scores: dict[str, float] = defaultdict(float)
     for rule in rules:
         if rule_matches(rule, padded):
@@ -60,18 +61,27 @@ def keyword_scores(query: str, rules: list) -> dict[str, float]:
     return scores
 
 
+_NON_WORD_RE = re.compile(r"[^\w'’]+|_+")
+
+
+def normalize_for_keywords(text: str) -> str:
+    """Mirror of normalizeForKeywords in index.html: lowercase, fold
+    punctuation to single spaces."""
+    return _NON_WORD_RE.sub(" ", text.lower()).strip()
+
+
 def rule_matches(rule: dict, padded: str) -> bool:
     """Mirror of ruleMatches in index.html: bare words match whole words,
     phrases must start at a word."""
     return any(
-        (f" {kw.lower()} " if kw.isalnum() else f" {kw.lower()}") in padded
+        (f" {normalize_for_keywords(kw)} " if kw.isalnum() else f" {normalize_for_keywords(kw)}") in padded
         for kw in rule["kw"]
     )
 
 
 def classify_keywords(query: str, rules: list) -> str | None:
     # A matching priority rule (explicit writing intent) wins outright.
-    padded = " " + query.lower().strip() + " "
+    padded = " " + normalize_for_keywords(query) + " "
     for rule in rules:
         if rule.get("priority") and rule_matches(rule, padded):
             return rule["engine"]

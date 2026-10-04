@@ -1077,6 +1077,14 @@
   /** True when the keyword passed to KEYWORD_RULES is a bare word —
    *  needs word-boundary anchoring so "code" doesn't match "decode". */
   const _BARE_WORD_RE = /^[a-z0-9]+$/i;
+  /** Punctuation and symbols become spaces before matching, so a phrase
+   *  still starts at a word after a quote, bracket or dash. */
+  const _NON_WORD_RE = /[^\p{L}\p{N}'’]+/gu;
+
+  /** `text` lowercased, punctuation folded to single spaces. */
+  function normalizeForKeywords(text) {
+    return text.toLowerCase().replace(_NON_WORD_RE, ' ').trim();
+  }
 
   /**
    * Score `query` against the keyword rules and return the best engine
@@ -1088,7 +1096,7 @@
    */
   function classifyKeywords(query) {
     if (!query) return null;
-    const padded = ' ' + query.toLowerCase().trim() + ' ';
+    const padded = ' ' + normalizeForKeywords(query) + ' ';
     for (const rule of KEYWORD_RULES) {
       if (rule.priority && ruleMatches(rule, padded)) return rule.engine;
     }
@@ -1106,7 +1114,7 @@
    * @returns {Map<string, number>}
    */
   function keywordScores(query) {
-    const padded = ' ' + query.toLowerCase().trim() + ' ';
+    const padded = ' ' + normalizeForKeywords(query) + ' ';
     /** @type {Map<string, number>} */
     const scores = new Map();
     for (const rule of KEYWORD_RULES) {
@@ -1117,12 +1125,13 @@
     return scores;
   }
 
-  /** True when any of `rule.kw` occurs in `padded` (the query, lowercased
-   *  and wrapped in spaces). Bare words match whole words; phrases must
-   *  start at a word ("craft a" must not match "minecraft armor"). */
+  /** True when any of `rule.kw` occurs in `padded` (the normalized query
+   *  wrapped in spaces). Bare words match whole words; phrases must start
+   *  at a word ("craft a" must not match "minecraft armor"). */
   function ruleMatches(rule, padded) {
     return rule.kw.some(kw => {
-      const needle = _BARE_WORD_RE.test(kw) ? ` ${kw.toLowerCase()} ` : ` ${kw.toLowerCase()}`;
+      const k = normalizeForKeywords(kw);
+      const needle = _BARE_WORD_RE.test(kw) ? ` ${k} ` : ` ${k}`;
       return padded.indexOf(needle) >= 0;
     });
   }

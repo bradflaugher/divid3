@@ -501,9 +501,15 @@
     },
     {
       "engine": "x",
+      "weight": 2,
+      "kw": [
+        "twitter"
+      ]
+    },
+    {
+      "engine": "x",
       "weight": 3,
       "kw": [
-        "twitter",
         "news trends",
         "viral video",
         "social sentiment",
@@ -1006,6 +1012,21 @@
       ]
     },
     {
+      "engine": "ddg",
+      "weight": 5,
+      "priority": true,
+      "kw": [
+        "login",
+        "log in",
+        "log into",
+        "sign in",
+        "signin",
+        "sign up",
+        "signup",
+        "sign into"
+      ]
+    },
+    {
       "engine": "x",
       "weight": 5,
       "kw": [
@@ -1039,7 +1060,6 @@
         "news right now",
         "latest on the",
         "latest updates",
-        "breaking:",
         "is trending",
         "why is everyone talking",
         "trending"

@@ -60,15 +60,22 @@ except ImportError:  # pragma: no cover - depends on the environment
 MIN_KEYWORD_SCORE = 2
 
 
+_NON_WORD_RE = re.compile(r"[^\w'’]+|_+")
+
+
+def normalize_for_keywords(text: str) -> str:
+    return _NON_WORD_RE.sub(" ", text.lower()).strip()
+
+
 def rule_matches(rule: dict, padded: str) -> bool:
     return any(
-        (f" {kw.lower()} " if kw.isalnum() else f" {kw.lower()}") in padded
+        (f" {normalize_for_keywords(kw)} " if kw.isalnum() else f" {normalize_for_keywords(kw)}") in padded
         for kw in rule["kw"]
     )
 
 
 def keyword_scores(query: str) -> dict[str, float]:
-    padded = " " + query.lower().strip() + " "
+    padded = " " + normalize_for_keywords(query) + " "
     scores: dict[str, float] = {}
     for rule in RULES:
         if rule_matches(rule, padded):
@@ -77,7 +84,7 @@ def keyword_scores(query: str) -> dict[str, float]:
 
 
 def classify_keywords(query: str) -> str | None:
-    padded = " " + query.lower().strip() + " "
+    padded = " " + normalize_for_keywords(query) + " "
     for rule in RULES:
         if rule.get("priority") and rule_matches(rule, padded):
             return rule["engine"]
@@ -139,6 +146,16 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("opinions on the cybertruck", "x"),
     ("fan reaction to the finale", "x"),
     ("twitter reactions to the trade", "x"),
+    # punctuation is a word boundary too
+    ('"write a poem about rain"', "lumo"),
+    ("please—write a poem", "lumo"),
+    ("(breaking news in chicago)", "x"),
+    ("weather?", "ddg"),
+    # recommendation / login intent beats a bare platform mention
+    ("recommend a privacy-friendly alternative to twitter", "lumo"),
+    ("recommend books about twitter", "lumo"),
+    ("sign in on twitter", "ddg"),
+    ("log in to x", "ddg"),
     ("itinerary for a weekend in lisbon", "lumo"),
     ("is a masters degree worth it", "lumo"),
     ("shows like severance", "lumo"),
