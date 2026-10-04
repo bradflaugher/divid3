@@ -1079,11 +1079,12 @@
   const _BARE_WORD_RE = /^[a-z0-9]+$/i;
   /** Punctuation and symbols become spaces before matching, so a phrase
    *  still starts at a word after a quote, bracket or dash. */
-  const _NON_WORD_RE = /[^\p{L}\p{N}'’]+/gu;
+  const _NON_WORD_RE = /[^\p{L}\p{N}']+/gu;
 
-  /** `text` lowercased, punctuation folded to single spaces. */
+  /** `text` lowercased, curly apostrophes straightened (iOS smart
+   *  punctuation), other punctuation folded to single spaces. */
   function normalizeForKeywords(text) {
-    return text.toLowerCase().replace(_NON_WORD_RE, ' ').trim();
+    return text.toLowerCase().replace(/[‘’]/g, "'").replace(_NON_WORD_RE, ' ').trim();
   }
 
   /**

@@ -60,11 +60,11 @@ except ImportError:  # pragma: no cover - depends on the environment
 MIN_KEYWORD_SCORE = 2
 
 
-_NON_WORD_RE = re.compile(r"[^\w'’]+|_+")
+_NON_WORD_RE = re.compile(r"[^\w']+|_+")
 
 
 def normalize_for_keywords(text: str) -> str:
-    return _NON_WORD_RE.sub(" ", text.lower()).strip()
+    return _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower())).strip()
 
 
 def rule_matches(rule: dict, padded: str) -> bool:
@@ -156,6 +156,9 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("recommend books about twitter", "lumo"),
     ("sign in on twitter", "ddg"),
     ("log in to x", "ddg"),
+    ("recommend a live coverage source", "lumo"),
+    ("people’s reactions to the verdict", "x"),  # iOS curly apostrophe
+    ("why is the new pope trending", "x"),
     ("itinerary for a weekend in lisbon", "lumo"),
     ("is a masters degree worth it", "lumo"),
     ("shows like severance", "lumo"),
@@ -189,6 +192,8 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("chemical reaction to water", "ddg"),
     ("adverse reactions to antibiotics", None),
     ("immune reactions to vaccines", None),
+    ("blood pressure trending downward", "ddg"),
+    ("sales are trending down this quarter", "ddg"),
     # phrases must start at a word: 'craft a' is not in 'minecraft armor'
     ("minecraft armor recipe", "ddg"),
     ("warcraft addon download", "ddg"),
@@ -199,6 +204,8 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
 SEMANTIC_CASES: list[tuple[str, str]] = [
     # ddg — facts, navigation, quick lookups, and product shopping
     ("facebook", "ddg"),
+    ("news", "ddg"),  # bare news navigation stays on the web
+    ("google news", "ddg"),
     ("weather this weekend in miami", "ddg"),
     ("how many teaspoons in a tablespoon", "ddg"),
     ("amazon prime login", "ddg"),

@@ -61,13 +61,13 @@ def keyword_scores(query: str, rules: list) -> dict[str, float]:
     return scores
 
 
-_NON_WORD_RE = re.compile(r"[^\w'’]+|_+")
+_NON_WORD_RE = re.compile(r"[^\w']+|_+")
 
 
 def normalize_for_keywords(text: str) -> str:
     """Mirror of normalizeForKeywords in index.html: lowercase, fold
     punctuation to single spaces."""
-    return _NON_WORD_RE.sub(" ", text.lower()).strip()
+    return _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower())).strip()
 
 
 def rule_matches(rule: dict, padded: str) -> bool:

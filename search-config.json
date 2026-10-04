@@ -990,7 +990,13 @@
         "korean drama",
         "drama series",
         "drama movie",
-        "drama movies"
+        "drama movies",
+        "trending down",
+        "trending up",
+        "trending downward",
+        "trending upward",
+        "trending lower",
+        "trending higher"
       ]
     },
     {
@@ -1024,6 +1030,20 @@
         "sign up",
         "signup",
         "sign into"
+      ]
+    },
+    {
+      "engine": "lumo",
+      "weight": 3,
+      "priority": true,
+      "kw": [
+        "recommend",
+        "recommend a",
+        "recommendations for",
+        "suggest a",
+        "suggestions for",
+        "advice for",
+        "advice on"
       ]
     },
     {
