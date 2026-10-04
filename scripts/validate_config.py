@@ -76,9 +76,8 @@ def validate_phrases(cfg: dict) -> tuple[dict, dict, list]:
             fail(f"keywordRules[{i}] needs a positive numeric 'weight'")
         if "priority" in rule and not isinstance(rule["priority"], bool):
             fail(f"keywordRules[{i}] 'priority' must be true or false")
-        for field in ("with", "unless"):
-            if field in rule and (not isinstance(rule[field], list) or not rule[field]):
-                fail(f"keywordRules[{i}] '{field}' must be a non-empty list")
+        if "unless" in rule and (not isinstance(rule["unless"], list) or not rule["unless"]):
+            fail(f"keywordRules[{i}] 'unless' must be a non-empty list")
 
     for route in cfg.get("_routes", []):
         rkey = route.get("key")

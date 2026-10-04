@@ -62,25 +62,43 @@ def keyword_scores(query: str, rules: list) -> dict[str, float]:
 
 
 _NON_WORD_RE = re.compile(r"[^\w']+|_+")
+_EDGE_APOSTROPHE_RE = re.compile(r"(^|\s)'+|'+(?=\s|$)")
 
 
 def normalize_for_keywords(text: str) -> str:
     """Mirror of normalizeForKeywords in index.html: lowercase, fold
     punctuation to single spaces."""
-    return _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower())).strip()
+    text = _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower()))
+    return " ".join(_EDGE_APOSTROPHE_RE.sub(r"\1", text).split())
+
+
+_KEYWORD_RE_CACHE: dict[str, re.Pattern] = {}
+
+
+def _keyword_re(kw: str) -> re.Pattern:
+    """Mirror of keywordRegex in index.html: whole words, optional plural
+    s/es on the last word, `*` = exactly one word."""
+    pat = _KEYWORD_RE_CACHE.get(kw)
+    if pat is None:
+        words = [
+            p
+            for w in kw.split(" ")
+            for p in (["[^ ]+"] if w == "*" else [re.escape(x) for x in normalize_for_keywords(w).split()])
+        ]
+        words[-1] += "(?:e?s)?"
+        pat = _KEYWORD_RE_CACHE[kw] = re.compile(" " + " ".join(words) + " ")
+    return pat
 
 
 def _any_keyword(words: list, padded: str) -> bool:
-    return any(f" {normalize_for_keywords(kw)} " in padded for kw in words)
+    return any(_keyword_re(kw).search(padded) for kw in words)
 
 
 def rule_matches(rule: dict, padded: str) -> bool:
-    """Mirror of ruleMatches in index.html: a `kw` match, plus a `with`
-    match when given, and no `unless` match."""
-    return (
-        _any_keyword(rule["kw"], padded)
-        and (not rule.get("with") or _any_keyword(rule["with"], padded))
-        and not (rule.get("unless") and _any_keyword(rule["unless"], padded))
+    """Mirror of ruleMatches in index.html: a `kw` match and no `unless`
+    match."""
+    return _any_keyword(rule["kw"], padded) and not (
+        rule.get("unless") and _any_keyword(rule["unless"], padded)
     )
 
 

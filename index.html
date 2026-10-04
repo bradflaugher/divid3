@@ -1081,9 +1081,11 @@
   const _NON_WORD_RE = /[^\p{L}\p{N}']+/gu;
 
   /** `text` lowercased, curly apostrophes straightened (iOS smart
-   *  punctuation), other punctuation folded to single spaces. */
+   *  punctuation), other punctuation folded to single spaces. Apostrophes
+   *  survive only inside a word ("people's"), not as quote marks. */
   function normalizeForKeywords(text) {
-    return text.toLowerCase().replace(/[‘’]/g, "'").replace(_NON_WORD_RE, ' ').trim();
+    return text.toLowerCase().replace(/[‘’]/g, "'").replace(_NON_WORD_RE, ' ')
+      .replace(/(^|\s)'+|'+(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
   }
 
   /**
@@ -1125,21 +1127,37 @@
     return scores;
   }
 
-  /** True when any of `list` occurs in `padded` (the normalized query
-   *  wrapped in spaces) as whole words: "craft a" matches neither
-   *  "minecraft armor" nor "craft armor". */
-  function anyKeyword(list, padded) {
-    return list.some(kw => padded.indexOf(` ${normalizeForKeywords(kw)} `) >= 0);
+  /** @type {Map<string, RegExp>} */
+  const _keywordRegexCache = new Map();
+
+  /** Regex for one keyword against a space-padded normalized query: whole
+   *  words only ("craft a" matches neither "minecraft armor" nor "craft
+   *  armor"), the last word may take a plural s/es ("full album" →
+   *  "full albums"), and a `*` stands for exactly one word
+   *  ("create a * account"). */
+  function keywordRegex(kw) {
+    let re = _keywordRegexCache.get(kw);
+    if (!re) {
+      const words = kw.split(' ').flatMap(
+        w => (w === '*' ? ["[^ ]+"] : normalizeForKeywords(w).split(' ').filter(Boolean)
+          .map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))));
+      words[words.length - 1] += '(?:e?s)?';
+      re = new RegExp(` ${words.join(' ')} `);
+      _keywordRegexCache.set(kw, re);
+    }
+    return re;
   }
 
-  /** A rule matches when one of its `kw` is present, plus one of its
-   *  optional `with` words, and none of its optional `unless` words
-   *  ("create a" with "account" = account creation; "recommend" unless
-   *  "near me" = leave local places to Maps). */
+  /** True when any keyword in `list` occurs in `padded`. */
+  function anyKeyword(list, padded) {
+    return list.some(kw => keywordRegex(kw).test(padded));
+  }
+
+  /** A rule matches when one of its `kw` is present and none of its
+   *  optional `unless` words ("recommend" unless "near me" = leave local
+   *  places to Maps). */
   function ruleMatches(rule, padded) {
-    return anyKeyword(rule.kw, padded)
-      && (!rule.with || anyKeyword(rule.with, padded))
-      && !(rule.unless && anyKeyword(rule.unless, padded));
+    return anyKeyword(rule.kw, padded) && !(rule.unless && anyKeyword(rule.unless, padded));
   }
 
   // ───────────────────────────────────────────────────────────────────────

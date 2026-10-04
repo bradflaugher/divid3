@@ -1003,21 +1003,21 @@
       "weight": 5,
       "priority": true,
       "kw": [
-        "create a",
-        "create an",
-        "create my",
-        "make a",
-        "make an",
-        "open a",
-        "open an",
-        "sign up for",
-        "register a",
-        "register an",
-        "new"
-      ],
-      "with": [
-        "account",
-        "accounts"
+        "create an account",
+        "create account",
+        "create a new account",
+        "make an account",
+        "open an account",
+        "create a * account",
+        "create an * account",
+        "create my * account",
+        "make a * account",
+        "make an * account",
+        "open a * account",
+        "open an * account",
+        "sign up for a * account",
+        "sign up for an * account",
+        "register a * account"
       ]
     },
     {
@@ -1106,6 +1106,14 @@
       "engine": "x",
       "weight": 5,
       "kw": [
+        "winning the debate",
+        "debate tonight",
+        "debate right now",
+        "tweet today",
+        "tweeted today",
+        "tweets today",
+        "tweet yesterday",
+        "tweeted yesterday",
         "on twitter",
         "search twitter",
         "search x for",
@@ -1161,12 +1169,16 @@
       "engine": "x",
       "weight": 3,
       "kw": [
-        "controversy",
-        "outrage",
+        "controversy over",
+        "controversy around",
+        "outrage over",
+        "public outrage",
         "backlash over",
         "backlash against",
         "public backlash",
-        "rumors"
+        "rumors about",
+        "rumors of",
+        "latest rumors"
       ]
     }
   ]
