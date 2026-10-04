@@ -946,7 +946,11 @@
   //       reviews and advice; tech lookups fall to DDG
   //  v19: replaced Grok with Proton Lumo (lumo.proton.me/guest#q=) for the
   //       LLM-shaped route; same phrases and vectors, route key renamed
-  const EMBEDDINGS_VERSION = '19';
+  //  v20: new x route (x.com search) for breaking news, live events,
+  //       opinions and social sentiment, moved off lumo
+  //  v21: x route sharpened after review (world news / news-site navigation
+  //       moved to ddg)
+  const EMBEDDINGS_VERSION = '21';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
@@ -1072,18 +1076,32 @@
    *  signal (one weight-2+ rule, or two weight-1 rules). */
   const MIN_KEYWORD_SCORE = 2;
 
-  /** True when the keyword passed to KEYWORD_RULES is a bare word —
-   *  needs word-boundary anchoring so "code" doesn't match "decode". */
-  const _BARE_WORD_RE = /^[a-z0-9]+$/i;
+  /** Punctuation and symbols become spaces before matching, so keywords
+   *  match whole words even next to a quote, bracket or dash. */
+  const _NON_WORD_RE = /[^\p{L}\p{N}']+/gu;
+
+  /** `text` lowercased, curly apostrophes straightened (iOS smart
+   *  punctuation), other punctuation folded to single spaces. Apostrophes
+   *  survive only inside a word ("people's"), not as quote marks. */
+  function normalizeForKeywords(text) {
+    return text.toLowerCase().replace(/[‘’]/g, "'").replace(_NON_WORD_RE, ' ')
+      .replace(/(^|\s)'+|'+(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
+  }
 
   /**
    * Score `query` against the keyword rules and return the best engine
    * key, or null if no rule scored at or above MIN_KEYWORD_SCORE.
+   * A matching `priority` rule (explicit writing intent: "write a…")
+   * wins outright, however many other rules' weights add up.
    * Used by `classify()` whenever the model isn't usable (loading, in
    * keyword-mode fallback, or load-failed).
    */
   function classifyKeywords(query) {
     if (!query) return null;
+    const padded = ' ' + normalizeForKeywords(query) + ' ';
+    for (const rule of KEYWORD_RULES) {
+      if (rule.priority && ruleMatches(rule, padded)) return rule.engine;
+    }
     let bestKey = null, bestScore = 0;
     for (const [engine, score] of keywordScores(query)) {
       if (score > bestScore) { bestScore = score; bestKey = engine; }
@@ -1098,20 +1116,48 @@
    * @returns {Map<string, number>}
    */
   function keywordScores(query) {
-    const padded = ' ' + query.toLowerCase().trim() + ' ';
+    const padded = ' ' + normalizeForKeywords(query) + ' ';
     /** @type {Map<string, number>} */
     const scores = new Map();
     for (const rule of KEYWORD_RULES) {
-      let matched = false;
-      for (const kw of rule.kw) {
-        const needle = _BARE_WORD_RE.test(kw) ? ` ${kw.toLowerCase()} ` : kw.toLowerCase();
-        if (padded.indexOf(needle) >= 0) { matched = true; break; }
-      }
-      if (matched) {
+      if (ruleMatches(rule, padded)) {
         scores.set(rule.engine, (scores.get(rule.engine) || 0) + rule.weight);
       }
     }
     return scores;
+  }
+
+  /** @type {Map<string, RegExp>} */
+  const _keywordRegexCache = new Map();
+
+  /** Regex for one keyword against a space-padded normalized query: whole
+   *  words only ("craft a" matches neither "minecraft armor" nor "craft
+   *  armor"), the last word may take a plural s/es ("full album" →
+   *  "full albums"), and a `*` stands for exactly one word
+   *  ("create a * account"). */
+  function keywordRegex(kw) {
+    let re = _keywordRegexCache.get(kw);
+    if (!re) {
+      const words = kw.split(' ').flatMap(
+        w => (w === '*' ? ["[^ ]+"] : normalizeForKeywords(w).split(' ').filter(Boolean)
+          .map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))));
+      words[words.length - 1] += '(?:e?s)?';
+      re = new RegExp(` ${words.join(' ')} `);
+      _keywordRegexCache.set(kw, re);
+    }
+    return re;
+  }
+
+  /** True when any keyword in `list` occurs in `padded`. */
+  function anyKeyword(list, padded) {
+    return list.some(kw => keywordRegex(kw).test(padded));
+  }
+
+  /** A rule matches when one of its `kw` is present and none of its
+   *  optional `unless` words ("recommend" unless "near me" = leave local
+   *  places to Maps). */
+  function ruleMatches(rule, padded) {
+    return anyKeyword(rule.kw, padded) && !(rule.unless && anyKeyword(rule.unless, padded));
   }
 
   // ───────────────────────────────────────────────────────────────────────

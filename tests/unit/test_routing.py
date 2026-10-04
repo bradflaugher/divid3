@@ -41,7 +41,7 @@ BENCH = json.loads((SCRIPTS / "routing_benchmark.json").read_text(encoding="utf-
 INDEX_HTML = (REPO_ROOT / "index.html").read_text(encoding="utf-8")
 RULES = PHRASES["keywordRules"]
 
-ENGINES = {"ddg", "lumo", "maps", "youtube", "images", "ebay"}
+ENGINES = {"ddg", "lumo", "x", "maps", "youtube", "images", "ebay"}
 
 try:
     import eval_routing  # needs numpy (+ onnxruntime/tokenizers for the model)
@@ -60,19 +60,59 @@ except ImportError:  # pragma: no cover - depends on the environment
 MIN_KEYWORD_SCORE = 2
 
 
+_NON_WORD_RE = re.compile(r"[^\w']+|_+")
+_EDGE_APOSTROPHE_RE = re.compile(r"(^|\s)'+|'+(?=\s|$)")
+
+
+def normalize_for_keywords(text: str) -> str:
+    text = _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower()))
+    return " ".join(_EDGE_APOSTROPHE_RE.sub(r"\1", text).split())
+
+
+_KEYWORD_RE_CACHE: dict[str, re.Pattern] = {}
+
+
+def _keyword_re(kw: str) -> re.Pattern:
+    """Mirror of keywordRegex in index.html: whole words, optional plural
+    s/es on the last word, `*` = exactly one word."""
+    pat = _KEYWORD_RE_CACHE.get(kw)
+    if pat is None:
+        words = [
+            p
+            for w in kw.split(" ")
+            for p in (["[^ ]+"] if w == "*" else [re.escape(x) for x in normalize_for_keywords(w).split()])
+        ]
+        words[-1] += "(?:e?s)?"
+        pat = _KEYWORD_RE_CACHE[kw] = re.compile(" " + " ".join(words) + " ")
+    return pat
+
+
+def _any_keyword(words: list, padded: str) -> bool:
+    return any(_keyword_re(kw).search(padded) for kw in words)
+
+
+def rule_matches(rule: dict, padded: str) -> bool:
+    """Mirror of ruleMatches in index.html: a `kw` match and no `unless`
+    match."""
+    return _any_keyword(rule["kw"], padded) and not (
+        rule.get("unless") and _any_keyword(rule["unless"], padded)
+    )
+
+
 def keyword_scores(query: str) -> dict[str, float]:
-    padded = " " + query.lower().strip() + " "
+    padded = " " + normalize_for_keywords(query) + " "
     scores: dict[str, float] = {}
     for rule in RULES:
-        for kw in rule["kw"]:
-            needle = f" {kw.lower()} " if kw.isalnum() else kw.lower()
-            if needle in padded:
-                scores[rule["engine"]] = scores.get(rule["engine"], 0) + rule["weight"]
-                break
+        if rule_matches(rule, padded):
+            scores[rule["engine"]] = scores.get(rule["engine"], 0) + rule["weight"]
     return scores
 
 
 def classify_keywords(query: str) -> str | None:
+    padded = " " + normalize_for_keywords(query) + " "
+    for rule in RULES:
+        if rule.get("priority") and rule_matches(rule, padded):
+            return rule["engine"]
     best, best_score = None, 0
     for engine, score in keyword_scores(query).items():
         if score > best_score:
@@ -104,11 +144,15 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("what does a black widow look like", "images"),
     ("kitchen backsplash design ideas", "images"),
     ("funny office memes", "images"),
-    ("breaking news in denver", "lumo"),
-    ("what are people saying about the fed", "lumo"),
+    ("breaking news in denver", "x"),
+    ("what are people saying about the fed", "x"),
+    ("thoughts on the new react compiler", "x"),
+    ("tweets from the nws about the storm", "x"),
+    ("why is the pope trending on twitter", "x"),
+    ("what is trending right now", "x"),
+    ("fans react to the finale", "x"),
     ("honest review of the kindle colorsoft", "lumo"),
     ("advice for a new grad engineer", "lumo"),
-    ("thoughts on the new react compiler", "lumo"),
     ("react documentation", "ddg"),
     ("pip install numpy", "ddg"),
     ("used road bike", "ebay"),
@@ -117,6 +161,63 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("baseball card collection value", "ebay"),
     ("pros and cons of solar panels", "lumo"),
     ("write a poem about the ocean", "lumo"),
+    ("help me craft a tweet about my product launch", "lumo"),  # writing, not an X search
+    ("generate a tweet announcing our sale", "lumo"),
+    # writing intent outranks X news / opinion keywords
+    ("write a breaking news article about climate change", "lumo"),
+    ("draft a reaction to the new policy", "lumo"),
+    ("write a hot take about javascript", "lumo"),
+    ("craft a twitter thread about our launch", "lumo"),
+    ("write a breaking news post on twitter", "lumo"),  # priority beats stacked X rules
+    ("opinions on the cybertruck", "x"),
+    ("fan reaction to the finale", "x"),
+    ("twitter reactions to the trade", "x"),
+    # punctuation is a word boundary too
+    ('"write a poem about rain"', "lumo"),
+    ("please—write a poem", "lumo"),
+    ("(breaking news in chicago)", "x"),
+    ("weather?", "ddg"),
+    # recommendation / login intent beats a bare platform mention
+    ("recommend a privacy-friendly alternative to twitter", "lumo"),
+    ("recommend books about twitter", "lumo"),
+    ("sign in on twitter", "ddg"),
+    ("log in to x", "ddg"),
+    ("recommend a live coverage source", "lumo"),
+    ("reviews of breaking news apps", "lumo"),
+    ("create a twitter thread about our launch", "lumo"),
+    ("delete my twitter account", "ddg"),
+    ("twitter password reset", "ddg"),
+    ("twitter help center", "ddg"),
+    ("change twitter username", "ddg"),
+    ("latest updates on the hurricane", "x"),
+    ("public backlash over the ad", "x"),
+    ("create a twitter account", "ddg"),  # account creation, not writing
+    ("create an x account", "ddg"),
+    ("how to create a twitter account", "ddg"),
+    ("recommend a help center platform", "lumo"),
+    ("advice for choosing help center software", "lumo"),
+    ("create a google account", "ddg"),  # 'create a' + 'account' = navigation
+    ("create a github account", "ddg"),
+    ("create an instagram account", "ddg"),
+    ("recommend a twitter account to follow", "lumo"),
+    ("advice for twitter account growth", "lumo"),
+    ("recommend a restaurant near me", "maps"),  # local intent beats recommend
+    ("suggest a hotel near me", "maps"),
+    ("recommend a coffee shop nearby", "maps"),
+    ("today's top headlines", "x"),
+    ("'write a poem about rain'", "lumo"),  # quote marks are boundaries
+    ("‘write a poem about rain’", "lumo"),
+    ("'breaking news in denver'", "x"),
+    ("create a report about account security", "lumo"),  # writing, not signup
+    ("write a new account of the incident", "lumo"),
+    ("pink floyd full albums", "youtube"),  # plural of a phrase keyword
+    ("coldplay live concerts", "youtube"),
+    ("beginner guitar tutorials", "youtube"),
+    ("who is winning the debate right now", "x"),
+    ("what did elon musk tweet today", "x"),
+    ("rumors about the next iphone", "x"),
+    ("review of live coverage services", "lumo"),
+    ("people’s reactions to the verdict", "x"),  # iOS curly apostrophe
     ("itinerary for a weekend in lisbon", "lumo"),
     ("is a masters degree worth it", "lumo"),
     ("shows like severance", "lumo"),
@@ -130,19 +231,60 @@ KEYWORD_CASES: list[tuple[str, str]] = [
 KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("street fighter 6", None),         # not a maps address
     ("wall street journal", None),
-    ("healthy chicken recipes", None),  # 'healthy' is not a lumo signal
+    ("healthy chicken recipes", "ddg"),  # 'healthy' is not a lumo signal; recipes → web
     ("browser console log", None),      # 'console' alone is not ebay
     ("xbox series x console", None),
     ("cinnamon bun recipe", "ddg"),
     ("lakers vs celtics score", None),  # bare 'vs' is not an opinion signal
     ("decode base64 string", None),     # 'code' must not match 'decode'
     ("comfort food ideas", None),
+    ("twitter login", "ddg"),           # navigation, not an X search
+    ("how to fix roof leaks", None),    # 'leaks' is not a news signal
+    ("viral infection symptoms", None), # bare 'viral' is not an X signal
+    ("cross threaded box thread", None),
+    # non-social senses of opinion / drama / reaction stay on the web
+    ("second opinion on cancer diagnosis", "ddg"),
+    ("legal opinion pdf", "ddg"),
+    ("best korean drama 2026", "ddg"),
+    ("allergic reaction to penicillin", "ddg"),
+    ("skin reaction to retinol", "ddg"),
+    ("chemical reaction to water", "ddg"),
+    ("adverse reactions to antibiotics", None),
+    ("immune reactions to vaccines", None),
+    ("blood pressure trending downward", "ddg"),
+    ("sales are trending down this quarter", "ddg"),
+    # phrases must start at a word: 'craft a' is not in 'minecraft armor'
+    ("minecraft armor recipe", "ddg"),
+    ("warcraft addon download", "ddg"),
+    ("aircraft accident report", None),
+    # keyword phrases end at a word too: 'craft a' is not in 'craft armor'
+    ("craft armor minecraft", "youtube"),
+    ("write ahead log postgres", None),
+    ("write amplification ssd", None),
+    ("world news", None),  # generic news navigation stays on the web
+    ("latest updates for windows 11", None),  # software updates, not news
+    ("latest updates to python", None),
+    ("latest on the npm package react", None),
+    ("cnc backlash compensation", None),  # mechanical sense
+    ("how to measure gear backlash", None),
+    ("local news today", None),  # news-site navigation stays on the web
+    ("bbc news today", None),
+    ("temperature is trending warmer", None),  # data trends, not social
+    ("cases are trending sideways", None),
+    ("resume headlines examples", None),  # not news headlines
+    ("linkedin headlines examples", None),
+    ("rumors neil simon play", None),  # not social rumors
+    ("moral outrage psychology", None),
+    ("how do people think without an inner monologue", "lumo"),  # explainer, not sentiment
+    ("why do people think dreams have meaning", "lumo"),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.
 SEMANTIC_CASES: list[tuple[str, str]] = [
     # ddg — facts, navigation, quick lookups, and product shopping
     ("facebook", "ddg"),
+    ("news", "ddg"),  # bare news navigation stays on the web
+    ("google news", "ddg"),
     ("weather this weekend in miami", "ddg"),
     ("how many teaspoons in a tablespoon", "ddg"),
     ("amazon prime login", "ddg"),
@@ -168,13 +310,16 @@ SEMANTIC_CASES: list[tuple[str, str]] = [
     ("pictures of the aurora", "images"),
     ("wallpaper of a forest at dawn", "images"),
     ("tattoo designs for forearm", "images"),
-    # lumo — breaking news, opinions / social, reviews, advice
-    ("breaking news about the wildfire", "lumo"),
-    ("what is everyone saying about the new pope", "lumo"),
-    ("honest opinions on the framework laptop", "lumo"),
+    # x — breaking news, live events, opinions / social sentiment
+    ("breaking news about the wildfire", "x"),
+    ("what is everyone saying about the new pope", "x"),
+    ("honest opinions on the framework laptop", "x"),
+    ("what do developers think of htmx", "x"),
+    ("live updates on the mars landing", "x"),
+    ("public reaction to the verdict", "x"),
+    # lumo — reviews, advice
     ("is the switch 2 worth upgrading to", "lumo"),
     ("advice for surviving a long distance relationship", "lumo"),
-    ("what do developers think of htmx", "lumo"),
     # ddg — tech lookups (no Hacker News route anymore)
     ("python requests documentation", "ddg"),
     ("node js download", "ddg"),
@@ -243,6 +388,16 @@ class ConfigTests(unittest.TestCase):
             PHRASES["engines"]["lumo"]["urlTemplate"],
             "https://lumo.proton.me/guest#q={q}",
         )
+
+    def test_x_search_url_and_bangs(self):
+        """X search: `src=typed_query` makes x.com treat it as a typed search
+        (same as its own search box). `!x`, `!tw` and `!twitter` reach it."""
+        self.assertEqual(
+            PHRASES["engines"]["x"]["urlTemplate"],
+            "https://x.com/search?q={q}&src=typed_query",
+        )
+        for bang in ("x", "tw", "twitter"):
+            self.assertEqual(PHRASES["bangs"][bang], "x", bang)
 
     def test_hacker_news_fully_removed(self):
         """Hacker News is no longer a destination."""

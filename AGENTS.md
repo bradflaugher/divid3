@@ -190,10 +190,11 @@ Activation paths (each independently sets `keywordMode = true`):
 - Crash-loop sentinel detects ≥ `MAX_CRASHES_BEFORE_FALLBACK` unfinished loads.
 - `initModel()` exhausts retries on a transient failure or hits a deterministic 4xx.
 
-`KEYWORD_RULES` is the source of truth: a flat list of `{ engine, weight, kw: [...] }` rules. Each rule contributes its `weight` to the engine's score if ANY of its `kw` strings match the query. Highest-scoring engine wins, with `MIN_KEYWORD_SCORE` (= 2) gating ambiguous matches into the DDG fallback. Single bare words match on word boundaries (`code` doesn't match `decode`); multi-word phrases match as substrings.
+`KEYWORD_RULES` is the source of truth: a flat list of `{ engine, weight, kw: [...] }` rules. Each rule contributes its `weight` to the engine's score if ANY of its `kw` strings match the query. Highest-scoring engine wins, with `MIN_KEYWORD_SCORE` (= 2) gating ambiguous matches into the DDG fallback. A rule marked `"priority": true` short-circuits that: if it matches, its engine wins outright no matter how other rules' weights stack. Four rules use it, in this order: DDG account creation (`create a * account`, `make an * account`, … where `*` is exactly one word), so "create a GitHub account" isn't mistaken for writing; Lumo writing intent (`write a`, `draft a`, `craft a`, `create a`, …), so "write a breaking news post on twitter" stays on Lumo; DDG login and account-help intent (`login`, `sign in`, `password reset`, `twitter account suspended`, `twitter help`, …), so "sign in on twitter" or "delete my twitter account" isn't an X search; and Lumo recommendation/review intent (`recommend`, `suggest a`, `advice for`, `review of`, …), so "recommend a live coverage source" or "reviews of breaking news apps" isn't either (**unless** `near me` / `nearby`: "recommend a restaurant near me" stays on Maps). Any rule can also carry `unless` (it doesn't match if one of these keywords is present); `ruleMatches()` and both Python mirrors implement it and `validate_config.py` checks it. When several priority rules match, the first in the list wins ("write a login page" → Lumo). `classifyKeywords()` in `index.html` and both Python mirrors (`eval_routing.py`, `tests/unit/test_routing.py`) implement it. Keywords (bare words and phrases alike) match whole words only: `code` doesn't match `decode`, and `craft a` matches neither `minecraft armor` nor `craft armor`. The last word may take a plural `s`/`es` (`full album` matches `full albums`), and `*` stands for exactly one word (`create a * account`). Other inflections must be listed explicitly. Before matching, `normalizeForKeywords()` lowercases the query and keywords and folds punctuation to spaces (curly apostrophes from iOS smart punctuation are straightened first; apostrophes survive only inside words, so `'write a poem'` in quotes still matches), so quotes, brackets and dashes count as word boundaries (`"write a poem"`, `(breaking news…)`, `weather?`).
 
 When *adding* a new keyword:
 - Multi-word phrases (`pull request`, `buy usb-c cable`) are stable — pretty much always specific enough.
+- Polysemous words (`opinion`, `drama`, `reaction to`) need a sense check too: `second opinion`, `korean drama` and `allergic reaction` are not X queries. A weight-8 DDG rule pins those senses to the web. Prefer social phrasings over bare words: X matches `trending on`, `trending now`, `what is trending`, not bare `trending` ("temperature is trending warmer").
 - Single words need a sanity check: would adding ` foo ` falsely match a query like `comfort` or `foothold`? If yes, prefer a longer phrase form, or accept the false positive only if the engine is a reasonable destination for the false-match query anyway.
 - The `cases[]` table in `tests/search.spec.ts > keyword mode (low-memory fallback)` has per-engine routing assertions — add a case there for any new engine destination, and the word-boundary regression test catches accidental bare-word matches. `KEYWORD_FALSE_POSITIVES` in `tests/unit/test_routing.py` pins known traps (`street fighter 6`, `browser console log`, `cinnamon bun recipe`).
 
@@ -201,12 +202,12 @@ When *adding* a new keyword:
 There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
 - "best X" product shopping → **DDG**.
 - Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **Lumo**.
-- Tech discussion: opinions / debates / engineering war stories / explainers → **Lumo**; docs, installs, downloads, project lookups → **DDG**.
+- Tech discussion: "what do developers think of…" / hot takes → **X**; debates, engineering war stories, explainers → **Lumo**; docs, installs, downloads, project lookups → **DDG**.
 
 `ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
 
 ### Lumo's scope (replaced Grok)
-Lumo is Proton's privacy-first assistant. Besides explainers / research / writing it is the destination for **breaking news, live updates, opinions and sentiment ("what are people saying…"), product reviews, and advice**: in guest mode it searches the web on its own for current-events questions. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
+Lumo is Proton's privacy-first assistant. Besides explainers / research / writing it is the destination for **product reviews, recommendations and advice**. Breaking news and opinions moved to X (see below); the benchmark still accepts Lumo for those, since guest-mode Lumo searches the web on its own. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
 
 The URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
 - `lumo.proton.me/?q=` does **not** work for signed-out visitors: Lumo redirects them to `/guest` and drops the query. `/guest` reads `q` from the query string or the fragment and auto-sends it (`?prefill=` only fills the box).
@@ -215,6 +216,17 @@ The URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
 - lumo.proton.me publishes no `apple-app-site-association` / `assetlinks.json`, so links open the web app, not the native Lumo app. That's Proton's side; if they add it, the same URL will open the app.
 
 `!l` / `!lumo` are the Lumo bangs; `!g`, `!gr`, `!p`, `!px` are kept as aliases from the Grok/Perplexity days. `ConfigTests.test_grok_fully_removed` guards against Grok creeping back.
+
+### X's scope (news and opinions)
+X (`x` engine) is the destination for **breaking news, live updates, current events, opinions, hot takes, drama/controversy and social sentiment ("what are people saying…", "what do developers think of…")**. The line against Lumo: *what people are saying right now* → X; *a product review, recommendation or advice* → Lumo. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG, and `twitter login` stays on DDG (the `login` rule outweighs `twitter`).
+
+The URL is `https://x.com/search?q={q}&src=typed_query` (`src=typed_query` is what X's own search box sends). Trade-offs:
+- X requires sign-in to search. Signed-out visitors get a 307 to X's login page with the search in `redirect_after_login`, so it resumes after they log in.
+- X also refuses headless browsers, so the E2E specs that route to X call `stubX(page)` to answer x.com with a stub page and assert on the URL we built.
+- x.com publishes `apple-app-site-association`, so on iOS with the X app installed the link opens the app.
+- Unlike Lumo's `#q=`, the query is in the request line and goes to X's servers. That's inherent to searching X.
+
+Bangs: `!x`, `!tw`, `!twitter`. The phrases live in the `x` route of `scripts/search_phrases.json`; keyword rules are the `x` entries in `keywordRules`.
 
 The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 

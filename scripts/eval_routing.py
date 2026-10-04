@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -52,20 +53,61 @@ KEYWORD_BOOST_MAX_POINTS = 5
 # ───────────────────────────────────────────────────────────────────────
 def keyword_scores(query: str, rules: list) -> dict[str, float]:
     """Mirror of keywordScores in index.html."""
-    padded = " " + query.lower().strip() + " "
+    padded = " " + normalize_for_keywords(query) + " "
     scores: dict[str, float] = defaultdict(float)
     for rule in rules:
-        for kw in rule["kw"]:
-            # mirror of _BARE_WORD_RE in index.html: bare words get
-            # word-boundary padding, phrases match as substrings
-            needle = f" {kw.lower()} " if kw.isalnum() else kw.lower()
-            if needle in padded:
-                scores[rule["engine"]] += rule["weight"]
-                break
+        if rule_matches(rule, padded):
+            scores[rule["engine"]] += rule["weight"]
     return scores
 
 
+_NON_WORD_RE = re.compile(r"[^\w']+|_+")
+_EDGE_APOSTROPHE_RE = re.compile(r"(^|\s)'+|'+(?=\s|$)")
+
+
+def normalize_for_keywords(text: str) -> str:
+    """Mirror of normalizeForKeywords in index.html: lowercase, fold
+    punctuation to single spaces."""
+    text = _NON_WORD_RE.sub(" ", re.sub("[‘’]", "'", text.lower()))
+    return " ".join(_EDGE_APOSTROPHE_RE.sub(r"\1", text).split())
+
+
+_KEYWORD_RE_CACHE: dict[str, re.Pattern] = {}
+
+
+def _keyword_re(kw: str) -> re.Pattern:
+    """Mirror of keywordRegex in index.html: whole words, optional plural
+    s/es on the last word, `*` = exactly one word."""
+    pat = _KEYWORD_RE_CACHE.get(kw)
+    if pat is None:
+        words = [
+            p
+            for w in kw.split(" ")
+            for p in (["[^ ]+"] if w == "*" else [re.escape(x) for x in normalize_for_keywords(w).split()])
+        ]
+        words[-1] += "(?:e?s)?"
+        pat = _KEYWORD_RE_CACHE[kw] = re.compile(" " + " ".join(words) + " ")
+    return pat
+
+
+def _any_keyword(words: list, padded: str) -> bool:
+    return any(_keyword_re(kw).search(padded) for kw in words)
+
+
+def rule_matches(rule: dict, padded: str) -> bool:
+    """Mirror of ruleMatches in index.html: a `kw` match and no `unless`
+    match."""
+    return _any_keyword(rule["kw"], padded) and not (
+        rule.get("unless") and _any_keyword(rule["unless"], padded)
+    )
+
+
 def classify_keywords(query: str, rules: list) -> str | None:
+    # A matching priority rule (explicit writing intent) wins outright.
+    padded = " " + normalize_for_keywords(query) + " "
+    for rule in rules:
+        if rule.get("priority") and rule_matches(rule, padded):
+            return rule["engine"]
     scores = keyword_scores(query, rules)
     if not scores:
         return None
