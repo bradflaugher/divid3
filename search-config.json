@@ -522,6 +522,9 @@
         "draft a",
         "draft an",
         "compose a",
+        "craft a",
+        "help me craft",
+        "generate a",
         "brainstorm",
         "tell me a joke",
         "tell me a riddle",
@@ -1003,9 +1006,7 @@
         "controversy",
         "outrage",
         "backlash",
-        "rumors",
-        "tweet",
-        "tweets"
+        "rumors"
       ]
     }
   ]
