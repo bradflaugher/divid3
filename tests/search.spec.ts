@@ -113,18 +113,19 @@ test.describe('search router — bang shortcuts', () => {
     qFragment: string;
   }[] = [
     { input: '!yt lofi hip hop',   engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
-    { input: '!gr election news',  engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'election' },
+    { input: '!gr election news',  engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'election' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
     // destination's interstitial is outside our control.
     // { input: '!m coffee shops',    engine: 'maps',        host: /(^|\.)google\.com$/,       qParam: 'q',            qFragment: 'coffee' },
     { input: '!i black hole',      engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'black' },
-    { input: '!p quantum gravity', engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'quantum' },
+    { input: '!p quantum gravity', engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
     { input: '!y dancing dog',     engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
     { input: '!img nebula',        engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'nebula' },
     { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
-    { input: '!g trending on x',   engine: 'grok',        host: /(^|\.)grok\.com$/,         qParam: 'q',            qFragment: 'trending' },
+    { input: '!g trending on x',   engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'trending' },
+    { input: '!lumo rust vs go',   engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'rust' },
     { input: '!eb vintage lens',   engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
   ];
 
@@ -149,7 +150,10 @@ test.describe('search router — bang shortcuts', () => {
       const navPromise = page.waitForURL(url => {
         const u = new URL(url.toString());
         if (!c.host.test(u.hostname)) return false;
-        const qs = u.searchParams.get(c.qParam) ?? '';
+        // Lumo reads its query from the fragment (`#q=`), the rest from
+        // the query string.
+        const qs = u.searchParams.get(c.qParam)
+          ?? new URLSearchParams(u.hash.slice(1)).get(c.qParam) ?? '';
         return decodeURIComponent(qs).includes(c.qFragment);
       }, { timeout: 15_000, waitUntil: 'commit' });
       await search.press('Enter');
@@ -444,11 +448,11 @@ test.describe('search router — semantic routing', () => {
   // benchmark accuracy floors) is tests/unit/test_routing.py.
   const semanticCases: { query: string; engine: string }[] = [
     { query: 'thai food near me',                engine: 'maps' },
-    { query: 'explain how a heat pump works',    engine: 'grok' },
+    { query: 'explain how a heat pump works',    engine: 'lumo' },
     { query: 'taylor swift official music video', engine: 'youtube' },
     { query: 'pictures of snow leopards',        engine: 'images' },
-    { query: 'latest news on the mars mission',  engine: 'grok' },
-    { query: 'honest opinions on the pixel watch', engine: 'grok' },
+    { query: 'latest news on the mars mission',  engine: 'lumo' },
+    { query: 'honest opinions on the pixel watch', engine: 'lumo' },
     { query: 'react documentation hooks',        engine: 'ddg' },
     { query: 'used thinkpad x1 carbon',          engine: 'ebay' },
     { query: 'best cordless vacuum for stairs',   engine: 'ddg' },
@@ -1115,15 +1119,15 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
   // no model nondeterminism, no thresholds to drift past.
   const cases: { query: string; engine: string; host: RegExp; qFragment: string }[] = [
     { query: 'lofi beats',                    engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qFragment: 'lofi' },
-    { query: 'opinions on react server components', engine: 'grok',  host: /(^|\.)grok\.com$/,          qFragment: 'react' },
-    { query: 'breaking news in chicago',      engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'chicago' },
+    { query: 'opinions on react server components', engine: 'lumo',  host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'react' },
+    { query: 'breaking news in chicago',      engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'chicago' },
     { query: 'best wireless headphones',      engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,  qFragment: 'wireless' },
     { query: 'pictures of golden retrievers', engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'golden' },
-    { query: 'itinerary for a weekend in lisbon', engine: 'grok',    host: /(^|\.)grok\.com$/,          qFragment: 'lisbon' },
+    { query: 'itinerary for a weekend in lisbon', engine: 'lumo',    host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'lisbon' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
-    { query: 'explain quantum mechanics',     engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'quantum' },
-    { query: 'trending on x',                 engine: 'grok',        host: /(^|\.)grok\.com$/,          qFragment: 'trending' },
+    { query: 'explain quantum mechanics',     engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'quantum' },
+    { query: 'trending on x',                 engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'trending' },
     { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
   ];
 
@@ -1224,7 +1228,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     // never loaded. Pick a query with a strong keyword signal.
     const search = page.locator('#search');
     await search.fill('trending on x');
-    const navPromise = page.waitForURL(/grok\.com/, { timeout: 15_000, waitUntil: 'commit' });
+    const navPromise = page.waitForURL(/lumo\.proton\.me/, { timeout: 15_000, waitUntil: 'commit' });
     await search.press('Enter');
     await navPromise;
   });

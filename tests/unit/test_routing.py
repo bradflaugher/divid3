@@ -41,7 +41,7 @@ BENCH = json.loads((SCRIPTS / "routing_benchmark.json").read_text(encoding="utf-
 INDEX_HTML = (REPO_ROOT / "index.html").read_text(encoding="utf-8")
 RULES = PHRASES["keywordRules"]
 
-ENGINES = {"ddg", "grok", "maps", "youtube", "images", "ebay"}
+ENGINES = {"ddg", "lumo", "maps", "youtube", "images", "ebay"}
 
 try:
     import eval_routing  # needs numpy (+ onnxruntime/tokenizers for the model)
@@ -104,22 +104,22 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("what does a black widow look like", "images"),
     ("kitchen backsplash design ideas", "images"),
     ("funny office memes", "images"),
-    ("breaking news in denver", "grok"),
-    ("what are people saying about the fed", "grok"),
-    ("honest review of the kindle colorsoft", "grok"),
-    ("advice for a new grad engineer", "grok"),
-    ("thoughts on the new react compiler", "grok"),
+    ("breaking news in denver", "lumo"),
+    ("what are people saying about the fed", "lumo"),
+    ("honest review of the kindle colorsoft", "lumo"),
+    ("advice for a new grad engineer", "lumo"),
+    ("thoughts on the new react compiler", "lumo"),
     ("react documentation", "ddg"),
     ("pip install numpy", "ddg"),
     ("used road bike", "ebay"),
     ("vintage seiko watch", "ebay"),
     ("replacement parts for kitchenaid mixer", "ebay"),
     ("baseball card collection value", "ebay"),
-    ("pros and cons of solar panels", "grok"),
-    ("write a poem about the ocean", "grok"),
-    ("itinerary for a weekend in lisbon", "grok"),
-    ("is a masters degree worth it", "grok"),
-    ("shows like severance", "grok"),
+    ("pros and cons of solar panels", "lumo"),
+    ("write a poem about the ocean", "lumo"),
+    ("itinerary for a weekend in lisbon", "lumo"),
+    ("is a masters degree worth it", "lumo"),
+    ("shows like severance", "lumo"),
     ("weather in denver", "ddg"),
     ("banana bread recipe", "ddg"),
     ("gmail login", "ddg"),
@@ -130,7 +130,7 @@ KEYWORD_CASES: list[tuple[str, str]] = [
 KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("street fighter 6", None),         # not a maps address
     ("wall street journal", None),
-    ("healthy chicken recipes", None),  # 'healthy' is not a grok signal
+    ("healthy chicken recipes", None),  # 'healthy' is not a lumo signal
     ("browser console log", None),      # 'console' alone is not ebay
     ("xbox series x console", None),
     ("cinnamon bun recipe", "ddg"),
@@ -149,13 +149,13 @@ SEMANTIC_CASES: list[tuple[str, str]] = [
     ("best wireless earbuds under 100", "ddg"),
     ("top rated air purifier", "ddg"),
     ("best laptop for video editing", "ddg"),
-    # grok — synthesized answers, planning, writing, advice
-    ("explain how nuclear fusion works", "grok"),
-    ("write a thank you note to my teacher", "grok"),
-    ("plan a 4 day trip to barcelona", "grok"),
-    ("pros and cons of renting vs buying a house", "grok"),
-    ("why did the dinosaurs go extinct", "grok"),
-    ("is the vision pro worth the money", "grok"),
+    # lumo — synthesized answers, planning, writing, advice
+    ("explain how nuclear fusion works", "lumo"),
+    ("write a thank you note to my teacher", "lumo"),
+    ("plan a 4 day trip to barcelona", "lumo"),
+    ("pros and cons of renting vs buying a house", "lumo"),
+    ("why did the dinosaurs go extinct", "lumo"),
+    ("is the vision pro worth the money", "lumo"),
     # maps
     ("mexican restaurant near me", "maps"),
     ("directions to the nearest hospital", "maps"),
@@ -168,13 +168,13 @@ SEMANTIC_CASES: list[tuple[str, str]] = [
     ("pictures of the aurora", "images"),
     ("wallpaper of a forest at dawn", "images"),
     ("tattoo designs for forearm", "images"),
-    # grok — breaking news, opinions / social, reviews, advice
-    ("breaking news about the wildfire", "grok"),
-    ("what is everyone saying about the new pope", "grok"),
-    ("honest opinions on the framework laptop", "grok"),
-    ("is the switch 2 worth upgrading to", "grok"),
-    ("advice for surviving a long distance relationship", "grok"),
-    ("what do developers think of htmx", "grok"),
+    # lumo — breaking news, opinions / social, reviews, advice
+    ("breaking news about the wildfire", "lumo"),
+    ("what is everyone saying about the new pope", "lumo"),
+    ("honest opinions on the framework laptop", "lumo"),
+    ("is the switch 2 worth upgrading to", "lumo"),
+    ("advice for surviving a long distance relationship", "lumo"),
+    ("what do developers think of htmx", "lumo"),
     # ddg — tech lookups (no Hacker News route anymore)
     ("python requests documentation", "ddg"),
     ("node js download", "ddg"),
@@ -220,6 +220,29 @@ class ConfigTests(unittest.TestCase):
             self.assertNotIn(needle, html, f"index.html contains {needle}")
         for bang in ("wc", "nyt"):
             self.assertNotIn(bang, PHRASES["bangs"])
+
+    def test_grok_fully_removed(self):
+        """Grok was replaced by Lumo: no engine, bang, rule, route, embedding,
+        benchmark expectation, or grok.com link may remain."""
+        self.assertNotIn("grok", PHRASES["engines"])
+        self.assertNotIn("grok", CONFIG["engines"])
+        self.assertNotIn("grok", PHRASES["bangs"].values())
+        self.assertFalse(any(r["engine"] == "grok" for r in RULES))
+        self.assertNotIn("grok", [r["key"] for r in EMBEDDINGS])
+        for q in BENCH:
+            self.assertNotIn("grok", [q["expect"], *q.get("also_ok", [])], q["q"])
+        for blob in (json.dumps(PHRASES), json.dumps(CONFIG)):
+            self.assertNotIn("grok.com", blob.lower(), "grok.com still referenced")
+        # index.html may mention Grok in the EMBEDDINGS_VERSION changelog.
+        self.assertNotIn("'grok'", INDEX_HTML.lower())
+
+    def test_lumo_uses_guest_fragment_url(self):
+        """Signed-out visitors to lumo.proton.me/?q= are redirected to /guest
+        and the query is dropped; /guest#q= keeps it and auto-sends it."""
+        self.assertEqual(
+            PHRASES["engines"]["lumo"]["urlTemplate"],
+            "https://lumo.proton.me/guest#q={q}",
+        )
 
     def test_hacker_news_fully_removed(self):
         """Hacker News is no longer a destination."""
@@ -316,7 +339,7 @@ class KeywordRouterTests(unittest.TestCase):
         # general web (DDG fallback), not to a niche engine.
         for q in ("best robot vacuum", "best budget monitor", "buy a new mattress"):
             with self.subTest(query=q):
-                self.assertIn(classify_keywords(q) or "ddg", {"ddg", "grok"})
+                self.assertIn(classify_keywords(q) or "ddg", {"ddg", "lumo"})
 
     @unittest.skipUnless(HAVE_MODEL_DEPS, "numpy not installed")
     def test_mirror_matches_eval_script(self):

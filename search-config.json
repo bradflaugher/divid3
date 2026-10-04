@@ -8,9 +8,9 @@
       "name": "Bing Images",
       "urlTemplate": "https://www.bing.com/images/search?q={q}"
     },
-    "grok": {
-      "name": "Grok",
-      "urlTemplate": "https://grok.com/?q={q}"
+    "lumo": {
+      "name": "Lumo",
+      "urlTemplate": "https://lumo.proton.me/guest#q={q}"
     },
     "maps": {
       "name": "Google Maps",
@@ -36,10 +36,12 @@
     "map": "maps",
     "i": "images",
     "img": "images",
-    "p": "grok",
-    "px": "grok",
-    "g": "grok",
-    "gr": "grok",
+    "l": "lumo",
+    "lumo": "lumo",
+    "p": "lumo",
+    "px": "lumo",
+    "g": "lumo",
+    "gr": "lumo",
     "eb": "ebay",
     "ebay": "ebay",
     "d": "ddg",
@@ -396,7 +398,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 5,
       "kw": [
         "pros and cons",
@@ -431,7 +433,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 3,
       "kw": [
         "explain",
@@ -466,7 +468,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 5,
       "kw": [
         "trending on x",
@@ -485,7 +487,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 3,
       "kw": [
         "twitter",
@@ -498,7 +500,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 3,
       "kw": [
         "write a",
@@ -625,7 +627,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 5,
       "kw": [
         "itinerary for",
@@ -649,7 +651,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 3,
       "kw": [
         "worth it",
@@ -783,7 +785,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 5,
       "kw": [
         "shows like",
@@ -853,7 +855,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 5,
       "kw": [
         "breaking news",
@@ -880,7 +882,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 3,
       "kw": [
         "reviews",
@@ -897,7 +899,7 @@
       ]
     },
     {
-      "engine": "grok",
+      "engine": "lumo",
       "weight": 5,
       "kw": [
         "what's going on with",

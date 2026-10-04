@@ -74,7 +74,7 @@ The shipped configuration routes between:
 |---------------|--------------------------------------------|--------------------|
 | DuckDuckGo    | Generic web search, quick facts, product shopping; fallback for anything ambiguous | `!d`, `!ddg`       |
 | Bing Images   | Image queries                              | `!i`, `!img`       |
-| Grok          | Breaking news, opinions & social (X) sentiment, reviews, advice, explainers, research, writing | `!g`, `!gr`, `!p`, `!px` |
+| Lumo (Proton) | Breaking news, opinions & sentiment, reviews, advice, explainers, research, writing (Lumo searches the web for current events) | `!l`, `!lumo`, `!g`, `!gr`, `!p`, `!px` |
 | Google Maps   | Locations, "near me", directions           | `!m`, `!map`       |
 | YouTube       | Music, video, tutorials                    | `!y`, `!yt`        |
 | eBay          | Used / vintage / parts / hard-to-find items | `!eb`, `!ebay`     |
