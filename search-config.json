@@ -893,7 +893,6 @@
       "kw": [
         "breaking news",
         "latest news",
-        "news today",
         "what just happened",
         "live updates",
         "public reactions to",
@@ -1000,6 +999,21 @@
       ]
     },
     {
+      "engine": "ddg",
+      "weight": 5,
+      "priority": true,
+      "kw": [
+        "create an account",
+        "create a twitter account",
+        "create an x account",
+        "create a new twitter account",
+        "create a new account",
+        "create account",
+        "make an account",
+        "make a twitter account"
+      ]
+    },
+    {
       "engine": "lumo",
       "weight": 3,
       "priority": true,
@@ -1044,7 +1058,7 @@
         "x account",
         "twitter password",
         "twitter help",
-        "help center",
+        "x help center",
         "change username",
         "change twitter username"
       ]
@@ -1104,9 +1118,17 @@
         "latest on the storm",
         "latest updates on the",
         "latest updates from the",
-        "is trending",
         "why is everyone talking",
-        "trending"
+        "trending on",
+        "trending now",
+        "trending today",
+        "trending right now",
+        "trending topics",
+        "trending hashtags",
+        "currently trending",
+        "what is trending",
+        "why is it trending",
+        "why is this trending"
       ]
     },
     {

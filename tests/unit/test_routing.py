@@ -123,7 +123,8 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("what are people saying about the fed", "x"),
     ("thoughts on the new react compiler", "x"),
     ("tweets from the nws about the storm", "x"),
-    ("why is the new pope trending", "x"),
+    ("why is the pope trending on twitter", "x"),
+    ("what is trending right now", "x"),
     ("fans react to the finale", "x"),
     ("honest review of the kindle colorsoft", "lumo"),
     ("advice for a new grad engineer", "lumo"),
@@ -165,9 +166,13 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("change twitter username", "ddg"),
     ("latest updates on the hurricane", "x"),
     ("public backlash over the ad", "x"),
+    ("create a twitter account", "ddg"),  # account creation, not writing
+    ("create an x account", "ddg"),
+    ("how to create a twitter account", "ddg"),
+    ("recommend a help center platform", "lumo"),
+    ("advice for choosing help center software", "lumo"),
     ("review of live coverage services", "lumo"),
     ("people’s reactions to the verdict", "x"),  # iOS curly apostrophe
-    ("why is the new pope trending", "x"),
     ("itinerary for a weekend in lisbon", "lumo"),
     ("is a masters degree worth it", "lumo"),
     ("shows like severance", "lumo"),
@@ -217,6 +222,10 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("latest on the npm package react", None),
     ("cnc backlash compensation", None),  # mechanical sense
     ("how to measure gear backlash", None),
+    ("local news today", None),  # news-site navigation stays on the web
+    ("bbc news today", None),
+    ("temperature is trending warmer", None),  # data trends, not social
+    ("cases are trending sideways", None),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.
