@@ -1005,6 +1005,8 @@
       "priority": true,
       "kw": [
         "write a",
+        "create a",
+        "create an",
         "write me",
         "write an",
         "draft a",
@@ -1029,7 +1031,22 @@
         "signin",
         "sign up",
         "signup",
-        "sign into"
+        "sign into",
+        "password reset",
+        "reset password",
+        "reset my password",
+        "forgot password",
+        "delete my account",
+        "delete account",
+        "deactivate my account",
+        "delete my twitter account",
+        "twitter account",
+        "x account",
+        "twitter password",
+        "twitter help",
+        "help center",
+        "change username",
+        "change twitter username"
       ]
     },
     {
@@ -1082,8 +1099,11 @@
         "top headlines",
         "headlines today",
         "news right now",
-        "latest on the",
-        "latest updates",
+        "latest on the war",
+        "latest on the election",
+        "latest on the storm",
+        "latest updates on the",
+        "latest updates from the",
         "is trending",
         "why is everyone talking",
         "trending"
@@ -1096,7 +1116,9 @@
         "headlines",
         "controversy",
         "outrage",
-        "backlash",
+        "backlash over",
+        "backlash against",
+        "public backlash",
         "rumors"
       ]
     }

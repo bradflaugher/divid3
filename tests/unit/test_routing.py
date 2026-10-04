@@ -158,6 +158,13 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("log in to x", "ddg"),
     ("recommend a live coverage source", "lumo"),
     ("reviews of breaking news apps", "lumo"),
+    ("create a twitter thread about our launch", "lumo"),
+    ("delete my twitter account", "ddg"),
+    ("twitter password reset", "ddg"),
+    ("twitter help center", "ddg"),
+    ("change twitter username", "ddg"),
+    ("latest updates on the hurricane", "x"),
+    ("public backlash over the ad", "x"),
     ("review of live coverage services", "lumo"),
     ("people’s reactions to the verdict", "x"),  # iOS curly apostrophe
     ("why is the new pope trending", "x"),
@@ -205,6 +212,11 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("write ahead log postgres", None),
     ("write amplification ssd", None),
     ("world news", None),  # generic news navigation stays on the web
+    ("latest updates for windows 11", None),  # software updates, not news
+    ("latest updates to python", None),
+    ("latest on the npm package react", None),
+    ("cnc backlash compensation", None),  # mechanical sense
+    ("how to measure gear backlash", None),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.
