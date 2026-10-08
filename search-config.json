@@ -53,6 +53,7 @@
   },
   "destinations": {
     "ai": {
+      "short": "AI",
       "label": "AI answers",
       "blurb": "Explain, compare, write, plan and advise.",
       "options": {
@@ -154,6 +155,7 @@
       }
     },
     "x": {
+      "short": "News",
       "label": "News & opinions",
       "blurb": "Breaking news, live events and what people are saying.",
       "options": {
@@ -238,6 +240,7 @@
       }
     },
     "ddg": {
+      "short": "Web",
       "label": "Web search",
       "blurb": "Facts, sites, how-tos and everything else.",
       "options": {
@@ -328,6 +331,7 @@
       }
     },
     "maps": {
+      "short": "Maps",
       "label": "Maps",
       "blurb": "Places, directions and anything near you.",
       "options": {
@@ -382,6 +386,7 @@
       }
     },
     "images": {
+      "short": "Images",
       "label": "Images",
       "blurb": "Pictures, wallpapers and inspiration.",
       "options": {
@@ -462,6 +467,7 @@
       }
     },
     "youtube": {
+      "short": "Video",
       "label": "Video & music",
       "blurb": "Videos, music, tutorials and streams.",
       "options": {
@@ -536,6 +542,7 @@
       }
     },
     "ebay": {
+      "short": "Used",
       "label": "Used & collectibles",
       "blurb": "Second-hand, vintage, parts and collectibles.",
       "options": {

@@ -26,7 +26,7 @@ PHRASES = REPO_ROOT / "scripts" / "search_phrases.json"
 CONFIG = REPO_ROOT / "search-config.json"
 
 ALLOWED_ENGINE_FIELDS = {"name", "urlTemplate"}
-DESTINATION_FIELDS = {"label", "blurb", "options"}
+DESTINATION_FIELDS = {"short", "label", "blurb", "options"}
 OPTION_FIELDS = {"name", "by", "note", "urlTemplate", "bangs"}
 BANG_RE = re.compile(r"^[a-z0-9]+$")
 
@@ -113,9 +113,11 @@ def validate_destinations(dests: object, engines: dict, bangs: dict) -> None:
             fail(f"destinations['{route}'] must be an object")
         if set(sec) != DESTINATION_FIELDS:
             fail(f"destinations['{route}'] needs exactly {sorted(DESTINATION_FIELDS)}")
-        for field in ("label", "blurb"):
+        for field in ("short", "label", "blurb"):
             if not isinstance(sec[field], str) or not sec[field].strip():
                 fail(f"destinations['{route}'].{field} must be a non-empty string")
+        if len(sec["short"]) > 8:
+            fail(f"destinations['{route}'].short is shown beside every pick; keep it to 8 characters")
         options = sec["options"]
         if not isinstance(options, dict) or len(options) < 2:
             fail(f"destinations['{route}'].options needs at least two choices")

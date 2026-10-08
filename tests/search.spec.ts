@@ -1543,6 +1543,8 @@ test.describe('destinations picker', () => {
     await search.fill('!ai why is the sky blue');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'ai');
     await expect(page.locator('#hint')).toHaveText('ChatGPT');
+    // The category ("AI · ChatGPT") is drawn from data-category.
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI');
     const nav = page.waitForURL(url => {
       const u = new URL(url.toString());
       return u.hostname === 'chatgpt.com' && (u.searchParams.get('q') ?? '').includes('sky');
@@ -1596,6 +1598,7 @@ test.describe('destinations picker', () => {
     await search.fill('!claude draft a haiku');
     await expect(page.locator('body')).toHaveAttribute('data-engine', 'ai:claude');
     await expect(page.locator('#hint')).toHaveText('Claude');
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI');
     const nav = page.waitForURL(url => {
       const u = new URL(url.toString());
       return u.hostname === 'claude.ai' && u.pathname === '/new'
@@ -1608,14 +1611,20 @@ test.describe('destinations picker', () => {
   });
 
   test('?q= overlay shows the picks, and can change them in place', async ({ page }) => {
+    // A short phone screen: the overlay scrolls instead of squeezing the
+    // query line to nothing.
+    await page.setViewportSize({ width: 375, height: 600 });
     await stubSites(page);
     await page.addInitScript(() =>
       localStorage.setItem('divid3-destinations', JSON.stringify({ ai: 'perplexity' })));
     await freezeRouteTimer(page);
     await page.goto(`${PATH}?q=explain+how+a+heat+pump+works`);
     await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#query-display')).toBeVisible();
     const aiBtn = page.locator('#override-engines .override-btn[data-engine="ai"] .override-label');
     await expect(aiBtn).toHaveText('Perplexity');
+    await expect(page.locator('#override-engines .override-btn[data-engine="ai"] .override-cat')).toHaveText('AI');
+    await expect(page.locator('#override-engines .override-btn[data-engine="maps"] .override-cat')).toHaveText('Maps');
     // Per-site engines never crowd the overlay.
     await expect(page.locator('#override-engines .override-btn[data-engine*=":"]')).toHaveCount(0);
 
@@ -1627,5 +1636,14 @@ test.describe('destinations picker', () => {
     // Esc closed the panel, not the overlay.
     await expect(page.locator('#overlay')).toBeVisible();
     await expect(aiBtn).toHaveText('Claude');
+  });
+
+  test('without a config there is no picker to open, anywhere', async ({ page }) => {
+    await page.route('**/search-config.json*', (route: Route) => route.fulfill({ status: 404, body: 'nope' }));
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=hello+world`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#overlay-settings')).toBeHidden();
+    await expect(page.locator('#dest-pick')).toBeHidden();
   });
 });

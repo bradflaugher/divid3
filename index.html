@@ -186,6 +186,13 @@
     opacity: 1;
     transform: translateY(0);
   }
+  /* "AI · ChatGPT": the category is quieter than the destination. */
+  .engine-hint[data-category]::before {
+    content: attr(data-category) "  ·  ";
+    white-space: pre;
+    opacity: 0.55;
+    font-weight: 400;
+  }
   .engine-hint:hover {
     color: var(--text);
   }
@@ -204,6 +211,9 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
+  /* The overlay scrolls when it's taller than the screen; its children
+     must never be squeezed instead (the query line would collapse). */
+  .routing-overlay > * { flex-shrink: 0; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .overlay-eyebrow {
     font-size: 0.7rem;
@@ -264,7 +274,7 @@
     align-items: center;
     gap: 0.4rem;
     width: 100%;
-    max-width: min(90vw, 320px);
+    max-width: min(92vw, 380px);
     margin: 1.25rem 0 0.5rem;
     opacity: 0;
     transform: translateY(6px);
@@ -293,6 +303,17 @@
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
+  .override-cat {
+    flex: none;
+    width: 3.6rem;
+    text-align: left;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+  .override-cat:empty { display: none; }
   .override-label {
     flex: 1;
     text-align: left;
@@ -340,8 +361,10 @@
     background: rgba(255,255,255,0.08);
     font-weight: 600;
   }
-  .override-btn.top-match .override-label::after {
-    content: 'Top match';
+  /* Drawn by CSS so the button's text stays the destination's name. */
+  .override-badge::before { content: 'Top match'; }
+  .override-badge {
+    flex: none;
     font-size: 0.55rem;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -351,12 +374,12 @@
     border: 1px solid rgba(128, 128, 128, 0.2);
     padding: 0.1rem 0.35rem;
     border-radius: 4px;
-    margin-left: 0.5rem;
-    display: inline-block;
-    vertical-align: middle;
+    margin-right: auto;
     line-height: 1;
   }
-  .override-btn.top-match.selected .override-label::after {
+  /* The name hugs its text so the badge sits right after it. */
+  .override-btn.top-match .override-label { flex: 0 1 auto; }
+  .override-btn.top-match.selected .override-badge {
     color: var(--text);
     background: rgba(128, 128, 128, 0.18);
     border-color: rgba(128, 128, 128, 0.35);
@@ -505,6 +528,14 @@
     font-size: 0.65rem;
     white-space: nowrap;
   }
+  .scores-panel .score-cat {
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+  .scores-panel .score-cat:empty { display: none; }
   .scores-panel .score-val {
     font-size: 0.65rem;
     min-width: 22px;
@@ -546,6 +577,12 @@
     .scores-panel .score-bar {
       width: 60px;
     }
+    /* A quiet category column ahead of the name: "MAPS  OpenStreetMap". */
+    .scores-panel .score-cat {
+      width: 3.4rem;
+      text-align: left;
+      font-size: 0.58rem;
+    }
     .scores-panel .score-label {
       /* Wide enough for "DuckDuckGo Videos" (17 chars) at 0.7rem mono;
          longer picks ("Facebook Marketplace") get an ellipsis. */
@@ -553,7 +590,7 @@
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
-      text-align: right;
+      text-align: left;
       font-size: 0.7rem;
     }
     .scores-panel .score-val {
@@ -1131,7 +1168,7 @@
   <div class="overlay-prompt">Choose where to go</div>
   <div class="engine-name" id="engine-display" hidden></div>
   <div class="override-engines" id="override-engines"></div>
-  <button type="button" class="overlay-settings" id="overlay-settings" aria-haspopup="dialog">Change default destinations</button>
+  <button type="button" class="overlay-settings" id="overlay-settings" aria-haspopup="dialog" hidden>Change default destinations</button>
   <button class="cancel-btn" id="cancel">Cancel</button>
 </div>
 
@@ -1866,7 +1903,9 @@
         }
       }
       if (defaultId) {
-        DESTINATIONS[route] = { label: sec.label || engines[route].name, blurb: sec.blurb || '', defaultId, options };
+        DESTINATIONS[route] = {
+          short: sec.short || '', label: sec.label || engines[route].name, blurb: sec.blurb || '', defaultId, options,
+        };
       }
     }
     applyChoices(readChoices());
@@ -1915,6 +1954,14 @@
     destPick.setAttribute('aria-label', custom
       ? `Destinations (${custom} changed from the defaults)` : 'Destinations');
     destReset.disabled = custom === 0;
+  }
+
+  /** The short category ("AI", "News", "Maps"…) for a route or per-site
+   *  engine key, shown beside the destination's name. '' when unknown
+   *  (`direct`, or before the config loads). */
+  function categoryOf(key) {
+    const d = DESTINATIONS[String(key).split(':')[0]];
+    return d ? d.short : '';
   }
 
   function el(tag, className, text) {
@@ -2577,10 +2624,21 @@
     rows.forEach(r => r.classList.toggle('kbd-selected', r === row));
     // Mirror the selection into the hint so the user sees where Enter
     // will go without having to look down at the panel.
-    hint.textContent = engines[kbdSelectedKey].name;
-    hint.dataset.routeKey = kbdSelectedKey;
-    document.body.dataset.engine = kbdSelectedKey;
+    showHint(kbdSelectedKey);
     return true;
+  }
+
+  /** Show where Enter will go: the destination's name, with its category
+   *  ("AI · ChatGPT") drawn by CSS from data-category so the text stays
+   *  the plain name. The route key rides along for click-to-route. */
+  function showHint(key) {
+    hint.textContent = engines[key].name;
+    const cat = categoryOf(key);
+    if (cat) hint.dataset.category = cat;
+    else delete hint.dataset.category;
+    hint.classList.add('active');
+    document.body.dataset.engine = key;
+    hint.dataset.routeKey = key;
   }
 
   function clearHint() {
@@ -2612,11 +2670,14 @@
       row.type = 'button';
       row.className = 'score-row';
       row.dataset.engine = s.key;
-      row.setAttribute('aria-label', `Route to ${engines[s.key].name} (${pct}% match)`);
-      row.innerHTML =
-        `<span class="score-label">${engines[s.key].name}</span>` +
-        `<div class="score-bar"><div class="score-fill${isBest ? ' best' : ''}" style="width:${pct}%"></div></div>` +
-        `<span class="score-val">${pct}%</span>`;
+      const name = engines[s.key].name;
+      const cat = categoryOf(s.key);
+      row.setAttribute('aria-label', `Route to ${cat ? `${cat}: ` : ''}${name} (${pct}% match)`);
+      const bar = el('div', 'score-bar');
+      const fill = el('div', 'score-fill' + (isBest ? ' best' : ''));
+      fill.style.width = `${pct}%`;
+      bar.appendChild(fill);
+      row.append(el('span', 'score-cat', cat), el('span', 'score-label', name), bar, el('span', 'score-val', `${pct}%`));
       frag.appendChild(row);
     }
     scoresPanel.replaceChildren(frag);
@@ -2645,11 +2706,7 @@
         key = classifyKeywords(q);
       }
       if (key) {
-        const engine = engines[key];
-        hint.textContent = engine.name;
-        hint.classList.add('active');
-        document.body.dataset.engine = key;
-        hint.dataset.routeKey = key;
+        showHint(key);
       } else {
         clearHint();
       }
@@ -2667,12 +2724,7 @@
     const result = await classify(q, () => mySeq !== hintSeq, { allowInference });
     if (!result || mySeq !== hintSeq) return;       // a newer keystroke is in flight
 
-    const engine = engines[result.key];
-    hint.textContent = engine.name;
-    hint.classList.add('active');
-    document.body.dataset.engine = result.key;
-    // Store the current route key on the hint so click-to-route knows where to go
-    hint.dataset.routeKey = result.key;
+    showHint(result.key);
     renderScores(result);
   }
 
@@ -2704,7 +2756,7 @@
       const label = document.createElement('span');
       label.className = 'override-label';
       label.textContent = `Open ${host}`;
-      btn.appendChild(label);
+      btn.append(label, el('span', 'override-badge'));
       frag.appendChild(btn);
     }
 
@@ -2732,18 +2784,20 @@
       btn.type = 'button';
       btn.className = 'override-btn' + (key === selectedKey ? ' selected top-match' : '');
       btn.dataset.engine = key;
-      btn.setAttribute('aria-label', `Route to ${engine.name}`);
+      const cat = categoryOf(key);
+      btn.setAttribute('aria-label', `Route to ${cat ? `${cat}: ` : ''}${engine.name}`);
 
       const scoreObj = scores.find(s => s.key === key);
       const isSelected = key === selectedKey;
+      btn.append(el('span', 'override-cat', cat), el('span', 'override-label', engine.name));
+      if (isSelected) btn.appendChild(el('span', 'override-badge'));
       if (scoreObj) {
         const pct = Math.round(Math.max(0, Math.min(1, scoreObj.score)) * 100);
-        btn.innerHTML =
-          `<span class="override-label">${engine.name}</span>` +
-          `<div class="override-bar"><div class="override-fill${isSelected ? ' best' : ''}" style="width:${pct}%"></div></div>` +
-          `<span class="override-val">${pct}%</span>`;
-      } else {
-        btn.innerHTML = `<span class="override-label">${engine.name}</span>`;
+        const bar = el('div', 'override-bar');
+        const fill = el('div', 'override-fill' + (isSelected ? ' best' : ''));
+        fill.style.width = `${pct}%`;
+        bar.appendChild(fill);
+        btn.append(bar, el('span', 'override-val', `${pct}%`));
       }
       frag.appendChild(btn);
     }

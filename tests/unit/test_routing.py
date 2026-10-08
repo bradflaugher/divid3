@@ -415,6 +415,7 @@ class ConfigTests(unittest.TestCase):
                 route,
             )
             self.assertGreaterEqual(len(sec["options"]), 2, route)
+            self.assertTrue(0 < len(sec["short"]) <= 8, route)
             for oid, o in sec["options"].items():
                 with self.subTest(option=f"{route}/{oid}"):
                     self.assertTrue(o["urlTemplate"].startswith("https://"))
