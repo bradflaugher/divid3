@@ -7,6 +7,8 @@ Catches the kinds of edits that break routing at runtime:
   - urlTemplates without a {q} placeholder
   - bangs or keyword rules pointing at engines that don't exist
   - _routes entries that the runtime can't dispatch to
+  - destinations (the per-route pickers) that are malformed, not https,
+    out of step with `engines`, or whose bangs collide
   - search-config.json drifting from search_phrases.json
 
 Exits non-zero on any failure so CI fails the build.
@@ -15,6 +17,7 @@ Exits non-zero on any failure so CI fails the build.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -23,6 +26,9 @@ PHRASES = REPO_ROOT / "scripts" / "search_phrases.json"
 CONFIG = REPO_ROOT / "search-config.json"
 
 ALLOWED_ENGINE_FIELDS = {"name", "urlTemplate"}
+DESTINATION_FIELDS = {"label", "blurb", "options"}
+OPTION_FIELDS = {"name", "by", "note", "urlTemplate", "bangs"}
+BANG_RE = re.compile(r"^[a-z0-9]+$")
 
 
 def fail(msg: str) -> None:
@@ -85,7 +91,61 @@ def validate_phrases(cfg: dict) -> tuple[dict, dict, list]:
             fail(f"_routes entry '{rkey}' is not declared in 'engines'")
 
     validate_route_phrases(cfg.get("_routes", []))
+    validate_destinations(cfg.get("destinations"), engines, bangs)
     return engines, bangs, rules
+
+
+def validate_destinations(dests: object, engines: dict, bangs: dict) -> None:
+    """The destination pickers. Every routable engine has a section whose
+    options the user can choose between; the first option is the default
+    and must be exactly what `engines` says (it's what routes before the
+    picker runs, and what the Python evals see). Option bangs (`!claude`,
+    `!yt`) reach one option directly; they must be unique and must not
+    shadow a route bang (`!ai`, `!m`), which follows the user's choice."""
+    if not isinstance(dests, dict) or not dests:
+        fail("'destinations' must be a non-empty object in scripts/search_phrases.json")
+    routable = set(engines) - {"direct"}
+    if set(dests) != routable:
+        fail(f"'destinations' must have one section per engine: {sorted(routable)} (got {sorted(dests)})")
+    seen: dict[str, str] = {}
+    for route, sec in dests.items():
+        if not isinstance(sec, dict):
+            fail(f"destinations['{route}'] must be an object")
+        if set(sec) != DESTINATION_FIELDS:
+            fail(f"destinations['{route}'] needs exactly {sorted(DESTINATION_FIELDS)}")
+        for field in ("label", "blurb"):
+            if not isinstance(sec[field], str) or not sec[field].strip():
+                fail(f"destinations['{route}'].{field} must be a non-empty string")
+        options = sec["options"]
+        if not isinstance(options, dict) or len(options) < 2:
+            fail(f"destinations['{route}'].options needs at least two choices")
+        for oid, val in options.items():
+            where = f"destinations['{route}'].options['{oid}']"
+            if not BANG_RE.match(oid):
+                fail(f"{where}: id must be lowercase letters/digits")
+            if not isinstance(val, dict):
+                fail(f"{where} must be an object")
+            if set(val) != OPTION_FIELDS:
+                fail(f"{where} needs exactly {sorted(OPTION_FIELDS)} (got {sorted(val)})")
+            for field in ("name", "by", "note", "urlTemplate"):
+                if not isinstance(val[field], str) or not val[field].strip():
+                    fail(f"{where}.{field} must be a non-empty string")
+            url = val["urlTemplate"]
+            if not url.startswith("https://") or url.count("{q}") != 1:
+                fail(f"{where} urlTemplate must be https with one {{q}} (got {url!r})")
+            if not isinstance(val["bangs"], list):
+                fail(f"{where}.bangs must be a list")
+            for b in val["bangs"]:
+                if not isinstance(b, str) or not BANG_RE.match(b):
+                    fail(f"{where} bang {b!r} must be lowercase letters/digits")
+                if b in bangs:
+                    fail(f"{where} bang '!{b}' shadows the route bang for '{bangs[b]}'")
+                if b in seen:
+                    fail(f"bang '!{b}' is used by both {seen[b]} and {route}/{oid}")
+                seen[b] = f"{route}/{oid}"
+        default = next(iter(options.values()))
+        if engines[route] != {"name": default["name"], "urlTemplate": default["urlTemplate"]}:
+            fail(f"engines['{route}'] must match the first (default) option of destinations['{route}']")
 
 
 def validate_route_phrases(routes: list) -> None:
@@ -131,7 +191,7 @@ def validate_route_phrases(routes: list) -> None:
             )
 
 
-def validate_generated(engines: dict, bangs: dict, rules: list) -> None:
+def validate_generated(engines: dict, bangs: dict, rules: list, destinations: dict) -> None:
     if not CONFIG.exists():
         fail(
             f"{CONFIG.relative_to(REPO_ROOT)} is missing. "
@@ -144,6 +204,8 @@ def validate_generated(engines: dict, bangs: dict, rules: list) -> None:
         fail("search-config.json bangs drifted from search_phrases.json (regenerate)")
     if cfg.get("keywordRules") != rules:
         fail("search-config.json keywordRules drifted from search_phrases.json (regenerate)")
+    if cfg.get("destinations") != destinations:
+        fail("search-config.json destinations drifted from search_phrases.json (regenerate)")
 
 
 def main() -> int:
@@ -155,8 +217,11 @@ def main() -> int:
         fail(f"{PHRASES.relative_to(REPO_ROOT)} is invalid JSON: {e}")
 
     engines, bangs, rules = validate_phrases(cfg)
-    validate_generated(engines, bangs, rules)
-    print(f"OK: {len(engines)} engines, {len(bangs)} bangs, {len(rules)} keyword rules")
+    validate_generated(engines, bangs, rules, cfg["destinations"])
+    print(
+        f"OK: {len(engines)} engines, {len(bangs)} bangs, {len(rules)} keyword rules, "
+        f"{sum(len(d['options']) for d in cfg['destinations'].values())} destination options"
+    )
     return 0
 
 

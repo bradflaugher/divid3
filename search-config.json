@@ -8,7 +8,7 @@
       "name": "Bing Images",
       "urlTemplate": "https://www.bing.com/images/search?q={q}"
     },
-    "lumo": {
+    "ai": {
       "name": "Lumo",
       "urlTemplate": "https://lumo.proton.me/guest#q={q}"
     },
@@ -34,25 +34,577 @@
     }
   },
   "bangs": {
-    "yt": "youtube",
-    "y": "youtube",
+    "ai": "ai",
+    "l": "ai",
+    "p": "ai",
+    "px": "ai",
+    "g": "ai",
+    "gr": "ai",
+    "n": "x",
+    "news": "x",
+    "web": "ddg",
     "m": "maps",
     "map": "maps",
     "i": "images",
     "img": "images",
-    "l": "lumo",
-    "lumo": "lumo",
-    "p": "lumo",
-    "px": "lumo",
-    "g": "lumo",
-    "gr": "lumo",
-    "eb": "ebay",
-    "ebay": "ebay",
-    "x": "x",
-    "tw": "x",
-    "twitter": "x",
-    "d": "ddg",
-    "ddg": "ddg"
+    "v": "youtube",
+    "video": "youtube",
+    "used": "ebay"
+  },
+  "destinations": {
+    "ai": {
+      "label": "AI answers",
+      "blurb": "Explain, compare, write, plan and advise.",
+      "options": {
+        "lumo": {
+          "name": "Lumo",
+          "by": "Proton",
+          "note": "No account needed. Your question stays out of server logs.",
+          "urlTemplate": "https://lumo.proton.me/guest#q={q}",
+          "bangs": [
+            "lumo"
+          ]
+        },
+        "duckai": {
+          "name": "Duck.ai",
+          "by": "DuckDuckGo",
+          "note": "No account needed. Chats are anonymized. Fills in your question; you press send.",
+          "urlTemplate": "https://duckduckgo.com/?q={q}&ia=chat&bang=true",
+          "bangs": [
+            "duckai"
+          ]
+        },
+        "brave": {
+          "name": "Brave Ask",
+          "by": "Brave",
+          "note": "No account needed. Answers cite their sources.",
+          "urlTemplate": "https://search.brave.com/ask?q={q}",
+          "bangs": [
+            "braveai",
+            "askbrave"
+          ]
+        },
+        "chatgpt": {
+          "name": "ChatGPT",
+          "by": "OpenAI",
+          "note": "Works signed out; signed in, it's saved to your history.",
+          "urlTemplate": "https://chatgpt.com/?q={q}",
+          "bangs": [
+            "chatgpt",
+            "gpt"
+          ]
+        },
+        "claude": {
+          "name": "Claude",
+          "by": "Anthropic",
+          "note": "Sign-in required. Fills in your question; you press send.",
+          "urlTemplate": "https://claude.ai/new?q={q}",
+          "bangs": [
+            "claude"
+          ]
+        },
+        "gemini": {
+          "name": "Google AI Mode",
+          "by": "Google",
+          "note": "Gemini answers in Google Search. The Gemini app can't take a question from a link.",
+          "urlTemplate": "https://www.google.com/search?udm=50&q={q}",
+          "bangs": [
+            "gemini",
+            "aimode"
+          ]
+        },
+        "grok": {
+          "name": "Grok",
+          "by": "xAI",
+          "note": "Works signed out.",
+          "urlTemplate": "https://grok.com/?q={q}",
+          "bangs": [
+            "grok"
+          ]
+        },
+        "perplexity": {
+          "name": "Perplexity",
+          "by": "Perplexity",
+          "note": "Works signed out. Answers cite their sources.",
+          "urlTemplate": "https://www.perplexity.ai/search?q={q}",
+          "bangs": [
+            "perplexity",
+            "pplx"
+          ]
+        },
+        "kagi": {
+          "name": "Kagi Assistant",
+          "by": "Kagi",
+          "note": "Kagi subscription required. No ads, no training on your chats.",
+          "urlTemplate": "https://kagi.com/assistant?q={q}",
+          "bangs": [
+            "kagiai"
+          ]
+        }
+      }
+    },
+    "x": {
+      "label": "News & opinions",
+      "blurb": "Breaking news, live events and what people are saying.",
+      "options": {
+        "x": {
+          "name": "X",
+          "by": "X Corp.",
+          "note": "Live posts and reactions. Sign-in required to search.",
+          "urlTemplate": "https://x.com/search?q={q}&src=typed_query",
+          "bangs": [
+            "x",
+            "tw",
+            "twitter"
+          ]
+        },
+        "reddit": {
+          "name": "Reddit",
+          "by": "Reddit",
+          "note": "Threads and discussion. Works signed out.",
+          "urlTemplate": "https://www.reddit.com/search/?q={q}",
+          "bangs": [
+            "r",
+            "reddit"
+          ]
+        },
+        "bluesky": {
+          "name": "Bluesky",
+          "by": "Bluesky",
+          "note": "Live posts and reactions. Sign-in required to search.",
+          "urlTemplate": "https://bsky.app/search?q={q}",
+          "bangs": [
+            "bsky",
+            "bluesky"
+          ]
+        },
+        "threads": {
+          "name": "Threads",
+          "by": "Meta",
+          "note": "Live posts and reactions. Sign-in required to search.",
+          "urlTemplate": "https://www.threads.com/search?q={q}",
+          "bangs": [
+            "threads"
+          ]
+        },
+        "googlenews": {
+          "name": "Google News",
+          "by": "Google",
+          "note": "Headlines from news outlets.",
+          "urlTemplate": "https://news.google.com/search?q={q}",
+          "bangs": [
+            "gn",
+            "gnews"
+          ]
+        },
+        "apnews": {
+          "name": "AP News",
+          "by": "Associated Press",
+          "note": "Straight wire-service reporting.",
+          "urlTemplate": "https://apnews.com/search?q={q}",
+          "bangs": [
+            "ap",
+            "apnews"
+          ]
+        },
+        "ddgnews": {
+          "name": "DuckDuckGo News",
+          "by": "DuckDuckGo",
+          "note": "Headlines from news outlets, no tracking.",
+          "urlTemplate": "https://duckduckgo.com/?q={q}&iar=news&ia=news",
+          "bangs": [
+            "ddgn"
+          ]
+        },
+        "bravenews": {
+          "name": "Brave News",
+          "by": "Brave",
+          "note": "Headlines from news outlets, no tracking.",
+          "urlTemplate": "https://search.brave.com/news?q={q}",
+          "bangs": [
+            "bnews"
+          ]
+        }
+      }
+    },
+    "ddg": {
+      "label": "Web search",
+      "blurb": "Facts, sites, how-tos and everything else.",
+      "options": {
+        "ddglite": {
+          "name": "DuckDuckGo (html)",
+          "by": "DuckDuckGo",
+          "note": "No tracking. The fast, plain, script-free version.",
+          "urlTemplate": "https://html.duckduckgo.com/html/?q={q}",
+          "bangs": [
+            "d",
+            "ddg"
+          ]
+        },
+        "ddgfull": {
+          "name": "DuckDuckGo",
+          "by": "DuckDuckGo",
+          "note": "No tracking. The full page with instant answers.",
+          "urlTemplate": "https://duckduckgo.com/?q={q}",
+          "bangs": [
+            "duck"
+          ]
+        },
+        "brave": {
+          "name": "Brave Search",
+          "by": "Brave",
+          "note": "No tracking. Its own independent index.",
+          "urlTemplate": "https://search.brave.com/search?q={q}",
+          "bangs": [
+            "brave"
+          ]
+        },
+        "startpage": {
+          "name": "Startpage",
+          "by": "Startpage",
+          "note": "Google's results without the tracking.",
+          "urlTemplate": "https://www.startpage.com/sp/search?query={q}",
+          "bangs": [
+            "sp",
+            "startpage"
+          ]
+        },
+        "kagi": {
+          "name": "Kagi",
+          "by": "Kagi",
+          "note": "Kagi subscription required. No ads, no tracking.",
+          "urlTemplate": "https://kagi.com/search?q={q}",
+          "bangs": [
+            "kagi"
+          ]
+        },
+        "ecosia": {
+          "name": "Ecosia",
+          "by": "Ecosia",
+          "note": "Ad revenue plants trees.",
+          "urlTemplate": "https://www.ecosia.org/search?q={q}",
+          "bangs": [
+            "ecosia"
+          ]
+        },
+        "mojeek": {
+          "name": "Mojeek",
+          "by": "Mojeek",
+          "note": "No tracking. A small, independent index.",
+          "urlTemplate": "https://www.mojeek.com/search?q={q}",
+          "bangs": [
+            "mojeek"
+          ]
+        },
+        "google": {
+          "name": "Google",
+          "by": "Google",
+          "note": "Plain web results, without AI Overviews. Google tracks searches.",
+          "urlTemplate": "https://www.google.com/search?q={q}&udm=14",
+          "bangs": [
+            "google",
+            "goog"
+          ]
+        },
+        "bing": {
+          "name": "Bing",
+          "by": "Microsoft",
+          "note": "Microsoft tracks searches.",
+          "urlTemplate": "https://www.bing.com/search?q={q}",
+          "bangs": [
+            "bing"
+          ]
+        }
+      }
+    },
+    "maps": {
+      "label": "Maps",
+      "blurb": "Places, directions and anything near you.",
+      "options": {
+        "google": {
+          "name": "Google Maps",
+          "by": "Google",
+          "note": "Opens the Google Maps app if you have it.",
+          "urlTemplate": "https://maps.google.com/maps?q={q}",
+          "bangs": [
+            "gm",
+            "gmaps"
+          ]
+        },
+        "apple": {
+          "name": "Apple Maps",
+          "by": "Apple",
+          "note": "Opens the Maps app on iPhone, iPad and Mac.",
+          "urlTemplate": "https://maps.apple.com/?q={q}",
+          "bangs": [
+            "am",
+            "applemaps"
+          ]
+        },
+        "ddgmaps": {
+          "name": "DuckDuckGo Maps",
+          "by": "DuckDuckGo",
+          "note": "Apple Maps data, no tracking.",
+          "urlTemplate": "https://duckduckgo.com/?q={q}&iaxm=maps&ia=maps",
+          "bangs": [
+            "ddgm"
+          ]
+        },
+        "osm": {
+          "name": "OpenStreetMap",
+          "by": "OpenStreetMap",
+          "note": "Open, community-made map. No tracking.",
+          "urlTemplate": "https://www.openstreetmap.org/search?query={q}",
+          "bangs": [
+            "osm"
+          ]
+        },
+        "bing": {
+          "name": "Bing Maps",
+          "by": "Microsoft",
+          "note": "Microsoft's maps.",
+          "urlTemplate": "https://www.bing.com/maps?q={q}",
+          "bangs": [
+            "bm",
+            "bmaps"
+          ]
+        }
+      }
+    },
+    "images": {
+      "label": "Images",
+      "blurb": "Pictures, wallpapers and inspiration.",
+      "options": {
+        "bing": {
+          "name": "Bing Images",
+          "by": "Microsoft",
+          "note": "Big index with handy filters.",
+          "urlTemplate": "https://www.bing.com/images/search?q={q}",
+          "bangs": [
+            "bimg"
+          ]
+        },
+        "ddg": {
+          "name": "DuckDuckGo Images",
+          "by": "DuckDuckGo",
+          "note": "No tracking.",
+          "urlTemplate": "https://duckduckgo.com/?q={q}&iax=images&ia=images",
+          "bangs": [
+            "ddgi"
+          ]
+        },
+        "google": {
+          "name": "Google Images",
+          "by": "Google",
+          "note": "Google tracks searches.",
+          "urlTemplate": "https://www.google.com/search?q={q}&udm=2",
+          "bangs": [
+            "gi",
+            "gimg"
+          ]
+        },
+        "brave": {
+          "name": "Brave Images",
+          "by": "Brave",
+          "note": "No tracking.",
+          "urlTemplate": "https://search.brave.com/images?q={q}",
+          "bangs": [
+            "bri"
+          ]
+        },
+        "startpage": {
+          "name": "Startpage Images",
+          "by": "Startpage",
+          "note": "No tracking. Images are previewed through a proxy.",
+          "urlTemplate": "https://www.startpage.com/sp/search?query={q}&cat=images",
+          "bangs": [
+            "spi"
+          ]
+        },
+        "unsplash": {
+          "name": "Unsplash",
+          "by": "Unsplash",
+          "note": "Free, high-quality photos.",
+          "urlTemplate": "https://unsplash.com/s/photos/{q}",
+          "bangs": [
+            "unsplash"
+          ]
+        },
+        "openverse": {
+          "name": "Openverse",
+          "by": "WordPress.org",
+          "note": "Openly licensed images, free to reuse.",
+          "urlTemplate": "https://openverse.org/search/?q={q}",
+          "bangs": [
+            "openverse"
+          ]
+        },
+        "pinterest": {
+          "name": "Pinterest",
+          "by": "Pinterest",
+          "note": "Ideas and inspiration. Asks you to sign in.",
+          "urlTemplate": "https://www.pinterest.com/search/pins/?q={q}",
+          "bangs": [
+            "pin",
+            "pinterest"
+          ]
+        }
+      }
+    },
+    "youtube": {
+      "label": "Video & music",
+      "blurb": "Videos, music, tutorials and streams.",
+      "options": {
+        "youtube": {
+          "name": "YouTube",
+          "by": "Google",
+          "note": "Opens the YouTube app if you have it.",
+          "urlTemplate": "https://www.youtube.com/results?search_query={q}",
+          "bangs": [
+            "y",
+            "yt",
+            "youtube"
+          ]
+        },
+        "ddg": {
+          "name": "DuckDuckGo Videos",
+          "by": "DuckDuckGo",
+          "note": "No tracking. Asks before playing YouTube videos.",
+          "urlTemplate": "https://duckduckgo.com/?q={q}&iax=videos&ia=videos",
+          "bangs": [
+            "ddgv"
+          ]
+        },
+        "bing": {
+          "name": "Bing Videos",
+          "by": "Microsoft",
+          "note": "Searches across video sites.",
+          "urlTemplate": "https://www.bing.com/videos/search?q={q}",
+          "bangs": [
+            "bv"
+          ]
+        },
+        "vimeo": {
+          "name": "Vimeo",
+          "by": "Vimeo",
+          "note": "Films and creative work.",
+          "urlTemplate": "https://vimeo.com/search?q={q}",
+          "bangs": [
+            "vimeo"
+          ]
+        },
+        "dailymotion": {
+          "name": "Dailymotion",
+          "by": "Dailymotion",
+          "note": "News clips, sports and shows.",
+          "urlTemplate": "https://www.dailymotion.com/search/{q}",
+          "bangs": [
+            "dm",
+            "dailymotion"
+          ]
+        },
+        "peertube": {
+          "name": "PeerTube",
+          "by": "Sepia Search",
+          "note": "Decentralized video, no ads.",
+          "urlTemplate": "https://sepiasearch.org/search?search={q}",
+          "bangs": [
+            "peertube",
+            "sepia"
+          ]
+        },
+        "tiktok": {
+          "name": "TikTok",
+          "by": "TikTok",
+          "note": "Short videos.",
+          "urlTemplate": "https://www.tiktok.com/search?q={q}",
+          "bangs": [
+            "tt",
+            "tiktok"
+          ]
+        }
+      }
+    },
+    "ebay": {
+      "label": "Used & collectibles",
+      "blurb": "Second-hand, vintage, parts and collectibles.",
+      "options": {
+        "ebay": {
+          "name": "eBay",
+          "by": "eBay",
+          "note": "Auctions and listings for nearly anything.",
+          "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}",
+          "bangs": [
+            "eb",
+            "ebay"
+          ]
+        },
+        "marketplace": {
+          "name": "Facebook Marketplace",
+          "by": "Meta",
+          "note": "Local pickup. Sign-in required.",
+          "urlTemplate": "https://www.facebook.com/marketplace/search/?query={q}",
+          "bangs": [
+            "fbm",
+            "marketplace"
+          ]
+        },
+        "mercari": {
+          "name": "Mercari",
+          "by": "Mercari",
+          "note": "Second-hand, shipped to you (US).",
+          "urlTemplate": "https://www.mercari.com/search/?keyword={q}",
+          "bangs": [
+            "mercari"
+          ]
+        },
+        "offerup": {
+          "name": "OfferUp",
+          "by": "OfferUp",
+          "note": "Local listings (US).",
+          "urlTemplate": "https://offerup.com/search?q={q}",
+          "bangs": [
+            "offerup"
+          ]
+        },
+        "vinted": {
+          "name": "Vinted",
+          "by": "Vinted",
+          "note": "Second-hand clothing and more.",
+          "urlTemplate": "https://www.vinted.com/catalog?search_text={q}",
+          "bangs": [
+            "vinted"
+          ]
+        },
+        "depop": {
+          "name": "Depop",
+          "by": "Depop",
+          "note": "Vintage and streetwear.",
+          "urlTemplate": "https://www.depop.com/search/?q={q}",
+          "bangs": [
+            "depop"
+          ]
+        },
+        "etsy": {
+          "name": "Etsy",
+          "by": "Etsy",
+          "note": "Vintage and handmade.",
+          "urlTemplate": "https://www.etsy.com/search?q={q}",
+          "bangs": [
+            "etsy"
+          ]
+        },
+        "backmarket": {
+          "name": "Back Market",
+          "by": "Back Market",
+          "note": "Refurbished phones, laptops and tech (US).",
+          "urlTemplate": "https://www.backmarket.com/en-us/search?q={q}",
+          "bangs": [
+            "backmarket"
+          ]
+        }
+      }
+    }
   },
   "keywordRules": [
     {
@@ -406,7 +958,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 5,
       "kw": [
         "pros and cons",
@@ -447,7 +999,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 3,
       "kw": [
         "explain",
@@ -519,7 +1071,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 3,
       "kw": [
         "write a",
@@ -649,7 +1201,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 5,
       "kw": [
         "itinerary for",
@@ -673,7 +1225,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 3,
       "kw": [
         "worth it",
@@ -807,7 +1359,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 5,
       "kw": [
         "shows like",
@@ -877,7 +1429,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 5,
       "kw": [
         "honest review",
@@ -914,7 +1466,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 3,
       "kw": [
         "reviews",
@@ -940,7 +1492,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 5,
       "kw": [
         "worth upgrading",
@@ -1021,7 +1573,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 3,
       "priority": true,
       "kw": [
@@ -1077,7 +1629,7 @@
       ]
     },
     {
-      "engine": "lumo",
+      "engine": "ai",
       "weight": 3,
       "priority": true,
       "kw": [

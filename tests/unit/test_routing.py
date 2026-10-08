@@ -41,7 +41,7 @@ BENCH = json.loads((SCRIPTS / "routing_benchmark.json").read_text(encoding="utf-
 INDEX_HTML = (REPO_ROOT / "index.html").read_text(encoding="utf-8")
 RULES = PHRASES["keywordRules"]
 
-ENGINES = {"ddg", "lumo", "x", "maps", "youtube", "images", "ebay"}
+ENGINES = {"ddg", "ai", "x", "maps", "youtube", "images", "ebay"}
 
 try:
     import eval_routing  # needs numpy (+ onnxruntime/tokenizers for the model)
@@ -151,40 +151,40 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("why is the pope trending on twitter", "x"),
     ("what is trending right now", "x"),
     ("fans react to the finale", "x"),
-    ("honest review of the kindle colorsoft", "lumo"),
-    ("advice for a new grad engineer", "lumo"),
+    ("honest review of the kindle colorsoft", "ai"),
+    ("advice for a new grad engineer", "ai"),
     ("react documentation", "ddg"),
     ("pip install numpy", "ddg"),
     ("used road bike", "ebay"),
     ("vintage seiko watch", "ebay"),
     ("replacement parts for kitchenaid mixer", "ebay"),
     ("baseball card collection value", "ebay"),
-    ("pros and cons of solar panels", "lumo"),
-    ("write a poem about the ocean", "lumo"),
-    ("help me craft a tweet about my product launch", "lumo"),  # writing, not an X search
-    ("generate a tweet announcing our sale", "lumo"),
+    ("pros and cons of solar panels", "ai"),
+    ("write a poem about the ocean", "ai"),
+    ("help me craft a tweet about my product launch", "ai"),  # writing, not an X search
+    ("generate a tweet announcing our sale", "ai"),
     # writing intent outranks X news / opinion keywords
-    ("write a breaking news article about climate change", "lumo"),
-    ("draft a reaction to the new policy", "lumo"),
-    ("write a hot take about javascript", "lumo"),
-    ("craft a twitter thread about our launch", "lumo"),
-    ("write a breaking news post on twitter", "lumo"),  # priority beats stacked X rules
+    ("write a breaking news article about climate change", "ai"),
+    ("draft a reaction to the new policy", "ai"),
+    ("write a hot take about javascript", "ai"),
+    ("craft a twitter thread about our launch", "ai"),
+    ("write a breaking news post on twitter", "ai"),  # priority beats stacked X rules
     ("opinions on the cybertruck", "x"),
     ("fan reaction to the finale", "x"),
     ("twitter reactions to the trade", "x"),
     # punctuation is a word boundary too
-    ('"write a poem about rain"', "lumo"),
-    ("please—write a poem", "lumo"),
+    ('"write a poem about rain"', "ai"),
+    ("please—write a poem", "ai"),
     ("(breaking news in chicago)", "x"),
     ("weather?", "ddg"),
     # recommendation / login intent beats a bare platform mention
-    ("recommend a privacy-friendly alternative to twitter", "lumo"),
-    ("recommend books about twitter", "lumo"),
+    ("recommend a privacy-friendly alternative to twitter", "ai"),
+    ("recommend books about twitter", "ai"),
     ("sign in on twitter", "ddg"),
     ("log in to x", "ddg"),
-    ("recommend a live coverage source", "lumo"),
-    ("reviews of breaking news apps", "lumo"),
-    ("create a twitter thread about our launch", "lumo"),
+    ("recommend a live coverage source", "ai"),
+    ("reviews of breaking news apps", "ai"),
+    ("create a twitter thread about our launch", "ai"),
     ("delete my twitter account", "ddg"),
     ("twitter password reset", "ddg"),
     ("twitter help center", "ddg"),
@@ -194,33 +194,33 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("create a twitter account", "ddg"),  # account creation, not writing
     ("create an x account", "ddg"),
     ("how to create a twitter account", "ddg"),
-    ("recommend a help center platform", "lumo"),
-    ("advice for choosing help center software", "lumo"),
+    ("recommend a help center platform", "ai"),
+    ("advice for choosing help center software", "ai"),
     ("create a google account", "ddg"),  # 'create a' + 'account' = navigation
     ("create a github account", "ddg"),
     ("create an instagram account", "ddg"),
-    ("recommend a twitter account to follow", "lumo"),
-    ("advice for twitter account growth", "lumo"),
+    ("recommend a twitter account to follow", "ai"),
+    ("advice for twitter account growth", "ai"),
     ("recommend a restaurant near me", "maps"),  # local intent beats recommend
     ("suggest a hotel near me", "maps"),
     ("recommend a coffee shop nearby", "maps"),
     ("today's top headlines", "x"),
-    ("'write a poem about rain'", "lumo"),  # quote marks are boundaries
-    ("‘write a poem about rain’", "lumo"),
+    ("'write a poem about rain'", "ai"),  # quote marks are boundaries
+    ("‘write a poem about rain’", "ai"),
     ("'breaking news in denver'", "x"),
-    ("create a report about account security", "lumo"),  # writing, not signup
-    ("write a new account of the incident", "lumo"),
+    ("create a report about account security", "ai"),  # writing, not signup
+    ("write a new account of the incident", "ai"),
     ("pink floyd full albums", "youtube"),  # plural of a phrase keyword
     ("coldplay live concerts", "youtube"),
     ("beginner guitar tutorials", "youtube"),
     ("who is winning the debate right now", "x"),
     ("what did elon musk tweet today", "x"),
     ("rumors about the next iphone", "x"),
-    ("review of live coverage services", "lumo"),
+    ("review of live coverage services", "ai"),
     ("people’s reactions to the verdict", "x"),  # iOS curly apostrophe
-    ("itinerary for a weekend in lisbon", "lumo"),
-    ("is a masters degree worth it", "lumo"),
-    ("shows like severance", "lumo"),
+    ("itinerary for a weekend in lisbon", "ai"),
+    ("is a masters degree worth it", "ai"),
+    ("shows like severance", "ai"),
     ("weather in denver", "ddg"),
     ("banana bread recipe", "ddg"),
     ("gmail login", "ddg"),
@@ -231,7 +231,7 @@ KEYWORD_CASES: list[tuple[str, str]] = [
 KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("street fighter 6", None),         # not a maps address
     ("wall street journal", None),
-    ("healthy chicken recipes", "ddg"),  # 'healthy' is not a lumo signal; recipes → web
+    ("healthy chicken recipes", "ddg"),  # 'healthy' is not an ai signal; recipes → web
     ("browser console log", None),      # 'console' alone is not ebay
     ("xbox series x console", None),
     ("cinnamon bun recipe", "ddg"),
@@ -275,8 +275,8 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("linkedin headlines examples", None),
     ("rumors neil simon play", None),  # not social rumors
     ("moral outrage psychology", None),
-    ("how do people think without an inner monologue", "lumo"),  # explainer, not sentiment
-    ("why do people think dreams have meaning", "lumo"),
+    ("how do people think without an inner monologue", "ai"),  # explainer, not sentiment
+    ("why do people think dreams have meaning", "ai"),
 ]
 
 # End-to-end semantic routing spec: clear-cut queries per destination.
@@ -291,13 +291,13 @@ SEMANTIC_CASES: list[tuple[str, str]] = [
     ("best wireless earbuds under 100", "ddg"),
     ("top rated air purifier", "ddg"),
     ("best laptop for video editing", "ddg"),
-    # lumo — synthesized answers, planning, writing, advice
-    ("explain how nuclear fusion works", "lumo"),
-    ("write a thank you note to my teacher", "lumo"),
-    ("plan a 4 day trip to barcelona", "lumo"),
-    ("pros and cons of renting vs buying a house", "lumo"),
-    ("why did the dinosaurs go extinct", "lumo"),
-    ("is the vision pro worth the money", "lumo"),
+    # ai — synthesized answers, planning, writing, advice
+    ("explain how nuclear fusion works", "ai"),
+    ("write a thank you note to my teacher", "ai"),
+    ("plan a 4 day trip to barcelona", "ai"),
+    ("pros and cons of renting vs buying a house", "ai"),
+    ("why did the dinosaurs go extinct", "ai"),
+    ("is the vision pro worth the money", "ai"),
     # maps
     ("mexican restaurant near me", "maps"),
     ("directions to the nearest hospital", "maps"),
@@ -317,9 +317,9 @@ SEMANTIC_CASES: list[tuple[str, str]] = [
     ("what do developers think of htmx", "x"),
     ("live updates on the mars landing", "x"),
     ("public reaction to the verdict", "x"),
-    # lumo — reviews, advice
-    ("is the switch 2 worth upgrading to", "lumo"),
-    ("advice for surviving a long distance relationship", "lumo"),
+    # ai — reviews, advice
+    ("is the switch 2 worth upgrading to", "ai"),
+    ("advice for surviving a long distance relationship", "ai"),
     # ddg — tech lookups (no Hacker News route anymore)
     ("python requests documentation", "ddg"),
     ("node js download", "ddg"),
@@ -366,9 +366,11 @@ class ConfigTests(unittest.TestCase):
         for bang in ("wc", "nyt"):
             self.assertNotIn(bang, PHRASES["bangs"])
 
-    def test_grok_fully_removed(self):
-        """Grok was replaced by Lumo: no engine, bang, rule, route, embedding,
-        benchmark expectation, or grok.com link may remain."""
+    def test_grok_is_only_an_ai_provider(self):
+        """Grok is no longer a route of its own (Lumo replaced it, then the
+        `ai` route took over): no engine, bang, rule, route, embedding or
+        benchmark expectation may name it. It may only appear as one of
+        the AI destination choices."""
         self.assertNotIn("grok", PHRASES["engines"])
         self.assertNotIn("grok", CONFIG["engines"])
         self.assertNotIn("grok", PHRASES["bangs"].values())
@@ -376,18 +378,80 @@ class ConfigTests(unittest.TestCase):
         self.assertNotIn("grok", [r["key"] for r in EMBEDDINGS])
         for q in BENCH:
             self.assertNotIn("grok", [q["expect"], *q.get("also_ok", [])], q["q"])
-        for blob in (json.dumps(PHRASES), json.dumps(CONFIG)):
-            self.assertNotIn("grok.com", blob.lower(), "grok.com still referenced")
-        # index.html may mention Grok in the EMBEDDINGS_VERSION changelog.
+        for cfg in (PHRASES, CONFIG):
+            blob = json.dumps({k: v for k, v in cfg.items() if k != "destinations"})
+            self.assertNotIn("grok.com", blob.lower(), "grok.com referenced outside destinations")
+        # Destinations come from the config; index.html never names one.
         self.assertNotIn("'grok'", INDEX_HTML.lower())
 
-    def test_lumo_uses_guest_fragment_url(self):
-        """Signed-out visitors to lumo.proton.me/?q= are redirected to /guest
-        and the query is dropped; /guest#q= keeps it and auto-sends it."""
+    def test_ai_route_defaults_to_lumo_guest_url(self):
+        """The `ai` engine is the picker's default: Lumo. Signed-out
+        visitors to lumo.proton.me/?q= are redirected to /guest and the
+        query is dropped; /guest#q= keeps it and auto-sends it."""
+        self.assertEqual(next(iter(PHRASES["destinations"]["ai"]["options"])), "lumo")
         self.assertEqual(
-            PHRASES["engines"]["lumo"]["urlTemplate"],
-            "https://lumo.proton.me/guest#q={q}",
+            PHRASES["engines"]["ai"],
+            {"name": "Lumo", "urlTemplate": "https://lumo.proton.me/guest#q={q}"},
         )
+        self.assertEqual(
+            PHRASES["destinations"]["ai"]["options"]["lumo"]["urlTemplate"],
+            PHRASES["engines"]["ai"]["urlTemplate"],
+        )
+
+    def test_destinations(self):
+        """Every route has a picker: the default is the first option and
+        is exactly the route's engine, every option is an https URL that
+        carries the query, and option bangs are unique and don't shadow
+        route bangs."""
+        dests = PHRASES["destinations"]
+        self.assertEqual(CONFIG["destinations"], dests)
+        self.assertEqual(set(dests), ENGINES)
+        seen = set()
+        for route, sec in dests.items():
+            default = next(iter(sec["options"].values()))
+            self.assertEqual(
+                PHRASES["engines"][route],
+                {"name": default["name"], "urlTemplate": default["urlTemplate"]},
+                route,
+            )
+            self.assertGreaterEqual(len(sec["options"]), 2, route)
+            for oid, o in sec["options"].items():
+                with self.subTest(option=f"{route}/{oid}"):
+                    self.assertTrue(o["urlTemplate"].startswith("https://"))
+                    self.assertEqual(o["urlTemplate"].count("{q}"), 1)
+                    for b in o["bangs"]:
+                        self.assertNotIn(b, PHRASES["bangs"], f"!{b} shadows a route bang")
+                        self.assertNotIn(b, seen, f"!{b} used twice")
+                        seen.add(b)
+
+    def test_ai_destinations(self):
+        """Only assistants that read a query from the URL are offered: the
+        Gemini app, DeepSeek, Kimi, Le Chat and Copilot drop it, so they're
+        out (Gemini is offered through Google AI Mode instead). The short
+        legacy AI bangs follow the user's pick."""
+        options = PHRASES["destinations"]["ai"]["options"]
+        self.assertEqual(
+            list(options),
+            ["lumo", "duckai", "brave", "chatgpt", "claude", "gemini", "grok", "perplexity", "kagi"],
+        )
+        self.assertIn("udm=50", options["gemini"]["urlTemplate"])
+        for oid in ("deepseek", "kimi", "mistral", "copilot"):
+            self.assertNotIn(oid, options)
+        for bang in ("ai", "l", "p", "px", "g", "gr"):
+            self.assertEqual(PHRASES["bangs"][bang], "ai", bang)
+
+    def test_brand_bangs_reach_their_site(self):
+        """Brand bangs are option bangs, so `!yt` is YouTube even when the
+        video pick is Vimeo; generic bangs follow the pick."""
+        dests = PHRASES["destinations"]
+        for route, oid, bang in (
+            ("youtube", "youtube", "yt"), ("ebay", "ebay", "eb"), ("x", "x", "twitter"),
+            ("ddg", "ddglite", "ddg"), ("ai", "lumo", "lumo"), ("maps", "osm", "osm"),
+        ):
+            self.assertIn(bang, dests[route]["options"][oid]["bangs"], bang)
+        for bang, route in (("m", "maps"), ("i", "images"), ("v", "youtube"),
+                            ("news", "x"), ("used", "ebay"), ("web", "ddg")):
+            self.assertEqual(PHRASES["bangs"][bang], route, bang)
 
     def test_x_search_url_and_bangs(self):
         """X search: `src=typed_query` makes x.com treat it as a typed search
@@ -396,8 +460,7 @@ class ConfigTests(unittest.TestCase):
             PHRASES["engines"]["x"]["urlTemplate"],
             "https://x.com/search?q={q}&src=typed_query",
         )
-        for bang in ("x", "tw", "twitter"):
-            self.assertEqual(PHRASES["bangs"][bang], "x", bang)
+        self.assertEqual(PHRASES["destinations"]["x"]["options"]["x"]["bangs"], ["x", "tw", "twitter"])
 
     def test_hacker_news_fully_removed(self):
         """Hacker News is no longer a destination."""
@@ -421,7 +484,7 @@ class ConfigTests(unittest.TestCase):
             self.assertIn(rule["engine"], PHRASES["engines"])
 
     def test_generated_config_in_sync(self):
-        for key in ("engines", "bangs", "keywordRules"):
+        for key in ("engines", "bangs", "destinations", "keywordRules"):
             with self.subTest(key=key):
                 self.assertEqual(CONFIG[key], PHRASES[key],
                                  "regenerate: python3 scripts/generate_search_embeddings.py")
@@ -494,7 +557,7 @@ class KeywordRouterTests(unittest.TestCase):
         # general web (DDG fallback), not to a niche engine.
         for q in ("best robot vacuum", "best budget monitor", "buy a new mattress"):
             with self.subTest(query=q):
-                self.assertIn(classify_keywords(q) or "ddg", {"ddg", "lumo"})
+                self.assertIn(classify_keywords(q) or "ddg", {"ddg", "ai"})
 
     @unittest.skipUnless(HAVE_MODEL_DEPS, "numpy not installed")
     def test_mirror_matches_eval_script(self):

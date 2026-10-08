@@ -30,7 +30,7 @@ No build step, no bundler, no transpilation. The app is `index.html` + static fi
 
 ### Three-layer routing (fastest → slowest)
 
-1. **Bangs** — DuckDuckGo-style shortcuts (`!yt`, `!eb`, `!m`, etc.; see `bangs` in `search-config.json`). Synchronous regex, no model.
+1. **Bangs** — DuckDuckGo-style shortcuts (`!yt`, `!eb`, `!m`, etc.; route bangs are `bangs` in `search-config.json`, site bangs are on each `destinations` option). Synchronous regex, no model.
 2. **Direct URL detection** — `DOMAIN_RE` / `LOCALHOST_RE` catch domains like `github.com` or `localhost:3000`. Also rule-based, no model.
 3. **Semantic routing** — Query is embedded via `@huggingface/transformers` v4 (WASM), compared against pre-computed vectors in `search-embeddings.json`.
 
@@ -190,7 +190,7 @@ Activation paths (each independently sets `keywordMode = true`):
 - Crash-loop sentinel detects ≥ `MAX_CRASHES_BEFORE_FALLBACK` unfinished loads.
 - `initModel()` exhausts retries on a transient failure or hits a deterministic 4xx.
 
-`KEYWORD_RULES` is the source of truth: a flat list of `{ engine, weight, kw: [...] }` rules. Each rule contributes its `weight` to the engine's score if ANY of its `kw` strings match the query. Highest-scoring engine wins, with `MIN_KEYWORD_SCORE` (= 2) gating ambiguous matches into the DDG fallback. A rule marked `"priority": true` short-circuits that: if it matches, its engine wins outright no matter how other rules' weights stack. Four rules use it, in this order: DDG account creation (`create a * account`, `make an * account`, … where `*` is exactly one word), so "create a GitHub account" isn't mistaken for writing; Lumo writing intent (`write a`, `draft a`, `craft a`, `create a`, …), so "write a breaking news post on twitter" stays on Lumo; DDG login and account-help intent (`login`, `sign in`, `password reset`, `twitter account suspended`, `twitter help`, …), so "sign in on twitter" or "delete my twitter account" isn't an X search; and Lumo recommendation/review intent (`recommend`, `suggest a`, `advice for`, `review of`, …), so "recommend a live coverage source" or "reviews of breaking news apps" isn't either (**unless** `near me` / `nearby`: "recommend a restaurant near me" stays on Maps). Any rule can also carry `unless` (it doesn't match if one of these keywords is present); `ruleMatches()` and both Python mirrors implement it and `validate_config.py` checks it. When several priority rules match, the first in the list wins ("write a login page" → Lumo). `classifyKeywords()` in `index.html` and both Python mirrors (`eval_routing.py`, `tests/unit/test_routing.py`) implement it. Keywords (bare words and phrases alike) match whole words only: `code` doesn't match `decode`, and `craft a` matches neither `minecraft armor` nor `craft armor`. The last word may take a plural `s`/`es` (`full album` matches `full albums`), and `*` stands for exactly one word (`create a * account`). Other inflections must be listed explicitly. Before matching, `normalizeForKeywords()` lowercases the query and keywords and folds punctuation to spaces (curly apostrophes from iOS smart punctuation are straightened first; apostrophes survive only inside words, so `'write a poem'` in quotes still matches), so quotes, brackets and dashes count as word boundaries (`"write a poem"`, `(breaking news…)`, `weather?`).
+`KEYWORD_RULES` is the source of truth: a flat list of `{ engine, weight, kw: [...] }` rules. Each rule contributes its `weight` to the engine's score if ANY of its `kw` strings match the query. Highest-scoring engine wins, with `MIN_KEYWORD_SCORE` (= 2) gating ambiguous matches into the DDG fallback. A rule marked `"priority": true` short-circuits that: if it matches, its engine wins outright no matter how other rules' weights stack. Four rules use it, in this order: DDG account creation (`create a * account`, `make an * account`, … where `*` is exactly one word), so "create a GitHub account" isn't mistaken for writing; `ai` writing intent (`write a`, `draft a`, `craft a`, `create a`, …), so "write a breaking news post on twitter" stays on `ai`; DDG login and account-help intent (`login`, `sign in`, `password reset`, `twitter account suspended`, `twitter help`, …), so "sign in on twitter" or "delete my twitter account" isn't an X search; and `ai` recommendation/review intent (`recommend`, `suggest a`, `advice for`, `review of`, …), so "recommend a live coverage source" or "reviews of breaking news apps" isn't either (**unless** `near me` / `nearby`: "recommend a restaurant near me" stays on Maps). Any rule can also carry `unless` (it doesn't match if one of these keywords is present); `ruleMatches()` and both Python mirrors implement it and `validate_config.py` checks it. When several priority rules match, the first in the list wins ("write a login page" → `ai`). `classifyKeywords()` in `index.html` and both Python mirrors (`eval_routing.py`, `tests/unit/test_routing.py`) implement it. Keywords (bare words and phrases alike) match whole words only: `code` doesn't match `decode`, and `craft a` matches neither `minecraft armor` nor `craft armor`. The last word may take a plural `s`/`es` (`full album` matches `full albums`), and `*` stands for exactly one word (`create a * account`). Other inflections must be listed explicitly. Before matching, `normalizeForKeywords()` lowercases the query and keywords and folds punctuation to spaces (curly apostrophes from iOS smart punctuation are straightened first; apostrophes survive only inside words, so `'write a poem'` in quotes still matches), so quotes, brackets and dashes count as word boundaries (`"write a poem"`, `(breaking news…)`, `weather?`).
 
 When *adding* a new keyword:
 - Multi-word phrases (`pull request`, `buy usb-c cable`) are stable — pretty much always specific enough.
@@ -201,24 +201,35 @@ When *adding* a new keyword:
 ### Removed destinations: Wirecutter and Hacker News
 There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
 - "best X" product shopping → **DDG**.
-- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **Lumo**.
-- Tech discussion: "what do developers think of…" / hot takes → **X**; debates, engineering war stories, explainers → **Lumo**; docs, installs, downloads, project lookups → **DDG**.
+- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **ai** (Lumo by default).
+- Tech discussion: "what do developers think of…" / hot takes → **X**; debates, engineering war stories, explainers → **ai**; docs, installs, downloads, project lookups → **DDG**.
 
 `ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
 
-### Lumo's scope (replaced Grok)
-Lumo is Proton's privacy-first assistant. Besides explainers / research / writing it is the destination for **product reviews, recommendations and advice**. Breaking news and opinions moved to X (see below); the benchmark still accepts Lumo for those, since guest-mode Lumo searches the web on its own. Gemini was considered as a general-purpose AI destination but dropped: gemini.google.com has no native URL query parameter, so the query would be lost.
+### Destinations: the user picks the site, the router picks the route
+Route keys (`ai`, `x`, `ddg`, `maps`, `images`, `youtube`, `ebay`) are *kinds* of search, not sites. `destinations` in `scripts/search_phrases.json` (copied to `search-config.json`) gives each route a `label`, a `blurb` and an ordered `options` map of `{ name, by, note, urlTemplate, bangs }`. The **first option is the default** and must equal `engines[route]` exactly (`validate_config.py` enforces it), so routing without the picker, the Python evals and the DDG-only fallback all see the defaults.
 
-The URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
+Runtime (`loadDestinations()` in `index.html`):
+- The picks live in localStorage under `divid3-destinations` as `{ route: optionId }`, **only the non-defaults**; nothing is stored while everything is default. `readChoices()` ignores unknown routes/ids, so a removed site or a hand-edited value falls back to the default. No cookies: the picks never reach a server. `privacy.html` documents this; keep it in sync.
+- `applyChoices()` rewrites `engines[route]` to the chosen option, so the hint, score chips, overlay and `performRoute()` need no special casing.
+- Every option is also a hidden engine `<route>:<id>` (`engine.hidden`), reached by its own bangs. **Brand bangs are option bangs** (`!yt` → `youtube:youtube`, `!x`, `!eb`, `!ddg`, `!lumo`, `!claude`…), so they always reach that site. **Route bangs** in `bangs` (`!ai`, `!m`, `!i`, `!v`, `!news`, `!web`, `!used`) follow the pick. An option bang may not shadow a route bang. `renderOverrideButtons()` skips hidden engines unless one is being routed.
+- UI: the `Destinations` footer link, the `D` shortcut, or "Change default destinations" on the routing overlay open a native `<dialog>` (bottom sheet on phones). It builds DOM nodes, never `innerHTML`. Changing a pick re-renders the open overlay or the live hint. The document-level shortcut and Esc handlers bail while the dialog is open (it handles Esc itself).
+
+Only add a site whose search URL actually carries the query (check in a real browser; many AI apps drop it). Out on purpose: the Gemini app, DeepSeek, Kimi, Qwen, Le Chat, Copilot, Meta AI, Venice and HuggingChat (they drop the query or bounce it through a login); Gemini is offered as Google AI Mode (`udm=50`). Craigslist needs a city subdomain and Waze's link is a landing page on desktop. Say in `note` when a site needs sign-in or only fills in the prompt. The Google web option uses `udm=14` (plain web results, no AI Overviews). Wirecutter (`nytimes.com`) and Hacker News (`algolia.com`) stay out of every list; the unit tests check it.
+
+### Lumo, the default AI (replaced Grok)
+The `ai` route (formerly `lumo`, renamed in v22) is for explainers / research / writing and also **product reviews, recommendations and advice**. Breaking news and opinions moved to X (see below); the benchmark still accepts `ai` for those, since guest-mode Lumo searches the web on its own.
+
+Lumo's URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
 - `lumo.proton.me/?q=` does **not** work for signed-out visitors: Lumo redirects them to `/guest` and drops the query. `/guest` reads `q` from the query string or the fragment and auto-sends it (`?prefill=` only fills the box).
 - The `#` fragment keeps the query out of the request line, so it isn't in Proton's server logs or a `Referer`.
 - Trade-off: signed-in Proton users land in a guest chat (not saved to their account, guest limits).
 - lumo.proton.me publishes no `apple-app-site-association` / `assetlinks.json`, so links open the web app, not the native Lumo app. That's Proton's side; if they add it, the same URL will open the app.
 
-`!l` / `!lumo` are the Lumo bangs; `!g`, `!gr`, `!p`, `!px` are kept as aliases from the Grok/Perplexity days. `ConfigTests.test_grok_fully_removed` guards against Grok creeping back.
+`!lumo` reaches Lumo itself; `!ai`, `!l`, `!g`, `!gr`, `!p`, `!px` reach the user's AI pick. Grok is back only as an AI option: `ConfigTests.test_grok_is_only_an_ai_provider` keeps it out of routes, rules and the embeddings.
 
-### X's scope (news and opinions)
-X (`x` engine) is the destination for **breaking news, live updates, current events, opinions, hot takes, drama/controversy and social sentiment ("what are people saying…", "what do developers think of…")**. The line against Lumo: *what people are saying right now* → X; *a product review, recommendation or advice* → Lumo. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG, and `twitter login` stays on DDG (the `login` rule outweighs `twitter`).
+### X, the default news destination
+X (the default for the `x` route) is the destination for **breaking news, live updates, current events, opinions, hot takes, drama/controversy and social sentiment ("what are people saying…", "what do developers think of…")**. The line against Lumo: *what people are saying right now* → X; *a product review, recommendation or advice* → Lumo. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG, and `twitter login` stays on DDG (the `login` rule outweighs `twitter`).
 
 The URL is `https://x.com/search?q={q}&src=typed_query` (`src=typed_query` is what X's own search box sends). Trade-offs:
 - X requires sign-in to search. Signed-out visitors get a 307 to X's login page with the search in `redirect_after_login`, so it resumes after they log in.
@@ -226,7 +237,7 @@ The URL is `https://x.com/search?q={q}&src=typed_query` (`src=typed_query` is wh
 - x.com publishes `apple-app-site-association`, so on iOS with the X app installed the link opens the app.
 - Unlike Lumo's `#q=`, the query is in the request line and goes to X's servers. That's inherent to searching X.
 
-Bangs: `!x`, `!tw`, `!twitter`. The phrases live in the `x` route of `scripts/search_phrases.json`; keyword rules are the `x` entries in `keywordRules`.
+Bangs: `!x`, `!tw`, `!twitter` (X itself); `!news` / `!n` follow the user's news pick. The phrases live in the `x` route of `scripts/search_phrases.json`; keyword rules are the `x` entries in `keywordRules`.
 
 The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 

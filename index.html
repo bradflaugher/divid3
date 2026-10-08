@@ -547,8 +547,12 @@
       width: 60px;
     }
     .scores-panel .score-label {
-      /* Wide enough for "DuckDuckGo (html)" (17 chars) at 0.7rem mono. */
+      /* Wide enough for "DuckDuckGo Videos" (17 chars) at 0.7rem mono;
+         longer picks ("Facebook Marketplace") get an ellipsis. */
       width: 130px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
       text-align: right;
       font-size: 0.7rem;
     }
@@ -797,7 +801,281 @@
     font-size: 0.75rem;
     color: var(--text-muted);
   }
-  /* ── Theme toggle ── */
+  /* ── Destinations (per-route pickers) ── */
+  .footer-links .dest-pick {
+    position: relative;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-muted);
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+    transition: color 0.3s ease, opacity 0.3s ease;
+  }
+  .footer-links .dest-pick:hover { color: var(--text); opacity: 0.8; }
+  .footer-links .dest-pick[hidden] { display: none; }
+  /* A small dot once anything differs from the defaults. */
+  .footer-links .dest-pick[data-custom]::after {
+    content: '';
+    position: absolute;
+    top: -0.15em;
+    right: -0.55em;
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .overlay-settings {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    margin-top: 1rem;
+    padding: 0.5rem;
+    min-height: 44px;
+  }
+  .overlay-settings:hover, .overlay-settings:focus-visible { color: var(--text); }
+  .dest-dialog {
+    margin: auto;
+    width: calc(100% - 32px);
+    max-width: 620px;
+    max-height: min(820px, calc(100dvh - 48px));
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--rule);
+    border-radius: 18px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+    overflow: hidden;
+  }
+  .dest-dialog[open] {
+    display: flex;
+    flex-direction: column;
+    animation: destIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .dest-dialog::backdrop {
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  @keyframes destIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+  }
+  .dest-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+  .dest-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.4rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .dest-head h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .dest-sub {
+    margin-top: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 300;
+    line-height: 1.45;
+    color: var(--text-muted);
+  }
+  .dest-close {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--rule);
+    background: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .dest-close:hover, .dest-close:focus-visible { color: var(--text); border-color: var(--text); }
+  .dest-sections {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.5rem 1.5rem;
+    flex: 1;
+    min-height: 0;
+  }
+  .dest-section {
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .dest-section:last-child { border-bottom: none; }
+  .dest-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .dest-section h3 {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .dest-current {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dest-blurb {
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 300;
+    color: var(--text-muted);
+  }
+  .dest-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  }
+  .dest-chip { position: relative; }
+  /* The radio stays in the accessibility tree and keyboard order; the
+     chip face is what you see. */
+  .dest-chip input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .dest-chip-face {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 400;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+    pointer-events: none;
+  }
+  .dest-chip:hover .dest-chip-face { border-color: var(--text-muted); }
+  .dest-chip input:checked + .dest-chip-face {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+    font-weight: 500;
+  }
+  .dest-chip input:focus-visible + .dest-chip-face {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+  .dest-chip input:active + .dest-chip-face { transform: scale(0.97); }
+  .dest-note {
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 300;
+    line-height: 1.4;
+    color: var(--text-muted);
+  }
+  .dest-note .dest-by { font-weight: 500; color: var(--text); margin-right: 0.4rem; }
+  .dest-tag, .dest-bang {
+    display: inline-block;
+    margin: 0.2rem 0 0 0.4rem;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0 0.35rem;
+    white-space: nowrap;
+  }
+  .dest-bang {
+    font-family: "SF Mono", "Fira Code", monospace;
+    background: var(--code-bg);
+  }
+  .dest-foot {
+    padding: 1rem 1.5rem calc(1rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--rule);
+  }
+  .dest-privacy {
+    font-size: 0.72rem;
+    font-weight: 300;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+  .dest-privacy a { color: inherit; }
+  .dest-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.85rem;
+  }
+  .dest-reset {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.78rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 0.5rem 0;
+  }
+  .dest-reset:hover, .dest-reset:focus-visible { color: var(--text); }
+  .dest-reset:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
+  .dest-done {
+    min-height: 40px;
+    padding: 0.5rem 1.6rem;
+    background: var(--text);
+    color: var(--bg);
+    border: 1px solid var(--text);
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+  .dest-done:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  /* Phones: a bottom sheet. */
+  @media (max-width: 767px) {
+    .dest-dialog {
+      margin: auto 0 0;
+      width: 100%;
+      max-width: none;
+      max-height: 92dvh;
+      border-radius: 18px 18px 0 0;
+      border-bottom: none;
+    }
+    .dest-dialog[open] { animation-name: destSheetIn; }
+    .dest-head, .dest-sections, .dest-foot { padding-left: 1rem; padding-right: 1rem; }
+  }
+  @keyframes destSheetIn {
+    from { transform: translateY(100%); }
+    to   { transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dest-dialog[open] { animation: none; }
+  }
+  /* ── Theme toggle ── */  /* ── Theme toggle ── */
   .theme-toggle {
     position: fixed;
     top: max(env(safe-area-inset-top), 0.75rem);
@@ -853,6 +1131,7 @@
   <div class="overlay-prompt">Choose where to go</div>
   <div class="engine-name" id="engine-display" hidden></div>
   <div class="override-engines" id="override-engines"></div>
+  <button type="button" class="overlay-settings" id="overlay-settings" aria-haspopup="dialog">Change default destinations</button>
   <button class="cancel-btn" id="cancel">Cancel</button>
 </div>
 
@@ -868,10 +1147,31 @@
 <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme (T)">◐</button>
 
 <div class="footer-links">
+  <button type="button" class="dest-pick" id="dest-pick" aria-haspopup="dialog" title="Choose your destinations (D)" hidden>Destinations</button>
   <a href="/setup.html">Set as default</a>
   <a href="/privacy.html">Privacy</a>
   <a href="https://github.com/bradflaugher/divid3" target="_blank" rel="noopener">Source</a>
 </div>
+
+<dialog class="dest-dialog" id="dest-dialog" aria-labelledby="dest-title" aria-describedby="dest-sub">
+  <form method="dialog" class="dest-panel">
+    <header class="dest-head">
+      <div>
+        <h2 id="dest-title">Destinations</h2>
+        <p class="dest-sub" id="dest-sub">divid3 works out what kind of search you typed. You choose where each kind goes.</p>
+      </div>
+      <button class="dest-close" value="close" aria-label="Close">✕</button>
+    </header>
+    <div class="dest-sections" id="dest-sections"></div>
+    <footer class="dest-foot">
+      <p class="dest-privacy">Saved only in this browser. No cookies, no account, nothing sent to divid3. Searches go straight to the site you pick. <a href="/privacy.html">Privacy</a></p>
+      <div class="dest-actions">
+        <button type="button" class="dest-reset" id="dest-reset">Reset to defaults</button>
+        <button class="dest-done" value="done">Done</button>
+      </div>
+    </footer>
+  </form>
+</dialog>
 
 <div class="shortcuts-overlay" id="shortcuts-overlay">
   <div class="shortcuts-panel">
@@ -881,6 +1181,7 @@
     <div class="sc-row"><span>Route to selection</span><kbd>Enter</kbd></div>
     <div class="sc-row"><span>Close overlay</span><kbd>Esc</kbd></div>
     <div class="sc-row"><span>Toggle theme</span><kbd>T</kbd></div>
+    <div class="sc-row"><span>Choose destinations</span><kbd>D</kbd></div>
     <div class="sc-row"><span>This help</span><kbd>?</kbd></div>
     <div class="sc-close">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div>
   </div>
@@ -950,7 +1251,9 @@
   //       opinions and social sentiment, moved off lumo
   //  v21: x route sharpened after review (world news / news-site navigation
   //       moved to ddg)
-  const EMBEDDINGS_VERSION = '21';
+  //  v22: lumo route renamed to ai; new `destinations` table lets the
+  //       user pick the site each route opens (Lumo, X… stay the defaults)
+  const EMBEDDINGS_VERSION = '22';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
@@ -1177,6 +1480,11 @@
   const shortcutsOverlay = $('shortcuts-overlay');
   const themeToggle    = $('theme-toggle');
   const overrideEngines = $('override-engines');
+  const destPick       = $('dest-pick');
+  const destDialog     = $('dest-dialog');
+  const destSections   = $('dest-sections');
+  const destReset      = $('dest-reset');
+  const overlaySettings = $('overlay-settings');
 
   // ───────────────────────────────────────────────────────────────────────
   // Global error handlers
@@ -1511,6 +1819,206 @@
 
   let configPromise = null;
 
+  /** URL builder for an engine template. A function replacement, so
+   *  `$&` / `` $` `` in the query aren't expanded. */
+  function templateUrl(template) {
+    return q => template.replace('{q}', () => q);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Destinations: a picker per route
+  //
+  // The router decides what *kind* of search a query is (a route: ai, x,
+  // ddg, maps…); `destinations` in search-config.json lists the sites
+  // each route can open, first one being the default. The user's picks
+  // live in localStorage under one key, and only the ones that differ
+  // from the defaults: it stays in this browser and, unlike a cookie, is
+  // never sent with a request to divid3.
+  //
+  // Each option is also registered as a hidden engine `<route>:<id>`
+  // behind its own bangs (`!claude`, `!yt`, `!osm`…), so a bang always
+  // reaches its site whatever the user picked. Route bangs (`!ai`, `!m`)
+  // follow the pick. Hidden engines are left out of the overlay's
+  // choices unless one is what's being routed.
+  // ───────────────────────────────────────────────────────────────────────
+  const DEST_KEY = 'divid3-destinations';
+  let DESTINATIONS = {};
+  // The overlay's last render, so a change of destination can refresh it.
+  let lastOverlay = null;
+
+  function loadDestinations(raw) {
+    DESTINATIONS = {};
+    if (!raw || typeof raw !== 'object') return;
+    for (const [route, sec] of Object.entries(raw)) {
+      if (route === 'direct' || !engines[route] || !sec || !sec.options || typeof sec.options !== 'object') continue;
+      const options = {};
+      let defaultId = null;
+      for (const [id, o] of Object.entries(sec.options)) {
+        if (!o || !o.name || typeof o.urlTemplate !== 'string' || !o.urlTemplate.startsWith('https://')) continue;
+        const bangs = Array.isArray(o.bangs) ? o.bangs.filter(b => typeof b === 'string') : [];
+        const url = templateUrl(o.urlTemplate);
+        options[id] = { name: o.name, by: o.by || '', note: o.note || '', bangs, url };
+        defaultId ??= id;
+        const key = `${route}:${id}`;
+        engines[key] = { name: o.name, url, hidden: true };
+        for (const bang of bangs) {
+          if (!Object.hasOwn(BANG_MAP, bang)) BANG_MAP[bang] = key;
+        }
+      }
+      if (defaultId) {
+        DESTINATIONS[route] = { label: sec.label || engines[route].name, blurb: sec.blurb || '', defaultId, options };
+      }
+    }
+    applyChoices(readChoices());
+  }
+
+  /** route → option id for every route, defaults filled in. Anything
+   *  unknown in storage (a removed site, a hand-edited value) is ignored. */
+  function readChoices() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(DEST_KEY) || 'null'); } catch (_) {}
+    const choices = {};
+    for (const [route, d] of Object.entries(DESTINATIONS)) {
+      const id = saved && typeof saved === 'object' && Object.hasOwn(saved, route) ? saved[route] : null;
+      choices[route] = typeof id === 'string' && Object.hasOwn(d.options, id) ? id : d.defaultId;
+    }
+    return choices;
+  }
+
+  /** Store only what differs from the defaults; nothing at all when
+   *  everything is default. */
+  function saveChoices(choices) {
+    const custom = {};
+    for (const [route, id] of Object.entries(choices)) {
+      if (DESTINATIONS[route] && id !== DESTINATIONS[route].defaultId) custom[route] = id;
+    }
+    try {
+      if (Object.keys(custom).length) localStorage.setItem(DEST_KEY, JSON.stringify(custom));
+      else localStorage.removeItem(DEST_KEY);
+    } catch (_) {}
+  }
+
+  /** Point each route's engine at its chosen site. */
+  function applyChoices(choices) {
+    let custom = 0;
+    for (const [route, id] of Object.entries(choices)) {
+      const d = DESTINATIONS[route];
+      const o = d && d.options[id];
+      if (!o) continue;
+      engines[route] = { name: o.name, url: o.url };
+      if (id !== d.defaultId) custom++;
+    }
+    destPick.hidden = Object.keys(DESTINATIONS).length === 0;
+    overlaySettings.hidden = destPick.hidden;
+    if (custom) destPick.dataset.custom = String(custom);
+    else delete destPick.dataset.custom;
+    destPick.setAttribute('aria-label', custom
+      ? `Destinations (${custom} changed from the defaults)` : 'Destinations');
+    destReset.disabled = custom === 0;
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  /** The line under a route's chips: who runs the site, what to expect,
+   *  and the bangs that reach it directly. */
+  function renderDestNote(note, route, id) {
+    const d = DESTINATIONS[route];
+    const o = d.options[id];
+    const parts = [el('span', 'dest-by', o.by), el('span', '', o.note)];
+    if (id === d.defaultId) parts.push(el('span', 'dest-tag', 'Default'));
+    for (const b of o.bangs) parts.push(el('span', 'dest-bang', `!${b}`));
+    note.replaceChildren(...parts);
+  }
+
+  function renderDestinations() {
+    const choices = readChoices();
+    const frag = document.createDocumentFragment();
+    for (const [route, d] of Object.entries(DESTINATIONS)) {
+      const section = el('section', 'dest-section');
+      section.dataset.route = route;
+      const head = el('div', 'dest-section-head');
+      const h3 = el('h3', '', d.label);
+      h3.id = `dest-h-${route}`;
+      const current = el('span', 'dest-current', d.options[choices[route]].name);
+      head.append(h3, current);
+      const chips = el('div', 'dest-chips');
+      chips.setAttribute('role', 'radiogroup');
+      chips.setAttribute('aria-labelledby', h3.id);
+      for (const [id, o] of Object.entries(d.options)) {
+        const chip = el('label', 'dest-chip');
+        const radio = el('input');
+        radio.type = 'radio';
+        radio.name = `dest-${route}`;
+        radio.value = id;
+        radio.checked = id === choices[route];
+        chip.append(radio, el('span', 'dest-chip-face', o.name));
+        chips.appendChild(chip);
+      }
+      const note = el('p', 'dest-note');
+      note.setAttribute('aria-live', 'polite');
+      renderDestNote(note, route, choices[route]);
+      section.append(head, el('p', 'dest-blurb', d.blurb), chips, note);
+      frag.appendChild(section);
+    }
+    destSections.replaceChildren(frag);
+  }
+
+  function openDestinations() {
+    if (destPick.hidden || destDialog.open) return;
+    renderDestinations();
+    destSections.scrollTop = 0;
+    destDialog.showModal();
+    // Start on the route being routed, if the overlay is up.
+    const focusRoute = lastOverlay && overlay.classList.contains('active')
+      ? lastOverlay.key.split(':')[0] : null;
+    const target = (focusRoute && destSections.querySelector(`[data-route="${focusRoute}"] input:checked`))
+      || destSections.querySelector('input:checked');
+    target?.focus();
+    target?.closest('.dest-section')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** Re-render anything that names a destination. */
+  function refreshAfterChoice() {
+    if (overlay.classList.contains('active') && lastOverlay && engines[lastOverlay.key]) {
+      display.textContent = engines[lastOverlay.key].name;
+      renderOverrideButtons(lastOverlay.key, lastOverlay.scores);
+    } else if (search.value.trim()) {
+      updateHint();
+    }
+  }
+
+  destPick.addEventListener('click', openDestinations);
+  overlaySettings.addEventListener('click', openDestinations);
+  destSections.addEventListener('change', e => {
+    const section = e.target.closest('.dest-section');
+    const route = section && section.dataset.route;
+    const id = e.target.value;
+    if (!route || !DESTINATIONS[route] || !Object.hasOwn(DESTINATIONS[route].options, id)) return;
+    const choices = readChoices();
+    choices[route] = id;
+    saveChoices(choices);
+    applyChoices(choices);
+    section.querySelector('.dest-current').textContent = DESTINATIONS[route].options[id].name;
+    renderDestNote(section.querySelector('.dest-note'), route, id);
+    refreshAfterChoice();
+  });
+  destReset.addEventListener('click', () => {
+    try { localStorage.removeItem(DEST_KEY); } catch (_) {}
+    applyChoices(readChoices());
+    renderDestinations();
+    refreshAfterChoice();
+    destDialog.querySelector('.dest-done').focus();
+  });
+  // Tap on the backdrop closes the panel.
+  destDialog.addEventListener('click', e => {
+    if (e.target === destDialog) destDialog.close();
+  });
+
   /**
    * Load /search-config.json — the single source of truth for engines,
    * bang shortcuts, and keyword fallback rules. Generated by
@@ -1542,8 +2050,8 @@
           newEngines[key] = {
             name: val.name,
             url: key === 'direct'
-              ? (q => toDirectUrl(val.urlTemplate.replace('{q}', () => q)))
-              : (q => val.urlTemplate.replace('{q}', () => q))
+              ? (q => toDirectUrl(templateUrl(val.urlTemplate)(q)))
+              : templateUrl(val.urlTemplate)
           };
         }
         if (!newEngines.ddg) {
@@ -1552,8 +2060,9 @@
           throw new Error('config must define a "ddg" engine');
         }
         engines = newEngines;
-        BANG_MAP = (cfg.bangs && typeof cfg.bangs === 'object') ? cfg.bangs : {};
+        BANG_MAP = (cfg.bangs && typeof cfg.bangs === 'object') ? { ...cfg.bangs } : {};
         KEYWORD_RULES = Array.isArray(cfg.keywordRules) ? cfg.keywordRules : [];
+        loadDestinations(cfg.destinations);
         console.log(
           `Search router: loaded ${Object.keys(engines).length} engines, ` +
           `${Object.keys(BANG_MAP).length} bangs, ${KEYWORD_RULES.length} keyword rules`,
@@ -2210,9 +2719,15 @@
       if (k !== 'direct' && !rankedKeys.includes(k)) rankedKeys.push(k);
     }
 
+    // A site bang (`!yt` → `youtube:youtube`) stands in for its route's
+    // button, so the overlay doesn't offer YouTube twice.
+    const replacedRoute = engines[selectedKey]?.hidden ? selectedKey.split(':')[0] : null;
+
     for (const key of rankedKeys) {
       const engine = engines[key];
-      if (!engine || key === 'direct') continue;
+      if (!engine || key === 'direct' || key === replacedRoute) continue;
+      // Per-site engines (`!claude`, `!osm`…) only show when picked.
+      if (engine.hidden && key !== selectedKey) continue;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'override-btn' + (key === selectedKey ? ' selected top-match' : '');
@@ -2325,6 +2840,7 @@
     }
 
     const engine = engines[key];
+    lastOverlay = { key, scores };
     queryDisplay.textContent = rawQuery;
     display.textContent = engine.name;
     renderOverrideButtons(key, scores);
@@ -2471,6 +2987,7 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     // Don't hijack characters the user is typing into the input.
     if (isTypingTarget(e.target)) return;
+    if (destDialog.open) return;
 
     if (e.key === '?') {
       e.preventDefault();
@@ -2478,6 +2995,10 @@
     } else if (e.key.toLowerCase() === 't') {
       e.preventDefault();
       toggleTheme();
+    } else if (e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      hideShortcuts();
+      openDestinations();
     } else if (e.key === '/') {
       e.preventDefault();
       search.focus();
@@ -2494,6 +3015,8 @@
   // Escape while the redirect overlay is up should cancel it too. Plain
   // keyboard accessibility — useful on desktop, no harm on mobile.
   document.addEventListener('keydown', e => {
+    // The destinations panel closes itself on Esc (native <dialog>).
+    if (destDialog.open) return;
     if (e.key === 'Escape') {
       if (overlay.style.display === 'flex') {
         e.preventDefault();
@@ -2583,7 +3106,7 @@
   // land at the document level; the isTypingTarget guard keeps them
   // from fighting the input if the user refocuses it underneath.
   document.addEventListener('keydown', e => {
-    if (overlay.style.display !== 'flex') return;
+    if (overlay.style.display !== 'flex' || destDialog.open) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (isTypingTarget(e.target)) return;
     const btns = [...overrideEngines.querySelectorAll('.override-btn')];
