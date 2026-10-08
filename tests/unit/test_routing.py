@@ -426,16 +426,18 @@ class ConfigTests(unittest.TestCase):
 
     def test_ai_destinations(self):
         """Only assistants that read a query from the URL are offered: the
-        Gemini app, DeepSeek, Kimi, Le Chat and Copilot drop it, so they're
-        out (Gemini is offered through Google AI Mode instead). The short
+        Gemini app, DeepSeek, Kimi and Copilot drop it, so they're out
+        (Gemini is offered through Google AI Mode instead). Le Chat keeps
+        it through its login (`pending_auth_prompt`). The short
         legacy AI bangs follow the user's pick."""
         options = PHRASES["destinations"]["ai"]["options"]
         self.assertEqual(
             list(options),
-            ["lumo", "duckai", "brave", "chatgpt", "claude", "gemini", "grok", "perplexity", "kagi"],
+            ["lumo", "duckai", "brave", "chatgpt", "claude", "lechat", "gemini", "grok",
+             "perplexity", "kagi"],
         )
         self.assertIn("udm=50", options["gemini"]["urlTemplate"])
-        for oid in ("deepseek", "kimi", "mistral", "copilot"):
+        for oid in ("deepseek", "kimi", "copilot"):
             self.assertNotIn(oid, options)
         for bang in ("ai", "l", "p", "px", "g", "gr"):
             self.assertEqual(PHRASES["bangs"][bang], "ai", bang)

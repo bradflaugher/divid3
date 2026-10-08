@@ -103,6 +103,16 @@
             "claude"
           ]
         },
+        "lechat": {
+          "name": "Le Chat",
+          "by": "Mistral AI",
+          "note": "Sign-in required; your question carries through the login.",
+          "urlTemplate": "https://chat.mistral.ai/chat?q={q}",
+          "bangs": [
+            "lechat",
+            "mistral"
+          ]
+        },
         "gemini": {
           "name": "Google AI Mode",
           "by": "Google",

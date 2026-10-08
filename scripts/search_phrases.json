@@ -32,6 +32,7 @@
         "brave": {"name": "Brave Ask", "by": "Brave", "note": "No account needed. Answers cite their sources.", "urlTemplate": "https://search.brave.com/ask?q={q}", "bangs": ["braveai", "askbrave"]},
         "chatgpt": {"name": "ChatGPT", "by": "OpenAI", "note": "Works signed out; signed in, it's saved to your history.", "urlTemplate": "https://chatgpt.com/?q={q}", "bangs": ["chatgpt", "gpt"]},
         "claude": {"name": "Claude", "by": "Anthropic", "note": "Sign-in required. Fills in your question; you press send.", "urlTemplate": "https://claude.ai/new?q={q}", "bangs": ["claude"]},
+        "lechat": {"name": "Le Chat", "by": "Mistral AI", "note": "Sign-in required; your question carries through the login.", "urlTemplate": "https://chat.mistral.ai/chat?q={q}", "bangs": ["lechat", "mistral"]},
         "gemini": {"name": "Google AI Mode", "by": "Google", "note": "Gemini answers in Google Search. The Gemini app can't take a question from a link.", "urlTemplate": "https://www.google.com/search?udm=50&q={q}", "bangs": ["gemini", "aimode"]},
         "grok": {"name": "Grok", "by": "xAI", "note": "Works signed out.", "urlTemplate": "https://grok.com/?q={q}", "bangs": ["grok"]},
         "perplexity": {"name": "Perplexity", "by": "Perplexity", "note": "Works signed out. Answers cite their sources.", "urlTemplate": "https://www.perplexity.ai/search?q={q}", "bangs": ["perplexity", "pplx"]},

@@ -68,7 +68,7 @@ The misroute report names the exact phrase that "won" each wrong routing, which 
 
 ## 🚀 Destinations
 
-The router decides what *kind* of search a query is. **Destinations** (footer link, or press `D`) lets each person choose which site that kind opens. The defaults are below, and every route offers alternatives such as ChatGPT, Claude, Perplexity or Kagi Assistant for AI answers, Reddit, Google News or AP News for news, Startpage or Kagi for web, Apple Maps or OpenStreetMap for maps, and Vinted or Back Market for used goods. Picks are saved in the browser's localStorage, never sent anywhere, and only when they differ from the defaults. The full list lives in `destinations` in `scripts/search_phrases.json`.
+The router decides what *kind* of search a query is. **Destinations** (footer link, or press `D`) lets each person choose which site that kind opens. The defaults are below, and every route offers alternatives such as ChatGPT, Claude, Le Chat, Perplexity or Kagi Assistant for AI answers, Reddit, Google News or AP News for news, Startpage or Kagi for web, Apple Maps or OpenStreetMap for maps, and Vinted or Back Market for used goods. Picks are saved in the browser's localStorage, never sent anywhere, and only when they differ from the defaults. The full list lives in `destinations` in `scripts/search_phrases.json`.
 
 | Route | Used for | Default | Route bangs (follow your pick) |
 |-------|----------|---------|--------------------------------|
