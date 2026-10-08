@@ -1288,8 +1288,9 @@
   //       opinions and social sentiment, moved off lumo
   //  v21: x route sharpened after review (world news / news-site navigation
   //       moved to ddg)
-  //  v22: lumo route renamed to ai; new `destinations` table lets the
-  //       user pick the site each route opens (Lumo, X… stay the defaults)
+  //  v22: lumo route renamed to ai (Claude is now its default); ebay route
+  //       widened to Shopping (purchase-intent phrases); new `destinations`
+  //       table lets the user pick the site each route opens
   const EMBEDDINGS_VERSION = '22';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the

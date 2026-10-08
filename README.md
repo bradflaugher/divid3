@@ -68,17 +68,17 @@ The misroute report names the exact phrase that "won" each wrong routing, which 
 
 ## 🚀 Destinations
 
-The router decides what *kind* of search a query is. **Destinations** (footer link, or press `D`) lets each person choose which site that kind opens. The defaults are below, and every route offers alternatives such as ChatGPT, Claude, Le Chat, Perplexity or Kagi Assistant for AI answers, Reddit, Google News or AP News for news, Startpage or Kagi for web, Apple Maps or OpenStreetMap for maps, and Vinted or Back Market for used goods. Picks are saved in the browser's localStorage, never sent anywhere, and only when they differ from the defaults. The full list lives in `destinations` in `scripts/search_phrases.json`.
+The router decides what *kind* of search a query is. **Destinations** (footer link, or press `D`) lets each person choose which site that kind opens. The defaults are below, and every route offers alternatives such as Lumo, ChatGPT, Le Chat, Perplexity or Kagi Assistant for AI answers, Reddit, Google News or AP News for news, Startpage or Kagi for web, Apple Maps or OpenStreetMap for maps, and Amazon, Walmart, Target, Best Buy, Costco or Facebook Marketplace for shopping. Picks are saved in the browser's localStorage, never sent anywhere, and only when they differ from the defaults. The full list lives in `destinations` in `scripts/search_phrases.json`.
 
 | Route | Used for | Default | Route bangs (follow your pick) |
 |-------|----------|---------|--------------------------------|
-| `ai`      | Explainers, research, writing, reviews, advice | Lumo (Proton) | `!ai`, `!l`, `!g`, `!gr`, `!p`, `!px` |
+| `ai`      | Explainers, research, writing, reviews, advice | Claude | `!ai`, `!l`, `!g`, `!gr`, `!p`, `!px` |
 | `x`       | Breaking news, live events, opinions, "what are people saying" | X | `!news`, `!n` |
 | `ddg`     | Generic web search, quick facts, product shopping; fallback for anything ambiguous | DuckDuckGo (html) | `!web` |
 | `maps`    | Locations, "near me", directions | Google Maps | `!m`, `!map` |
 | `images`  | Image queries | Bing Images | `!i`, `!img` |
 | `youtube` | Music, video, tutorials | YouTube | `!v`, `!video` |
-| `ebay`    | Used / vintage / parts / hard-to-find items | eBay | `!used` |
+| `ebay`    | Shopping: buying something ("buy a…", "deals on…", "where to buy"), plus used / vintage / parts / collectibles | eBay | `!shop`, `!used` |
 
 Every site also has its own bang that reaches it whatever you picked: `!yt`, `!eb`, `!x`, `!ddg`, `!lumo`, `!claude`, `!gpt`, `!pplx`, `!osm`, `!reddit`, `!kagi` and so on. The panel shows each site's bangs.
 

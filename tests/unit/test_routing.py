@@ -134,6 +134,11 @@ def js_const(name: str) -> str:
 # Queries the keyword router alone must get right (lite mode / model not
 # loaded yet). Each should hinge on an explicit intent marker.
 KEYWORD_CASES: list[tuple[str, str]] = [
+    # shopping (the `ebay` route): explicit purchase intent
+    ("buy a new standing desk", "ebay"),
+    ("where to buy a dutch oven", "ebay"),
+    ("promo code for adidas", "ebay"),
+    ("deals on air fryers", "ebay"),
     ("pizza near me", "maps"),
     ("directions to the airport", "maps"),
     ("car wash open now", "maps"),
@@ -229,6 +234,10 @@ KEYWORD_CASES: list[tuple[str, str]] = [
 # Bare-word keywords must not fire inside longer words or on unrelated
 # phrases — these used to (or easily could) misroute. None = DDG fallback.
 KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
+    # buying a house, stock or tickets is not a shopping-site search
+    ("buy a house in denver", None),
+    ("should i buy a used car", "ai"),
+    ("how shopify scaled black friday", None),
     ("street fighter 6", None),         # not a maps address
     ("wall street journal", None),
     ("healthy chicken recipes", "ddg"),  # 'healthy' is not an ai signal; recipes → web
@@ -281,6 +290,9 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
 
 # End-to-end semantic routing spec: clear-cut queries per destination.
 SEMANTIC_CASES: list[tuple[str, str]] = [
+    # shopping — purchase intent; "best X" research stays on the web
+    ("buy a pair of wireless earbuds", "ebay"),
+    ("deals on a robot vacuum", "ebay"),
     # ddg — facts, navigation, quick lookups, and product shopping
     ("facebook", "ddg"),
     ("news", "ddg"),  # bare news navigation stays on the web
@@ -384,19 +396,30 @@ class ConfigTests(unittest.TestCase):
         # Destinations come from the config; index.html never names one.
         self.assertNotIn("'grok'", INDEX_HTML.lower())
 
-    def test_ai_route_defaults_to_lumo_guest_url(self):
-        """The `ai` engine is the picker's default: Lumo. Signed-out
-        visitors to lumo.proton.me/?q= are redirected to /guest and the
-        query is dropped; /guest#q= keeps it and auto-sends it."""
-        self.assertEqual(next(iter(PHRASES["destinations"]["ai"]["options"])), "lumo")
+    def test_ai_route_defaults_to_claude(self):
+        """The `ai` engine is the picker's default: Claude (it fills in the
+        question; the user presses send). Lumo stays an option with its
+        guest URL: signed-out visitors to lumo.proton.me/?q= are redirected
+        to /guest and the query is dropped; /guest#q= keeps it."""
+        options = PHRASES["destinations"]["ai"]["options"]
+        self.assertEqual(next(iter(options)), "claude")
         self.assertEqual(
             PHRASES["engines"]["ai"],
-            {"name": "Lumo", "urlTemplate": "https://lumo.proton.me/guest#q={q}"},
+            {"name": "Claude", "urlTemplate": "https://claude.ai/new?q={q}"},
         )
-        self.assertEqual(
-            PHRASES["destinations"]["ai"]["options"]["lumo"]["urlTemplate"],
-            PHRASES["engines"]["ai"]["urlTemplate"],
-        )
+        self.assertEqual(options["lumo"]["urlTemplate"], "https://lumo.proton.me/guest#q={q}")
+
+    def test_shopping_destinations(self):
+        """The `ebay` route is Shopping: eBay by default, with the big
+        stores and the second-hand marketplaces as picks."""
+        sec = PHRASES["destinations"]["ebay"]
+        self.assertEqual((sec["short"], sec["label"]), ("Shop", "Shopping"))
+        options = sec["options"]
+        self.assertEqual(next(iter(options)), "ebay")
+        for oid in ("amazon", "walmart", "target", "bestbuy", "costco", "googleshopping",
+                    "etsy", "marketplace"):
+            self.assertIn(oid, options)
+        self.assertEqual(PHRASES["bangs"]["shop"], "ebay")
 
     def test_destinations(self):
         """Every route has a picker: the default is the first option and
@@ -434,7 +457,7 @@ class ConfigTests(unittest.TestCase):
         options = PHRASES["destinations"]["ai"]["options"]
         self.assertEqual(
             list(options),
-            ["lumo", "duckai", "brave", "chatgpt", "claude", "lechat", "gemini", "grok",
+            ["claude", "lumo", "duckai", "brave", "chatgpt", "lechat", "gemini", "grok",
              "perplexity", "kagi"],
         )
         self.assertIn("udm=50", options["gemini"]["urlTemplate"])
@@ -449,7 +472,8 @@ class ConfigTests(unittest.TestCase):
         dests = PHRASES["destinations"]
         for route, oid, bang in (
             ("youtube", "youtube", "yt"), ("ebay", "ebay", "eb"), ("x", "x", "twitter"),
-            ("ddg", "ddglite", "ddg"), ("ai", "lumo", "lumo"), ("maps", "osm", "osm"),
+            ("ddg", "ddglite", "ddg"), ("ai", "lumo", "lumo"), ("ai", "claude", "claude"),
+            ("maps", "osm", "osm"), ("ebay", "amazon", "amazon"),
         ):
             self.assertIn(bang, dests[route]["options"][oid]["bangs"], bang)
         for bang, route in (("m", "maps"), ("i", "images"), ("v", "youtube"),
@@ -555,10 +579,11 @@ class KeywordRouterTests(unittest.TestCase):
         self.assertEqual(keyword_scores("museum").get("maps"), 1)
         self.assertIsNone(classify_keywords("museum"))
 
-    def test_shopping_queries_default_to_ddg(self):
-        # With Wirecutter gone, plain product-shopping queries go to the
-        # general web (DDG fallback), not to a niche engine.
-        for q in ("best robot vacuum", "best budget monitor", "buy a new mattress"):
+    def test_product_research_defaults_to_ddg(self):
+        # With Wirecutter gone, "best X" product research goes to the
+        # general web (DDG fallback). Explicit purchase intent ("buy a…")
+        # is the shopping route's (KEYWORD_CASES).
+        for q in ("best robot vacuum", "best budget monitor", "top rated mattress"):
             with self.subTest(query=q):
                 self.assertIn(classify_keywords(q) or "ddg", {"ddg", "ai"})
 

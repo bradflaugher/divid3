@@ -9,8 +9,8 @@
       "urlTemplate": "https://www.bing.com/images/search?q={q}"
     },
     "ai": {
-      "name": "Lumo",
-      "urlTemplate": "https://lumo.proton.me/guest#q={q}"
+      "name": "Claude",
+      "urlTemplate": "https://claude.ai/new?q={q}"
     },
     "maps": {
       "name": "Google Maps",
@@ -49,6 +49,7 @@
     "img": "images",
     "v": "youtube",
     "video": "youtube",
+    "shop": "ebay",
     "used": "ebay"
   },
   "destinations": {
@@ -57,6 +58,15 @@
       "label": "AI answers",
       "blurb": "Explain, compare, write, plan and advise.",
       "options": {
+        "claude": {
+          "name": "Claude",
+          "by": "Anthropic",
+          "note": "Sign-in required. Fills in your question; you press send.",
+          "urlTemplate": "https://claude.ai/new?q={q}",
+          "bangs": [
+            "claude"
+          ]
+        },
         "lumo": {
           "name": "Lumo",
           "by": "Proton",
@@ -93,15 +103,6 @@
           "bangs": [
             "chatgpt",
             "gpt"
-          ]
-        },
-        "claude": {
-          "name": "Claude",
-          "by": "Anthropic",
-          "note": "Sign-in required. Fills in your question; you press send.",
-          "urlTemplate": "https://claude.ai/new?q={q}",
-          "bangs": [
-            "claude"
           ]
         },
         "lechat": {
@@ -542,18 +543,86 @@
       }
     },
     "ebay": {
-      "short": "Used",
-      "label": "Used & collectibles",
-      "blurb": "Second-hand, vintage, parts and collectibles.",
+      "short": "Shop",
+      "label": "Shopping",
+      "blurb": "Buying things: new, used, vintage, parts and collectibles.",
       "options": {
         "ebay": {
           "name": "eBay",
           "by": "eBay",
-          "note": "Auctions and listings for nearly anything.",
+          "note": "New, used and collectible. Auctions and Buy It Now.",
           "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}",
           "bangs": [
             "eb",
             "ebay"
+          ]
+        },
+        "amazon": {
+          "name": "Amazon",
+          "by": "Amazon",
+          "note": "Opens the Amazon app if you have it.",
+          "urlTemplate": "https://www.amazon.com/s?k={q}",
+          "bangs": [
+            "a",
+            "amazon",
+            "amz"
+          ]
+        },
+        "walmart": {
+          "name": "Walmart",
+          "by": "Walmart",
+          "note": "Everyday goods, pickup or delivery (US).",
+          "urlTemplate": "https://www.walmart.com/search?q={q}",
+          "bangs": [
+            "walmart",
+            "wm"
+          ]
+        },
+        "target": {
+          "name": "Target",
+          "by": "Target",
+          "note": "Pickup, delivery and same-day (US).",
+          "urlTemplate": "https://www.target.com/s?searchTerm={q}",
+          "bangs": [
+            "target"
+          ]
+        },
+        "bestbuy": {
+          "name": "Best Buy",
+          "by": "Best Buy",
+          "note": "Electronics and appliances (US).",
+          "urlTemplate": "https://www.bestbuy.com/site/searchpage.jsp?st={q}",
+          "bangs": [
+            "bestbuy",
+            "bb"
+          ]
+        },
+        "costco": {
+          "name": "Costco",
+          "by": "Costco",
+          "note": "Bulk buys. Membership needed to check out (US).",
+          "urlTemplate": "https://www.costco.com/s?keyword={q}",
+          "bangs": [
+            "costco"
+          ]
+        },
+        "googleshopping": {
+          "name": "Google Shopping",
+          "by": "Google",
+          "note": "Compares prices across stores. Google tracks searches.",
+          "urlTemplate": "https://www.google.com/search?q={q}&udm=28",
+          "bangs": [
+            "gs",
+            "gshop"
+          ]
+        },
+        "etsy": {
+          "name": "Etsy",
+          "by": "Etsy",
+          "note": "Handmade, vintage and gifts.",
+          "urlTemplate": "https://www.etsy.com/search?q={q}",
+          "bangs": [
+            "etsy"
           ]
         },
         "marketplace": {
@@ -591,24 +660,6 @@
           "urlTemplate": "https://www.vinted.com/catalog?search_text={q}",
           "bangs": [
             "vinted"
-          ]
-        },
-        "depop": {
-          "name": "Depop",
-          "by": "Depop",
-          "note": "Vintage and streetwear.",
-          "urlTemplate": "https://www.depop.com/search/?q={q}",
-          "bangs": [
-            "depop"
-          ]
-        },
-        "etsy": {
-          "name": "Etsy",
-          "by": "Etsy",
-          "note": "Vintage and handmade.",
-          "urlTemplate": "https://www.etsy.com/search?q={q}",
-          "bangs": [
-            "etsy"
           ]
         },
         "backmarket": {
@@ -1748,6 +1799,53 @@
         "rumors about",
         "rumors of",
         "latest rumors"
+      ]
+    },
+    {
+      "engine": "ebay",
+      "weight": 5,
+      "kw": [
+        "buy a",
+        "buy an",
+        "buy new",
+        "where to buy",
+        "order online",
+        "on sale",
+        "deals on",
+        "deal on",
+        "best price on",
+        "lowest price",
+        "cheapest price",
+        "in stock",
+        "add to cart",
+        "discount code",
+        "promo code",
+        "coupon code",
+        "coupon for",
+        "free shipping",
+        "black friday deals",
+        "cyber monday deals",
+        "prime day deals",
+        "shop for"
+      ],
+      "unless": [
+        "house",
+        "home",
+        "condo",
+        "land",
+        "stock",
+        "stocks",
+        "shares",
+        "bitcoin",
+        "crypto",
+        "ethereum",
+        "flights",
+        "flight",
+        "tickets",
+        "domain",
+        "should i",
+        "is it cheaper",
+        "rent or buy"
       ]
     }
   ]

@@ -200,14 +200,14 @@ When *adding* a new keyword:
 
 ### Removed destinations: Wirecutter and Hacker News
 There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
-- "best X" product shopping → **DDG**.
+- "best X" product research → **DDG**. Explicit purchase intent ("buy a…", "deals on", "cheapest price", "promo code", "where to buy") → **Shopping** (`ebay` route), via the weight-5 shopping rule whose `unless` keeps houses, stocks, crypto, flights and tickets off it.
 - Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **ai** (Lumo by default).
 - Tech discussion: "what do developers think of…" / hot takes → **X**; debates, engineering war stories, explainers → **ai**; docs, installs, downloads, project lookups → **DDG**.
 
 `ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
 
 ### Destinations: the user picks the site, the router picks the route
-Route keys (`ai`, `x`, `ddg`, `maps`, `images`, `youtube`, `ebay`) are *kinds* of search, not sites. `destinations` in `scripts/search_phrases.json` (copied to `search-config.json`) gives each route a `label`, a `blurb` and an ordered `options` map of `{ name, by, note, urlTemplate, bangs }`. The **first option is the default** and must equal `engines[route]` exactly (`validate_config.py` enforces it), so routing without the picker, the Python evals and the DDG-only fallback all see the defaults.
+Route keys (`ai`, `x`, `ddg`, `maps`, `images`, `youtube`, `ebay`) are *kinds* of search, not sites (the `ebay` key is historical: it's the Shopping route, eBay by default). `destinations` in `scripts/search_phrases.json` (copied to `search-config.json`) gives each route a `label`, a `blurb` and an ordered `options` map of `{ name, by, note, urlTemplate, bangs }`. The **first option is the default** and must equal `engines[route]` exactly (`validate_config.py` enforces it), so routing without the picker, the Python evals and the DDG-only fallback all see the defaults.
 
 Runtime (`loadDestinations()` in `index.html`):
 - The picks live in localStorage under `divid3-destinations` as `{ route: optionId }`, **only the non-defaults**; nothing is stored while everything is default. `readChoices()` ignores unknown routes/ids, so a removed site or a hand-edited value falls back to the default. No cookies: the picks never reach a server. `privacy.html` documents this; keep it in sync.
@@ -218,10 +218,10 @@ Runtime (`loadDestinations()` in `index.html`):
 
 Only add a site whose search URL actually carries the query (check in a real browser; many AI apps drop it). Out on purpose: the Gemini app, DeepSeek, Kimi, Qwen, Copilot, Meta AI, Venice and HuggingChat (they drop the query or lose it at a login). A login wall alone isn't disqualifying: Claude and Le Chat need sign-in but keep the question (Le Chat parks it as `pending_auth_prompt` and resumes after login); Gemini is offered as Google AI Mode (`udm=50`). Craigslist needs a city subdomain and Waze's link is a landing page on desktop. Say in `note` when a site needs sign-in or only fills in the prompt. The Google web option uses `udm=14` (plain web results, no AI Overviews). Wirecutter (`nytimes.com`) and Hacker News (`algolia.com`) stay out of every list; the unit tests check it.
 
-### Lumo, the default AI (replaced Grok)
-The `ai` route (formerly `lumo`, renamed in v22) is for explainers / research / writing and also **product reviews, recommendations and advice**. Breaking news and opinions moved to X (see below); the benchmark still accepts `ai` for those, since guest-mode Lumo searches the web on its own.
+### The AI route: Claude by default, Lumo as an option
+The `ai` route (formerly `lumo`, renamed in v22) defaults to Claude (`claude.ai/new?q=`: sign-in required, fills in the question, the user presses send). It is for explainers / research / writing and also **product reviews, recommendations and advice**. Breaking news and opinions moved to X (see below); the benchmark still accepts `ai` for those.
 
-Lumo's URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
+Lumo (the default until v22) stays an option. Its URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
 - `lumo.proton.me/?q=` does **not** work for signed-out visitors: Lumo redirects them to `/guest` and drops the query. `/guest` reads `q` from the query string or the fragment and auto-sends it (`?prefill=` only fills the box).
 - The `#` fragment keeps the query out of the request line, so it isn't in Proton's server logs or a `Referer`.
 - Trade-off: signed-in Proton users land in a guest chat (not saved to their account, guest limits).

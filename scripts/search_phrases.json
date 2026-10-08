@@ -1,10 +1,10 @@
 {
-  "_comment": "Source phrases for the semantic-routing index. Run scripts/generate_search_embeddings.py to (re)build search-embeddings.json. Keep phrases short, varied in phrasing/style, and unambiguous about which destination they imply. Prefer the kind of thing a real user types (lowercase, no punctuation, fragment-style) over polished prose. RULES OF THUMB learned from eval (scripts/eval_routing.py): (1) never add a single generic word as a phrase — under max-pooling it becomes a universal attractor that hijacks unrelated queries ('buy', 'music', 'guide' each caused multiple misroutes); (2) every phrase must be unambiguous about its destination on its own — if a phrase could plausibly belong to two engines, sharpen it or drop it; (3) routing philosophy: ai = the user's chosen AI assistant (Lumo by default) for complicated queries that want a synthesized answer (explain / compare / research / creative writing / agentic deep-dives), ddg = simple facts + navigation + quick lookups, product shopping / 'best X' buying advice for new products = ddg (or ai when it wants a synthesized recommendation), ebay = used / vintage / parts / collectibles, maps = local places + directions, youtube = video + music, images = pictures. x = breaking news, live events, opinions, hot takes and social sentiment ('what are people saying'); ai keeps product reviews, recommendations and advice. Quality-gate any edit with: python3 scripts/eval_routing.py",
+  "_comment": "Source phrases for the semantic-routing index. Run scripts/generate_search_embeddings.py to (re)build search-embeddings.json. Keep phrases short, varied in phrasing/style, and unambiguous about which destination they imply. Prefer the kind of thing a real user types (lowercase, no punctuation, fragment-style) over polished prose. RULES OF THUMB learned from eval (scripts/eval_routing.py): (1) never add a single generic word as a phrase — under max-pooling it becomes a universal attractor that hijacks unrelated queries ('buy', 'music', 'guide' each caused multiple misroutes); (2) every phrase must be unambiguous about its destination on its own — if a phrase could plausibly belong to two engines, sharpen it or drop it; (3) routing philosophy: ai = the user's chosen AI assistant (Lumo by default) for complicated queries that want a synthesized answer (explain / compare / research / creative writing / agentic deep-dives), ddg = simple facts + navigation + quick lookups, product shopping / 'best X' buying advice for new products = ddg (or ai when it wants a synthesized recommendation), ebay = shopping: explicit purchase intent ('buy a…', 'deals on', 'cheapest…', 'where to buy') plus used / vintage / parts / collectibles; 'best X' research stays ddg, maps = local places + directions, youtube = video + music, images = pictures. x = breaking news, live events, opinions, hot takes and social sentiment ('what are people saying'); ai keeps product reviews, recommendations and advice. Quality-gate any edit with: python3 scripts/eval_routing.py",
   "_threshold": 0.0,
   "engines": {
     "ddg":         { "name": "DuckDuckGo (html)", "urlTemplate": "https://html.duckduckgo.com/html/?q={q}" },
     "images":      { "name": "Bing Images",   "urlTemplate": "https://www.bing.com/images/search?q={q}" },
-    "ai":          { "name": "Lumo",          "urlTemplate": "https://lumo.proton.me/guest#q={q}" },
+    "ai":          { "name": "Claude",        "urlTemplate": "https://claude.ai/new?q={q}" },
     "maps":        { "name": "Google Maps",   "urlTemplate": "https://maps.google.com/maps?q={q}" },
     "youtube":     { "name": "YouTube",       "urlTemplate": "https://www.youtube.com/results?search_query={q}" },
     "ebay":        { "name": "eBay",          "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}" },
@@ -20,7 +20,7 @@
     "m": "maps",         "map": "maps",
     "i": "images",       "img": "images",
     "v": "youtube",      "video": "youtube",
-    "used": "ebay"
+    "shop": "ebay",      "used": "ebay"
   },
   "destinations": {
     "ai": {
@@ -28,11 +28,11 @@
       "label": "AI answers",
       "blurb": "Explain, compare, write, plan and advise.",
       "options": {
+        "claude": {"name": "Claude", "by": "Anthropic", "note": "Sign-in required. Fills in your question; you press send.", "urlTemplate": "https://claude.ai/new?q={q}", "bangs": ["claude"]},
         "lumo": {"name": "Lumo", "by": "Proton", "note": "No account needed. Your question stays out of server logs.", "urlTemplate": "https://lumo.proton.me/guest#q={q}", "bangs": ["lumo"]},
         "duckai": {"name": "Duck.ai", "by": "DuckDuckGo", "note": "No account needed. Chats are anonymized. Fills in your question; you press send.", "urlTemplate": "https://duckduckgo.com/?q={q}&ia=chat&bang=true", "bangs": ["duckai"]},
         "brave": {"name": "Brave Ask", "by": "Brave", "note": "No account needed. Answers cite their sources.", "urlTemplate": "https://search.brave.com/ask?q={q}", "bangs": ["braveai", "askbrave"]},
         "chatgpt": {"name": "ChatGPT", "by": "OpenAI", "note": "Works signed out; signed in, it's saved to your history.", "urlTemplate": "https://chatgpt.com/?q={q}", "bangs": ["chatgpt", "gpt"]},
-        "claude": {"name": "Claude", "by": "Anthropic", "note": "Sign-in required. Fills in your question; you press send.", "urlTemplate": "https://claude.ai/new?q={q}", "bangs": ["claude"]},
         "lechat": {"name": "Le Chat", "by": "Mistral AI", "note": "Sign-in required; your question carries through the login.", "urlTemplate": "https://chat.mistral.ai/chat?q={q}", "bangs": ["lechat", "mistral"]},
         "gemini": {"name": "Google AI Mode", "by": "Google", "note": "Gemini answers in Google Search. The Gemini app can't take a question from a link.", "urlTemplate": "https://www.google.com/search?udm=50&q={q}", "bangs": ["gemini", "aimode"]},
         "grok": {"name": "Grok", "by": "xAI", "note": "Works signed out.", "urlTemplate": "https://grok.com/?q={q}", "bangs": ["grok"]},
@@ -113,17 +113,22 @@
       }
     },
     "ebay": {
-      "short": "Used",
-      "label": "Used & collectibles",
-      "blurb": "Second-hand, vintage, parts and collectibles.",
+      "short": "Shop",
+      "label": "Shopping",
+      "blurb": "Buying things: new, used, vintage, parts and collectibles.",
       "options": {
-        "ebay": {"name": "eBay", "by": "eBay", "note": "Auctions and listings for nearly anything.", "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}", "bangs": ["eb", "ebay"]},
+        "ebay": {"name": "eBay", "by": "eBay", "note": "New, used and collectible. Auctions and Buy It Now.", "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}", "bangs": ["eb", "ebay"]},
+        "amazon": {"name": "Amazon", "by": "Amazon", "note": "Opens the Amazon app if you have it.", "urlTemplate": "https://www.amazon.com/s?k={q}", "bangs": ["a", "amazon", "amz"]},
+        "walmart": {"name": "Walmart", "by": "Walmart", "note": "Everyday goods, pickup or delivery (US).", "urlTemplate": "https://www.walmart.com/search?q={q}", "bangs": ["walmart", "wm"]},
+        "target": {"name": "Target", "by": "Target", "note": "Pickup, delivery and same-day (US).", "urlTemplate": "https://www.target.com/s?searchTerm={q}", "bangs": ["target"]},
+        "bestbuy": {"name": "Best Buy", "by": "Best Buy", "note": "Electronics and appliances (US).", "urlTemplate": "https://www.bestbuy.com/site/searchpage.jsp?st={q}", "bangs": ["bestbuy", "bb"]},
+        "costco": {"name": "Costco", "by": "Costco", "note": "Bulk buys. Membership needed to check out (US).", "urlTemplate": "https://www.costco.com/s?keyword={q}", "bangs": ["costco"]},
+        "googleshopping": {"name": "Google Shopping", "by": "Google", "note": "Compares prices across stores. Google tracks searches.", "urlTemplate": "https://www.google.com/search?q={q}&udm=28", "bangs": ["gs", "gshop"]},
+        "etsy": {"name": "Etsy", "by": "Etsy", "note": "Handmade, vintage and gifts.", "urlTemplate": "https://www.etsy.com/search?q={q}", "bangs": ["etsy"]},
         "marketplace": {"name": "Facebook Marketplace", "by": "Meta", "note": "Local pickup. Sign-in required.", "urlTemplate": "https://www.facebook.com/marketplace/search/?query={q}", "bangs": ["fbm", "marketplace"]},
         "mercari": {"name": "Mercari", "by": "Mercari", "note": "Second-hand, shipped to you (US).", "urlTemplate": "https://www.mercari.com/search/?keyword={q}", "bangs": ["mercari"]},
         "offerup": {"name": "OfferUp", "by": "OfferUp", "note": "Local listings (US).", "urlTemplate": "https://offerup.com/search?q={q}", "bangs": ["offerup"]},
         "vinted": {"name": "Vinted", "by": "Vinted", "note": "Second-hand clothing and more.", "urlTemplate": "https://www.vinted.com/catalog?search_text={q}", "bangs": ["vinted"]},
-        "depop": {"name": "Depop", "by": "Depop", "note": "Vintage and streetwear.", "urlTemplate": "https://www.depop.com/search/?q={q}", "bangs": ["depop"]},
-        "etsy": {"name": "Etsy", "by": "Etsy", "note": "Vintage and handmade.", "urlTemplate": "https://www.etsy.com/search?q={q}", "bangs": ["etsy"]},
         "backmarket": {"name": "Back Market", "by": "Back Market", "note": "Refurbished phones, laptops and tech (US).", "urlTemplate": "https://www.backmarket.com/en-us/search?q={q}", "bangs": ["backmarket"]}
       }
     }
@@ -182,7 +187,8 @@
     { "engine": "ddg", "weight": 5, "priority": true, "kw": ["login", "log in", "log into", "sign in", "signin", "sign up", "signup", "sign into", "password reset", "reset password", "reset my password", "forgot password", "delete my account", "delete account", "deactivate my account", "delete my twitter account", "twitter account suspended", "twitter account locked", "twitter account hacked", "recover twitter account", "recover my twitter account", "deactivate twitter account", "x account suspended", "recover x account", "twitter password", "twitter help", "x help center", "change username", "change twitter username"] },
     { "engine": "ai", "weight": 3, "priority": true, "kw": ["recommend", "recommend a", "recommendations for", "suggest a", "suggestions for", "advice for", "advice on", "review of", "reviews of", "honest review", "user reviews"], "unless": ["near me", "nearby", "near my", "around here", "closest", "nearest"] },
     { "engine": "x", "weight": 5, "kw": ["winning the debate", "debate tonight", "debate right now", "tweet today", "tweeted today", "tweets today", "tweet yesterday", "tweeted yesterday", "on twitter", "search twitter", "search x for", "tweets about", "tweets from", "tweet from", "tweeted", "posts on x", "posting on x", "saying on x", "people on x", "twitter thread", "going viral", "went viral", "viral post", "viral tweet", "community notes", "fans react", "fans reacting", "fans saying", "critics saying", "internet reacts", "live reactions", "live coverage", "developing story", "top headlines", "headlines today", "news headlines", "today's headlines", "todays headlines", "latest headlines", "morning headlines", "news right now", "latest on the war", "latest on the election", "latest on the storm", "latest updates on the", "latest updates from the", "why is everyone talking", "trending on", "trending now", "trending today", "trending right now", "trending topics", "trending hashtags", "currently trending", "what is trending", "why is it trending", "why is this trending"] },
-    { "engine": "x", "weight": 3, "kw": ["controversy over", "controversy around", "outrage over", "public outrage", "backlash over", "backlash against", "public backlash", "rumors about", "rumors of", "latest rumors"] }
+    { "engine": "x", "weight": 3, "kw": ["controversy over", "controversy around", "outrage over", "public outrage", "backlash over", "backlash against", "public backlash", "rumors about", "rumors of", "latest rumors"] },
+    {"engine": "ebay", "weight": 5, "kw": ["buy a", "buy an", "buy new", "where to buy", "order online", "on sale", "deals on", "deal on", "best price on", "lowest price", "cheapest price", "in stock", "add to cart", "discount code", "promo code", "coupon code", "coupon for", "free shipping", "black friday deals", "cyber monday deals", "prime day deals", "shop for"], "unless": ["house", "home", "condo", "land", "stock", "stocks", "shares", "bitcoin", "crypto", "ethereum", "flights", "flight", "tickets", "domain", "should i", "is it cheaper", "rent or buy"]}
   ],
   "_routes": [
     {
@@ -422,7 +428,6 @@
         "good cheap earbuds that sound great",
         "reliable budget printer for home",
         "screen protector for new iphone",
-        "where to buy a good mattress",
         "how tall is lebron james",
         "how old is keanu reeves",
         "when was barack obama born",
@@ -458,7 +463,9 @@
         "rust std docs",
         "react documentation",
         "golang download",
-        "node js latest version"
+        "node js latest version",
+        "buy bitcoin with a credit card",
+        "how to buy shares of apple stock"
       ]
     },
     {
@@ -560,7 +567,7 @@
     },
     {
       "key": "ai",
-      "label": "Lumo (AI answers, research, reviews, advice)",
+      "label": "AI answers (explainers, research, writing, reviews, advice)",
       "phrases": [
         "explain quantum entanglement in simple terms",
         "summarize the plot of dune",
@@ -1158,7 +1165,7 @@
     },
     {
       "key": "ebay",
-      "label": "eBay (hard-to-find products, vintage, parts, collectibles)",
+      "label": "Shopping (buying things: new, used, vintage, parts, collectibles)",
       "phrases": [
         "buy vintage camera lens",
         "film camera canon ae-1",
@@ -1254,7 +1261,43 @@
         "vintage star wars kenner figures",
         "headlight assembly for toyota camry",
         "used college textbooks cheap",
-        "replacement glass carafe for coffee maker"
+        "replacement glass carafe for coffee maker",
+        "buy a new phone case",
+        "order paper towels online",
+        "buy airpods pro",
+        "add wireless mouse to cart",
+        "cheapest price on printer paper",
+        "lowest price on a kindle",
+        "deals on bluetooth speakers",
+        "deals on laptops this week",
+        "running shoes on sale",
+        "promo code for sneakers",
+        "buy printer ink cartridges",
+        "buy diapers in bulk",
+        "order groceries for delivery",
+        "where to buy lego sets",
+        "buy a gift card online",
+        "nintendo switch 2 in stock",
+        "buy a new vacuum cleaner",
+        "shop for winter boots",
+        "buy a kitchen knife set",
+        "order a phone charger online",
+        "buy laundry detergent",
+        "price drop on headphones",
+        "buy an apple watch band",
+        "where to buy a good mattress",
+        "weekend deals on headphones",
+        "prime day deals",
+        "buy a desk chair online",
+        "order contact lenses online",
+        "buy noise cancelling headphones",
+        "buy a cordless vacuum online",
+        "deals on air purifiers",
+        "buy a pair of running shoes",
+        "sale on bluetooth earbuds",
+        "order a new mattress online",
+        "buy a 65 inch tv",
+        "discount on espresso machines"
       ]
     }
   ]

@@ -386,7 +386,7 @@
     { "q": "top rated electric toothbrush", "expect": "ddg", "also_ok": ["ai"] },
     { "q": "birthday gift for my dad", "expect": "ai", "also_ok": ["ddg"] },
     { "q": "best tablet for kids", "expect": "ddg", "also_ok": ["ai"] },
-    { "q": "buy iphone 17 pro", "expect": "ddg", "also_ok": ["ebay"] },
+    { "q": "buy iphone 17 pro", "expect": "ebay", "also_ok": ["ddg"] },
     { "q": "ipad air price", "expect": "ddg", "also_ok": ["ebay"] },
     { "q": "best vpn", "expect": "ddg", "also_ok": ["ai"] },
     { "q": "explain quantum entanglement simply", "expect": "ai" },
@@ -600,6 +600,12 @@
     { "q": "python requests install", "expect": "ddg" },
     { "q": "linux 6.12 release date", "expect": "ddg", "also_ok": ["ai"] },
     { "q": "weather radar", "expect": "ddg" },
-    { "q": "cnn", "expect": "ddg" }
+    { "q": "cnn", "expect": "ddg" },
+    { "q": "buy a usb c cable", "expect": "ebay", "also_ok": ["ddg"] },
+    { "q": "where to buy a standing desk", "expect": "ebay", "also_ok": ["ddg"] },
+    { "q": "deals on nintendo switch 2", "expect": "ebay" },
+    { "q": "promo code for nike", "expect": "ebay", "also_ok": ["ddg"] },
+    { "q": "cheapest price on airpods", "expect": "ebay" },
+    { "q": "buy bitcoin", "expect": "ddg", "also_ok": ["ai"] }
   ]
 }

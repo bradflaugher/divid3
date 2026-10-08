@@ -47,11 +47,11 @@ async function freezeRouteTimer(page: Page) {
   });
 }
 
-/** Answer x.com navigations with a stub page. X serves signed-out
- *  visitors a login redirect and refuses headless browsers outright, so
- *  the X specs check the URL we built instead of X's response. */
+/** Answer x.com and claude.ai navigations with a stub page. Both sit
+ *  behind sign-in and refuse headless browsers (X outright, Claude with a
+ *  bot challenge), so these specs check the URL we built instead. */
 async function stubX(page: Page) {
-  await page.route(/^https:\/\/x\.com\//, (route: Route) =>
+  await page.route(/^https:\/\/(x\.com|claude\.ai)\//, (route: Route) =>
     route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>x stub</title>' }));
 }
 
@@ -121,18 +121,18 @@ test.describe('search router — bang shortcuts', () => {
     qFragment: string;
   }[] = [
     { input: '!yt lofi hip hop',   engine: 'youtube:youtube', host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
-    { input: '!gr election news',  engine: 'ai',          host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'election' },
+    { input: '!gr election news',  engine: 'ai',          host: /^claude\.ai$/,           qParam: 'q',            qFragment: 'election' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
     // destination's interstitial is outside our control.
     // { input: '!m coffee shops',    engine: 'maps',        host: /(^|\.)google\.com$/,       qParam: 'q',            qFragment: 'coffee' },
     { input: '!i black hole',      engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'black' },
-    { input: '!p quantum gravity', engine: 'ai',          host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'quantum' },
+    { input: '!p quantum gravity', engine: 'ai',          host: /^claude\.ai$/,           qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
     { input: '!y dancing dog',     engine: 'youtube:youtube', host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
     { input: '!img nebula',        engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'nebula' },
     { input: '!ddg climate news',  engine: 'ddg:ddglite', host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
-    { input: '!g trending on x',   engine: 'ai',          host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'trending' },
+    { input: '!g trending on x',   engine: 'ai',          host: /^claude\.ai$/,           qParam: 'q',            qFragment: 'trending' },
     { input: '!x election night',  engine: 'x:x',         host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'election' },
     { input: '!tw world cup',      engine: 'x:x',         host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'world' },
     { input: '!lumo rust vs go',   engine: 'ai:lumo',     host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'rust' },
@@ -154,7 +154,8 @@ test.describe('search router — bang shortcuts', () => {
       // once and shows the routing overlay`.
       test.skip(isMobile, 'bang routing covered on desktop projects; mobile overlay covered separately');
 
-      if (c.engine.split(':')[0] === 'x') await stubX(page);
+      // Only answers x.com / claude.ai; other destinations load for real.
+      await stubX(page);
       await page.goto(PATH);
       // Bangs short-circuit the model entirely, so no need to wait for it.
       const search = page.locator('#search');
@@ -1137,12 +1138,13 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     { query: 'breaking news in chicago',      engine: 'x',           host: /(^|\.)x\.com$/,           qFragment: 'chicago' },
     { query: 'best wireless headphones',      engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,  qFragment: 'wireless' },
     { query: 'pictures of golden retrievers', engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'golden' },
-    { query: 'itinerary for a weekend in lisbon', engine: 'ai',      host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'lisbon' },
+    { query: 'itinerary for a weekend in lisbon', engine: 'ai',      host: /^claude\.ai$/,            qFragment: 'lisbon' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
-    { query: 'explain quantum mechanics',     engine: 'ai',          host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'quantum' },
+    { query: 'explain quantum mechanics',     engine: 'ai',          host: /^claude\.ai$/,            qFragment: 'quantum' },
     { query: 'trending on x',                 engine: 'x',           host: /(^|\.)x\.com$/,           qFragment: 'trending' },
     { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
+    { query: 'deals on air fryers',           engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'fryers' },
   ];
 
   for (const c of cases) {
@@ -1151,7 +1153,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
       // a click step that compounds with third-party destination flake. The
       // keyword classifier is platform-agnostic; desktop coverage is enough.
       test.skip(isMobile, 'keyword routing logic covered on desktop projects');
-      if (c.engine === 'x') await stubX(page);
+      if (c.engine === 'x' || c.engine === 'ai') await stubX(page);
       await bootKeywordMode(page);
 
       const search = page.locator('#search');
@@ -1498,7 +1500,7 @@ test.describe('destinations picker', () => {
     await page.locator('#dest-pick').click();
     await expect(page.locator('#dest-dialog')).toBeVisible();
     const defaults: Record<string, string> = {
-      ai: 'lumo', x: 'x', ddg: 'ddglite', maps: 'google', images: 'bing', youtube: 'youtube', ebay: 'ebay',
+      ai: 'claude', x: 'x', ddg: 'ddglite', maps: 'google', images: 'bing', youtube: 'youtube', ebay: 'ebay',
     };
     for (const [route, id] of Object.entries(defaults)) {
       await expect(page.locator(`.dest-section[data-route="${route}"] input:checked`)).toHaveValue(id);
@@ -1563,7 +1565,7 @@ test.describe('destinations picker', () => {
     await expect(page.locator('.dest-section[data-route="x"] input:checked')).toHaveValue('bluesky');
     await page.locator('#dest-reset').click();
     await expect(page.locator('.dest-section[data-route="x"] input:checked')).toHaveValue('x');
-    await expect(page.locator('.dest-section[data-route="ai"] input:checked')).toHaveValue('lumo');
+    await expect(page.locator('.dest-section[data-route="ai"] input:checked')).toHaveValue('claude');
     expect(await stored(page)).toBeNull();
   });
 
@@ -1584,7 +1586,7 @@ test.describe('destinations picker', () => {
     await waitForPicker(page);
     await expect(page.locator('#dest-pick')).not.toHaveAttribute('data-custom', /.*/);
     await page.locator('#search').fill('!ai test');
-    await expect(page.locator('#hint')).toHaveText('Lumo');
+    await expect(page.locator('#hint')).toHaveText('Claude');
   });
 
   test('brand bangs reach their site whatever the pick', async ({ page, isMobile }) => {
