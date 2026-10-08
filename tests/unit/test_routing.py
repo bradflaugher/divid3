@@ -399,16 +399,16 @@ class ConfigTests(unittest.TestCase):
         # Destinations come from the config; index.html never names one.
         self.assertNotIn("'grok'", INDEX_HTML.lower())
 
-    def test_ai_route_defaults_to_claude(self):
-        """The `ai` engine is the picker's default: Claude (it fills in the
-        question; the user presses send). Lumo stays an option with its
-        guest URL: signed-out visitors to lumo.proton.me/?q= are redirected
-        to /guest and the query is dropped; /guest#q= keeps it."""
+    def test_ai_route_defaults_to_brave_ask(self):
+        """The `ai` engine is the picker's default: Brave Ask (no account,
+        answers cite sources). Lumo stays an option with its guest URL:
+        signed-out visitors to lumo.proton.me/?q= are redirected to /guest
+        and the query is dropped; /guest#q= keeps it."""
         options = PHRASES["destinations"]["ai"]["options"]
-        self.assertEqual(next(iter(options)), "claude")
+        self.assertEqual(next(iter(options)), "brave")
         self.assertEqual(
             PHRASES["engines"]["ai"],
-            {"name": "Claude", "urlTemplate": "https://claude.ai/new?q={q}"},
+            {"name": "Brave Ask", "urlTemplate": "https://search.brave.com/ask?q={q}"},
         )
         self.assertEqual(options["lumo"]["urlTemplate"], "https://lumo.proton.me/guest#q={q}")
 
@@ -460,8 +460,8 @@ class ConfigTests(unittest.TestCase):
         options = PHRASES["destinations"]["ai"]["options"]
         self.assertEqual(
             list(options),
-            ["claude", "lumo", "duckai", "brave", "chatgpt", "lechat", "gemini", "grok",
-             "perplexity", "kagi"],
+            ["brave", "claude", "lumo", "duckai", "chatgpt", "lechat", "gemini", "grok",
+             "perplexity"],
         )
         self.assertIn("udm=50", options["gemini"]["urlTemplate"])
         for oid in ("deepseek", "kimi", "copilot"):
@@ -486,11 +486,28 @@ class ConfigTests(unittest.TestCase):
     def test_x_search_url_and_bangs(self):
         """X search: `src=typed_query` makes x.com treat it as a typed search
         (same as its own search box). `!x`, `!tw` and `!twitter` reach it."""
+        x = PHRASES["destinations"]["x"]["options"]["x"]
+        self.assertEqual(x["urlTemplate"], "https://x.com/search?q={q}&src=typed_query")
+        self.assertEqual(x["bangs"], ["x", "tw", "twitter"])
+
+    def test_defaults_need_no_sign_in(self):
+        """Every route's default works signed out, for free: no accounts,
+        no subscriptions. Sign-in sites stay available as options."""
         self.assertEqual(
-            PHRASES["engines"]["x"]["urlTemplate"],
-            "https://x.com/search?q={q}&src=typed_query",
+            {route: next(iter(sec["options"])) for route, sec in PHRASES["destinations"].items()},
+            {"ai": "brave", "x": "apnews", "ddg": "ddglite", "maps": "osm",
+             "images": "bing", "youtube": "youtube", "ebay": "ebay"},
         )
-        self.assertEqual(PHRASES["destinations"]["x"]["options"]["x"]["bangs"], ["x", "tw", "twitter"])
+        for route, sec in PHRASES["destinations"].items():
+            note = next(iter(sec["options"].values()))["note"].lower()
+            for phrase in ("sign-in required", "subscription", "membership"):
+                self.assertNotIn(phrase, note, route)
+
+    def test_kagi_mojeek_threads_removed(self):
+        """Paid or niche sites dropped from the lists."""
+        blob = json.dumps(CONFIG).lower()
+        for host in ("kagi.com", "mojeek.com", "threads.com"):
+            self.assertNotIn(host, blob)
 
     def test_hacker_news_fully_removed(self):
         """Hacker News is no longer a destination."""

@@ -4,11 +4,11 @@
   "engines": {
     "ddg":         { "name": "DuckDuckGo (html)", "urlTemplate": "https://html.duckduckgo.com/html/?q={q}" },
     "images":      { "name": "Bing Images",   "urlTemplate": "https://www.bing.com/images/search?q={q}" },
-    "ai":          { "name": "Claude",        "urlTemplate": "https://claude.ai/new?q={q}" },
-    "maps":        { "name": "Google Maps",   "urlTemplate": "https://maps.google.com/maps?q={q}" },
+    "ai":          { "name": "Brave Ask",     "urlTemplate": "https://search.brave.com/ask?q={q}" },
+    "maps":        { "name": "OpenStreetMap", "urlTemplate": "https://www.openstreetmap.org/search?query={q}" },
     "youtube":     { "name": "YouTube",       "urlTemplate": "https://www.youtube.com/results?search_query={q}" },
     "ebay":        { "name": "eBay",          "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}" },
-    "x":           { "name": "X",             "urlTemplate": "https://x.com/search?q={q}&src=typed_query" },
+    "x":           { "name": "AP News",       "urlTemplate": "https://apnews.com/search?q={q}" },
     "direct":      { "name": "Direct Link",   "urlTemplate": "{q}" }
   },
   "bangs": {
@@ -28,16 +28,15 @@
       "label": "AI answers",
       "blurb": "Explain, compare, write, plan and advise.",
       "options": {
+        "brave": {"name": "Brave Ask", "by": "Brave", "note": "No account needed. Answers cite their sources.", "urlTemplate": "https://search.brave.com/ask?q={q}", "bangs": ["braveai", "askbrave"]},
         "claude": {"name": "Claude", "by": "Anthropic", "note": "Sign-in required. Fills in your question; you press send.", "urlTemplate": "https://claude.ai/new?q={q}", "bangs": ["claude"]},
         "lumo": {"name": "Lumo", "by": "Proton", "note": "No account needed. Your question stays out of server logs.", "urlTemplate": "https://lumo.proton.me/guest#q={q}", "bangs": ["lumo"]},
         "duckai": {"name": "Duck.ai", "by": "DuckDuckGo", "note": "No account needed. Chats are anonymized. Fills in your question; you press send.", "urlTemplate": "https://duckduckgo.com/?q={q}&ia=chat&bang=true", "bangs": ["duckai"]},
-        "brave": {"name": "Brave Ask", "by": "Brave", "note": "No account needed. Answers cite their sources.", "urlTemplate": "https://search.brave.com/ask?q={q}", "bangs": ["braveai", "askbrave"]},
         "chatgpt": {"name": "ChatGPT", "by": "OpenAI", "note": "Works signed out; signed in, it's saved to your history.", "urlTemplate": "https://chatgpt.com/?q={q}", "bangs": ["chatgpt", "gpt"]},
         "lechat": {"name": "Le Chat", "by": "Mistral AI", "note": "Sign-in required; your question carries through the login.", "urlTemplate": "https://chat.mistral.ai/chat?q={q}", "bangs": ["lechat", "mistral"]},
         "gemini": {"name": "Google AI Mode", "by": "Google", "note": "Gemini answers in Google Search. The Gemini app can't take a question from a link.", "urlTemplate": "https://www.google.com/search?udm=50&q={q}", "bangs": ["gemini", "aimode"]},
         "grok": {"name": "Grok", "by": "xAI", "note": "Works signed out.", "urlTemplate": "https://grok.com/?q={q}", "bangs": ["grok"]},
-        "perplexity": {"name": "Perplexity", "by": "Perplexity", "note": "Works signed out. Answers cite their sources.", "urlTemplate": "https://www.perplexity.ai/search?q={q}", "bangs": ["perplexity", "pplx"]},
-        "kagi": {"name": "Kagi Assistant", "by": "Kagi", "note": "Kagi subscription required. No ads, no training on your chats.", "urlTemplate": "https://kagi.com/assistant?q={q}", "bangs": ["kagiai"]}
+        "perplexity": {"name": "Perplexity", "by": "Perplexity", "note": "Works signed out. Answers cite their sources.", "urlTemplate": "https://www.perplexity.ai/search?q={q}", "bangs": ["perplexity", "pplx"]}
       }
     },
     "x": {
@@ -45,12 +44,11 @@
       "label": "News & opinions",
       "blurb": "Breaking news, live events and what people are saying.",
       "options": {
+        "apnews": {"name": "AP News", "by": "Associated Press", "note": "Straight wire-service reporting.", "urlTemplate": "https://apnews.com/search?q={q}", "bangs": ["ap", "apnews"]},
         "x": {"name": "X", "by": "X Corp.", "note": "Live posts and reactions. Sign-in required to search.", "urlTemplate": "https://x.com/search?q={q}&src=typed_query", "bangs": ["x", "tw", "twitter"]},
         "reddit": {"name": "Reddit", "by": "Reddit", "note": "Threads and discussion. Works signed out.", "urlTemplate": "https://www.reddit.com/search/?q={q}", "bangs": ["r", "reddit"]},
         "bluesky": {"name": "Bluesky", "by": "Bluesky", "note": "Live posts and reactions. Sign-in required to search.", "urlTemplate": "https://bsky.app/search?q={q}", "bangs": ["bsky", "bluesky"]},
-        "threads": {"name": "Threads", "by": "Meta", "note": "Live posts and reactions. Sign-in required to search.", "urlTemplate": "https://www.threads.com/search?q={q}", "bangs": ["threads"]},
         "googlenews": {"name": "Google News", "by": "Google", "note": "Headlines from news outlets.", "urlTemplate": "https://news.google.com/search?q={q}", "bangs": ["gn", "gnews"]},
-        "apnews": {"name": "AP News", "by": "Associated Press", "note": "Straight wire-service reporting.", "urlTemplate": "https://apnews.com/search?q={q}", "bangs": ["ap", "apnews"]},
         "ddgnews": {"name": "DuckDuckGo News", "by": "DuckDuckGo", "note": "Headlines from news outlets, no tracking.", "urlTemplate": "https://duckduckgo.com/?q={q}&iar=news&ia=news", "bangs": ["ddgn"]},
         "bravenews": {"name": "Brave News", "by": "Brave", "note": "Headlines from news outlets, no tracking.", "urlTemplate": "https://search.brave.com/news?q={q}", "bangs": ["bnews"]}
       }
@@ -64,9 +62,7 @@
         "ddgfull": {"name": "DuckDuckGo", "by": "DuckDuckGo", "note": "No tracking. The full page with instant answers.", "urlTemplate": "https://duckduckgo.com/?q={q}", "bangs": ["duck"]},
         "brave": {"name": "Brave Search", "by": "Brave", "note": "No tracking. Its own independent index.", "urlTemplate": "https://search.brave.com/search?q={q}", "bangs": ["brave"]},
         "startpage": {"name": "Startpage", "by": "Startpage", "note": "Google's results without the tracking.", "urlTemplate": "https://www.startpage.com/sp/search?query={q}", "bangs": ["sp", "startpage"]},
-        "kagi": {"name": "Kagi", "by": "Kagi", "note": "Kagi subscription required. No ads, no tracking.", "urlTemplate": "https://kagi.com/search?q={q}", "bangs": ["kagi"]},
         "ecosia": {"name": "Ecosia", "by": "Ecosia", "note": "Ad revenue plants trees.", "urlTemplate": "https://www.ecosia.org/search?q={q}", "bangs": ["ecosia"]},
-        "mojeek": {"name": "Mojeek", "by": "Mojeek", "note": "No tracking. A small, independent index.", "urlTemplate": "https://www.mojeek.com/search?q={q}", "bangs": ["mojeek"]},
         "google": {"name": "Google", "by": "Google", "note": "Plain web results, without AI Overviews. Google tracks searches.", "urlTemplate": "https://www.google.com/search?q={q}&udm=14", "bangs": ["google", "goog"]},
         "bing": {"name": "Bing", "by": "Microsoft", "note": "Microsoft tracks searches.", "urlTemplate": "https://www.bing.com/search?q={q}", "bangs": ["bing"]}
       }
@@ -76,10 +72,10 @@
       "label": "Maps",
       "blurb": "Places, directions and anything near you.",
       "options": {
+        "osm": {"name": "OpenStreetMap", "by": "OpenStreetMap", "note": "Open, community-made map. No tracking.", "urlTemplate": "https://www.openstreetmap.org/search?query={q}", "bangs": ["osm"]},
         "google": {"name": "Google Maps", "by": "Google", "note": "Opens the Google Maps app if you have it.", "urlTemplate": "https://maps.google.com/maps?q={q}", "bangs": ["gm", "gmaps"]},
         "apple": {"name": "Apple Maps", "by": "Apple", "note": "Opens the Maps app on iPhone, iPad and Mac.", "urlTemplate": "https://maps.apple.com/?q={q}", "bangs": ["am", "applemaps"]},
         "ddgmaps": {"name": "DuckDuckGo Maps", "by": "DuckDuckGo", "note": "Apple Maps data, no tracking.", "urlTemplate": "https://duckduckgo.com/?q={q}&iaxm=maps&ia=maps", "bangs": ["ddgm"]},
-        "osm": {"name": "OpenStreetMap", "by": "OpenStreetMap", "note": "Open, community-made map. No tracking.", "urlTemplate": "https://www.openstreetmap.org/search?query={q}", "bangs": ["osm"]},
         "bing": {"name": "Bing Maps", "by": "Microsoft", "note": "Microsoft's maps.", "urlTemplate": "https://www.bing.com/maps?q={q}", "bangs": ["bm", "bmaps"]}
       }
     },
@@ -861,7 +857,7 @@
     },
     {
       "key": "x",
-      "label": "X (breaking news, live events, opinions, social sentiment)",
+      "label": "News (breaking news, live events, opinions, social sentiment)",
       "phrases": [
         "what is trending on twitter right now",
         "latest news on x about space x",
@@ -962,7 +958,7 @@
     },
     {
       "key": "maps",
-      "label": "Google Maps",
+      "label": "Maps (places, directions, near me)",
       "phrases": [
         "coffee shops near me",
         "best pizza near me",

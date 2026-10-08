@@ -1291,7 +1291,9 @@
   //  v22: lumo route renamed to ai (Claude is now its default); ebay route
   //       widened to Shopping (purchase-intent phrases); new `destinations`
   //       table lets the user pick the site each route opens
-  const EMBEDDINGS_VERSION = '22';
+  //  v23: no-sign-in defaults (Brave Ask for ai, AP News for news,
+  //       OpenStreetMap for maps); Kagi, Mojeek and Threads removed
+  const EMBEDDINGS_VERSION = '23';
   const EMBEDDINGS_URL = `/search-embeddings.json?v=${EMBEDDINGS_VERSION}`;
   // 220 ms (was 150) is the iOS-tuned middle ground: fast enough that the
   // hint feels live to a typist, slow enough that a fast typist generates
@@ -1909,7 +1911,11 @@
         };
       }
     }
-    applyChoices(readChoices());
+    // Re-save so storage keeps only today's non-defaults: a pick that has
+    // since become the default, or a site that was removed, is dropped.
+    const choices = readChoices();
+    if (Object.keys(DESTINATIONS).length) saveChoices(choices);
+    applyChoices(choices);
   }
 
   /** route → option id for every route, defaults filled in. Anything

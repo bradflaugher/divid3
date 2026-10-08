@@ -201,8 +201,8 @@ When *adding* a new keyword:
 ### Removed destinations: Wirecutter and Hacker News
 There is no Wirecutter engine (no `!wc`/`!nyt`) and no Hacker News engine (no `!hn`/`!h`) anymore — no route, no keyword rules. Where their queries go now:
 - "best X" product research → **DDG**. Explicit purchase intent ("buy a…", "deals on", "cheapest price", "promo code", "where to buy") → **Shopping** (`ebay` route), via the weight-5 shopping rule whose `unless` keeps houses, stocks, crypto, flights and tickets off it.
-- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **ai** (Claude by default).
-- Tech discussion: "what do developers think of…" / hot takes → **X**; debates, engineering war stories, explainers → **ai**; docs, installs, downloads, project lookups → **DDG**.
+- Reviews, recommendations, gift ideas, "is X worth it / which should I buy" → **ai** (Brave Ask by default).
+- Tech discussion: "what do developers think of…" / hot takes → **news** (`x` route); debates, engineering war stories, explainers → **ai**; docs, installs, downloads, project lookups → **DDG**.
 
 `ConfigTests.test_wirecutter_fully_removed` and `test_hacker_news_fully_removed` guard against either creeping back.
 
@@ -218,27 +218,28 @@ Runtime (`loadDestinations()` in `index.html`):
 
 Only add a site whose search URL actually carries the query (check in a real browser; many AI apps drop it). Out on purpose: the Gemini app, DeepSeek, Kimi, Qwen, Copilot, Meta AI, Venice and HuggingChat (they drop the query or lose it at a login). A login wall alone isn't disqualifying: Claude and Le Chat need sign-in but keep the question (Le Chat parks it as `pending_auth_prompt` and resumes after login); Gemini is offered as Google AI Mode (`udm=50`). Craigslist needs a city subdomain and Waze's link is a landing page on desktop. Say in `note` when a site needs sign-in or only fills in the prompt. The Google web option uses `udm=14` (plain web results, no AI Overviews). Wirecutter (`nytimes.com`) and Hacker News (`algolia.com`) stay out of every list; the unit tests check it.
 
-### The AI route: Claude by default, Lumo as an option
-The `ai` route (formerly `lumo`, renamed in v22) defaults to Claude (`claude.ai/new?q=`: sign-in required, fills in the question, the user presses send). It is for explainers / research / writing and also **product reviews, recommendations and advice**. Breaking news and opinions moved to X (see below); the benchmark still accepts `ai` for those.
+### Defaults: no sign-in, no subscription, a mix of companies
+Since v23 every route's first option works signed out and for free, and the defaults are spread across companies instead of one (and away from the divisive picks): **Brave Ask** (`ai`), **AP News** (`x`, the news route), **DuckDuckGo (html)** (`ddg`), **OpenStreetMap** (`maps`), **Bing Images**, **YouTube**, **eBay**. `ConfigTests.test_defaults_need_no_sign_in` pins the list and fails if a default's `note` says it needs sign-in, a subscription or a membership. Sign-in sites (Claude, Le Chat, X, Bluesky, Pinterest, Facebook Marketplace) stay as options. Kagi (paid), Mojeek and Threads were removed; `test_kagi_mojeek_threads_removed` keeps them out.
 
-Lumo (the default until v22) stays an option. Its URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
+The E2E specs call `stubDestinations(page)`, which answers `search.brave.com`, `apnews.com`, `www.openstreetmap.org`, `x.com` and `claude.ai` with a stub page (bot challenges, sign-in walls and slow third parties), and assert on the URL we built.
+
+### The AI route
+The `ai` route (formerly `lumo`, renamed in v22) defaults to Brave Ask (`search.brave.com/ask?q=`: no account, answers cite sources). It is for explainers / research / writing and also **product reviews, recommendations and advice**. Breaking news and opinions go to the news route (see below); the benchmark still accepts `ai` for those.
+
+Claude (`claude.ai/new?q=`: sign-in required, fills in the question, the user presses send) was the default in v22 and stays an option. Lumo (the default until v22) stays an option too. Its URL is `https://lumo.proton.me/guest#q={q}`, on purpose:
 - `lumo.proton.me/?q=` does **not** work for signed-out visitors: Lumo redirects them to `/guest` and drops the query. `/guest` reads `q` from the query string or the fragment and auto-sends it (`?prefill=` only fills the box).
 - The `#` fragment keeps the query out of the request line, so it isn't in Proton's server logs or a `Referer`.
 - Trade-off: signed-in Proton users land in a guest chat (not saved to their account, guest limits).
 - lumo.proton.me publishes no `apple-app-site-association` / `assetlinks.json`, so links open the web app, not the native Lumo app. That's Proton's side; if they add it, the same URL will open the app.
 
-`!lumo` reaches Lumo itself; `!ai`, `!l`, `!g`, `!gr`, `!p`, `!px` reach the user's AI pick. Grok is back only as an AI option: `ConfigTests.test_grok_is_only_an_ai_provider` keeps it out of routes, rules and the embeddings.
+`!lumo` reaches Lumo itself, `!claude` Claude, `!braveai` / `!askbrave` Brave Ask; `!ai`, `!l`, `!g`, `!gr`, `!p`, `!px` reach the user's AI pick. Grok is back only as an AI option: `ConfigTests.test_grok_is_only_an_ai_provider` keeps it out of routes, rules and the embeddings.
 
-### X, the default news destination
-X (the default for the `x` route) is the destination for **breaking news, live updates, current events, opinions, hot takes, drama/controversy and social sentiment ("what are people saying…", "what do developers think of…")**. The line against `ai`: *what people are saying right now* → X; *a product review, recommendation or advice* → `ai`. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG, and `twitter login` stays on DDG (the `login` rule outweighs `twitter`).
+### The news route (`x` key), AP News by default
+The route key is still `x` (historical, like `ebay`); its default is AP News (`apnews.com/search?q=`), with X, Reddit, Bluesky, Google News, DuckDuckGo News and Brave News as options. It is the destination for **breaking news, live updates, current events, opinions, hot takes, drama/controversy and social sentiment ("what are people saying…", "what do developers think of…")**. The line against `ai`: *what's happening / what people are saying right now* → news; *a product review, recommendation or advice* → `ai`. Plain navigational news lookups (`cnn`, `local news`) and live numbers (`dow jones today`, `nfl scores`) stay on DDG, and `twitter login` stays on DDG (the `login` rule outweighs `twitter`).
 
-The URL is `https://x.com/search?q={q}&src=typed_query` (`src=typed_query` is what X's own search box sends). Trade-offs:
-- X requires sign-in to search. Signed-out visitors get a 307 to X's login page with the search in `redirect_after_login`, so it resumes after they log in.
-- X also refuses headless browsers, so the E2E specs that route to X call `stubX(page)` to answer x.com with a stub page and assert on the URL we built.
-- x.com publishes `apple-app-site-association`, so on iOS with the X app installed the link opens the app.
-- Unlike Lumo's `#q=`, the query is in the request line and goes to X's servers. That's inherent to searching X.
+X stays an option at `https://x.com/search?q={q}&src=typed_query` (`src=typed_query` is what X's own search box sends). It requires sign-in to search (signed-out visitors get a 307 to the login page with the search in `redirect_after_login`), refuses headless browsers, and opens the X app on iOS via `apple-app-site-association`.
 
-Bangs: `!x`, `!tw`, `!twitter` (X itself); `!news` / `!n` follow the user's news pick. The phrases live in the `x` route of `scripts/search_phrases.json`; keyword rules are the `x` entries in `keywordRules`.
+Bangs: `!ap`, `!apnews` (AP News), `!x`, `!tw`, `!twitter` (X); `!news` / `!n` follow the user's news pick. The phrases live in the `x` route of `scripts/search_phrases.json`; keyword rules are the `x` entries in `keywordRules`.
 
 The status-dot palette is now: grey = loading, green = ready (model running), purple = keyword mode (model intentionally not running). The previous red "failed" state is gone — every former-failure mode now lands on keyword mode with a working router.
 

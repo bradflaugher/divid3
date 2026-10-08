@@ -9,12 +9,12 @@
       "urlTemplate": "https://www.bing.com/images/search?q={q}"
     },
     "ai": {
-      "name": "Claude",
-      "urlTemplate": "https://claude.ai/new?q={q}"
+      "name": "Brave Ask",
+      "urlTemplate": "https://search.brave.com/ask?q={q}"
     },
     "maps": {
-      "name": "Google Maps",
-      "urlTemplate": "https://maps.google.com/maps?q={q}"
+      "name": "OpenStreetMap",
+      "urlTemplate": "https://www.openstreetmap.org/search?query={q}"
     },
     "youtube": {
       "name": "YouTube",
@@ -25,8 +25,8 @@
       "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}"
     },
     "x": {
-      "name": "X",
-      "urlTemplate": "https://x.com/search?q={q}&src=typed_query"
+      "name": "AP News",
+      "urlTemplate": "https://apnews.com/search?q={q}"
     },
     "direct": {
       "name": "Direct Link",
@@ -58,6 +58,16 @@
       "label": "AI answers",
       "blurb": "Explain, compare, write, plan and advise.",
       "options": {
+        "brave": {
+          "name": "Brave Ask",
+          "by": "Brave",
+          "note": "No account needed. Answers cite their sources.",
+          "urlTemplate": "https://search.brave.com/ask?q={q}",
+          "bangs": [
+            "braveai",
+            "askbrave"
+          ]
+        },
         "claude": {
           "name": "Claude",
           "by": "Anthropic",
@@ -83,16 +93,6 @@
           "urlTemplate": "https://duckduckgo.com/?q={q}&ia=chat&bang=true",
           "bangs": [
             "duckai"
-          ]
-        },
-        "brave": {
-          "name": "Brave Ask",
-          "by": "Brave",
-          "note": "No account needed. Answers cite their sources.",
-          "urlTemplate": "https://search.brave.com/ask?q={q}",
-          "bangs": [
-            "braveai",
-            "askbrave"
           ]
         },
         "chatgpt": {
@@ -143,15 +143,6 @@
             "perplexity",
             "pplx"
           ]
-        },
-        "kagi": {
-          "name": "Kagi Assistant",
-          "by": "Kagi",
-          "note": "Kagi subscription required. No ads, no training on your chats.",
-          "urlTemplate": "https://kagi.com/assistant?q={q}",
-          "bangs": [
-            "kagiai"
-          ]
         }
       }
     },
@@ -160,6 +151,16 @@
       "label": "News & opinions",
       "blurb": "Breaking news, live events and what people are saying.",
       "options": {
+        "apnews": {
+          "name": "AP News",
+          "by": "Associated Press",
+          "note": "Straight wire-service reporting.",
+          "urlTemplate": "https://apnews.com/search?q={q}",
+          "bangs": [
+            "ap",
+            "apnews"
+          ]
+        },
         "x": {
           "name": "X",
           "by": "X Corp.",
@@ -191,15 +192,6 @@
             "bluesky"
           ]
         },
-        "threads": {
-          "name": "Threads",
-          "by": "Meta",
-          "note": "Live posts and reactions. Sign-in required to search.",
-          "urlTemplate": "https://www.threads.com/search?q={q}",
-          "bangs": [
-            "threads"
-          ]
-        },
         "googlenews": {
           "name": "Google News",
           "by": "Google",
@@ -208,16 +200,6 @@
           "bangs": [
             "gn",
             "gnews"
-          ]
-        },
-        "apnews": {
-          "name": "AP News",
-          "by": "Associated Press",
-          "note": "Straight wire-service reporting.",
-          "urlTemplate": "https://apnews.com/search?q={q}",
-          "bangs": [
-            "ap",
-            "apnews"
           ]
         },
         "ddgnews": {
@@ -283,15 +265,6 @@
             "startpage"
           ]
         },
-        "kagi": {
-          "name": "Kagi",
-          "by": "Kagi",
-          "note": "Kagi subscription required. No ads, no tracking.",
-          "urlTemplate": "https://kagi.com/search?q={q}",
-          "bangs": [
-            "kagi"
-          ]
-        },
         "ecosia": {
           "name": "Ecosia",
           "by": "Ecosia",
@@ -299,15 +272,6 @@
           "urlTemplate": "https://www.ecosia.org/search?q={q}",
           "bangs": [
             "ecosia"
-          ]
-        },
-        "mojeek": {
-          "name": "Mojeek",
-          "by": "Mojeek",
-          "note": "No tracking. A small, independent index.",
-          "urlTemplate": "https://www.mojeek.com/search?q={q}",
-          "bangs": [
-            "mojeek"
           ]
         },
         "google": {
@@ -336,6 +300,15 @@
       "label": "Maps",
       "blurb": "Places, directions and anything near you.",
       "options": {
+        "osm": {
+          "name": "OpenStreetMap",
+          "by": "OpenStreetMap",
+          "note": "Open, community-made map. No tracking.",
+          "urlTemplate": "https://www.openstreetmap.org/search?query={q}",
+          "bangs": [
+            "osm"
+          ]
+        },
         "google": {
           "name": "Google Maps",
           "by": "Google",
@@ -363,15 +336,6 @@
           "urlTemplate": "https://duckduckgo.com/?q={q}&iaxm=maps&ia=maps",
           "bangs": [
             "ddgm"
-          ]
-        },
-        "osm": {
-          "name": "OpenStreetMap",
-          "by": "OpenStreetMap",
-          "note": "Open, community-made map. No tracking.",
-          "urlTemplate": "https://www.openstreetmap.org/search?query={q}",
-          "bangs": [
-            "osm"
           ]
         },
         "bing": {
