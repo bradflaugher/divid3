@@ -1911,7 +1911,11 @@
         };
       }
     }
-    applyChoices(readChoices());
+    // Re-save so storage keeps only today's non-defaults: a pick that has
+    // since become the default, or a site that was removed, is dropped.
+    const choices = readChoices();
+    if (Object.keys(DESTINATIONS).length) saveChoices(choices);
+    applyChoices(choices);
   }
 
   /** route → option id for every route, defaults filled in. Anything

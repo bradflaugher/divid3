@@ -1577,6 +1577,20 @@ test.describe('destinations picker', () => {
     expect(await stored(page)).toBeNull();
   });
 
+  test('stored picks that are now defaults or removed sites are dropped on load', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem('seeded')) {
+        sessionStorage.setItem('seeded', '1');
+        localStorage.setItem('divid3-destinations',
+          JSON.stringify({ ai: 'brave', ddg: 'kagi', maps: 'apple' }));
+      }
+    });
+    await page.goto(PATH);
+    await waitForPicker(page);
+    expect(JSON.parse((await stored(page))!)).toEqual({ maps: 'apple' });
+    await expect(page.locator('#dest-pick')).toHaveAttribute('data-custom', '1');
+  });
+
   test('unknown or malformed stored picks fall back to the defaults', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('divid3-destinations',
       JSON.stringify({ ai: 'constructor', x: 42, nope: 'x', ['__proto__']: { ai: 'grok' } })));
