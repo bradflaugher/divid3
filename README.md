@@ -66,19 +66,21 @@ The misroute report names the exact phrase that "won" each wrong routing, which 
 
 ---
 
-## 🚀 Default destinations
+## 🚀 Destinations
 
-The shipped configuration routes between:
+The router decides what *kind* of search a query is. **Destinations** (footer link, or press `D`) lets each person choose which site that kind opens. The defaults are below, and every route offers alternatives such as Lumo, ChatGPT, Le Chat, Perplexity or Kagi Assistant for AI answers, Reddit, Google News or AP News for news, Startpage or Kagi for web, Apple Maps or OpenStreetMap for maps, and Amazon, Walmart, Target, Best Buy, Costco or Facebook Marketplace for shopping. Picks are saved in the browser's localStorage, never sent anywhere, and only when they differ from the defaults. The full list lives in `destinations` in `scripts/search_phrases.json`.
 
-| Engine        | Used for                                   | Bang(s)            |
-|---------------|--------------------------------------------|--------------------|
-| DuckDuckGo    | Generic web search, quick facts, product shopping; fallback for anything ambiguous | `!d`, `!ddg`       |
-| Bing Images   | Image queries                              | `!i`, `!img`       |
-| Lumo (Proton) | Explainers, research, writing, reviews, advice | `!l`, `!lumo`, `!g`, `!gr`, `!p`, `!px` |
-| X             | Breaking news, live events, opinions, hot takes, "what are people saying" | `!x`, `!tw`, `!twitter` |
-| Google Maps   | Locations, "near me", directions           | `!m`, `!map`       |
-| YouTube       | Music, video, tutorials                    | `!y`, `!yt`        |
-| eBay          | Used / vintage / parts / hard-to-find items | `!eb`, `!ebay`     |
+| Route | Used for | Default | Route bangs (follow your pick) |
+|-------|----------|---------|--------------------------------|
+| `ai`      | Explainers, research, writing, reviews, advice | Claude | `!ai`, `!l`, `!g`, `!gr`, `!p`, `!px` |
+| `x`       | Breaking news, live events, opinions, "what are people saying" | X | `!news`, `!n` |
+| `ddg`     | Generic web search, quick facts, "best X" product research; fallback for anything ambiguous | DuckDuckGo (html) | `!web` |
+| `maps`    | Locations, "near me", directions | Google Maps | `!m`, `!map` |
+| `images`  | Image queries | Bing Images | `!i`, `!img` |
+| `youtube` | Music, video, tutorials | YouTube | `!v`, `!video` |
+| `ebay`    | Shopping: buying something ("buy a…", "deals on…", "where to buy"), plus used / vintage / parts / collectibles | eBay | `!shop`, `!used` |
+
+Every site also has its own bang that reaches it whatever you picked: `!yt`, `!eb`, `!x`, `!ddg`, `!lumo`, `!claude`, `!gpt`, `!pplx`, `!osm`, `!reddit`, `!kagi` and so on. The panel shows each site's bangs.
 
 Plus the `direct` virtual engine, which opens a typed URL (`github.com`) literally instead of searching for it.
 
@@ -94,7 +96,7 @@ https://divid3.com/?q=%s
 
 Setup instructions for Chrome, Firefox, Safari, and Arc live at [divid3.com/setup.html](https://divid3.com/setup.html).
 
-Keyboard shortcuts: `/` focus search · `↑`/`↓` change destination (while typing, or on the routing overlay) · `Enter` route to selection · `Esc` close overlay / revert selection · `T` toggle theme · `?` help.
+Keyboard shortcuts: `/` focus search · `↑`/`↓` change destination (while typing, or on the routing overlay) · `Enter` route to selection · `Esc` close overlay / revert selection · `D` destinations · `T` toggle theme · `?` help.
 
 ---
 

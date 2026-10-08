@@ -1,10 +1,10 @@
 {
-  "_comment": "Source phrases for the semantic-routing index. Run scripts/generate_search_embeddings.py to (re)build search-embeddings.json. Keep phrases short, varied in phrasing/style, and unambiguous about which destination they imply. Prefer the kind of thing a real user types (lowercase, no punctuation, fragment-style) over polished prose. RULES OF THUMB learned from eval (scripts/eval_routing.py): (1) never add a single generic word as a phrase — under max-pooling it becomes a universal attractor that hijacks unrelated queries ('buy', 'music', 'guide' each caused multiple misroutes); (2) every phrase must be unambiguous about its destination on its own — if a phrase could plausibly belong to two engines, sharpen it or drop it; (3) routing philosophy: lumo = complicated queries that want a synthesized answer (explain / compare / research / creative writing / agentic deep-dives), ddg = simple facts + navigation + quick lookups, product shopping / 'best X' buying advice for new products = ddg (or lumo when it wants a synthesized recommendation), ebay = used / vintage / parts / collectibles, maps = local places + directions, youtube = video + music, images = pictures. x = breaking news, live events, opinions, hot takes and social sentiment ('what are people saying'); lumo keeps product reviews, recommendations and advice. Quality-gate any edit with: python3 scripts/eval_routing.py",
+  "_comment": "Source phrases for the semantic-routing index. Run scripts/generate_search_embeddings.py to (re)build search-embeddings.json. Keep phrases short, varied in phrasing/style, and unambiguous about which destination they imply. Prefer the kind of thing a real user types (lowercase, no punctuation, fragment-style) over polished prose. RULES OF THUMB learned from eval (scripts/eval_routing.py): (1) never add a single generic word as a phrase — under max-pooling it becomes a universal attractor that hijacks unrelated queries ('buy', 'music', 'guide' each caused multiple misroutes); (2) every phrase must be unambiguous about its destination on its own — if a phrase could plausibly belong to two engines, sharpen it or drop it; (3) routing philosophy: ai = the user's chosen AI assistant (Lumo by default) for complicated queries that want a synthesized answer (explain / compare / research / creative writing / agentic deep-dives), ddg = simple facts + navigation + quick lookups, product shopping / 'best X' buying advice for new products = ddg (or ai when it wants a synthesized recommendation), ebay = shopping: explicit purchase intent ('buy a…', 'deals on', 'cheapest…', 'where to buy') plus used / vintage / parts / collectibles; 'best X' research stays ddg, maps = local places + directions, youtube = video + music, images = pictures. x = breaking news, live events, opinions, hot takes and social sentiment ('what are people saying'); ai keeps product reviews, recommendations and advice. Quality-gate any edit with: python3 scripts/eval_routing.py",
   "_threshold": 0.0,
   "engines": {
     "ddg":         { "name": "DuckDuckGo (html)", "urlTemplate": "https://html.duckduckgo.com/html/?q={q}" },
     "images":      { "name": "Bing Images",   "urlTemplate": "https://www.bing.com/images/search?q={q}" },
-    "lumo":        { "name": "Lumo",          "urlTemplate": "https://lumo.proton.me/guest#q={q}" },
+    "ai":          { "name": "Claude",        "urlTemplate": "https://claude.ai/new?q={q}" },
     "maps":        { "name": "Google Maps",   "urlTemplate": "https://maps.google.com/maps?q={q}" },
     "youtube":     { "name": "YouTube",       "urlTemplate": "https://www.youtube.com/results?search_query={q}" },
     "ebay":        { "name": "eBay",          "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}" },
@@ -12,16 +12,126 @@
     "direct":      { "name": "Direct Link",   "urlTemplate": "{q}" }
   },
   "bangs": {
-    "yt": "youtube",     "y": "youtube",
+    "ai": "ai",          "l": "ai",
+    "p": "ai",           "px": "ai",
+    "g": "ai",           "gr": "ai",
+    "n": "x",            "news": "x",
+    "web": "ddg",
     "m": "maps",         "map": "maps",
     "i": "images",       "img": "images",
-    "l": "lumo",        "lumo": "lumo",
-    "p": "lumo",        "px": "lumo",
-    "g": "lumo",        "gr": "lumo",
-    "eb": "ebay",        "ebay": "ebay",
-    "x": "x",            "tw": "x",
-    "twitter": "x",
-    "d": "ddg",          "ddg": "ddg"
+    "v": "youtube",      "video": "youtube",
+    "shop": "ebay",      "used": "ebay"
+  },
+  "destinations": {
+    "ai": {
+      "short": "AI",
+      "label": "AI answers",
+      "blurb": "Explain, compare, write, plan and advise.",
+      "options": {
+        "claude": {"name": "Claude", "by": "Anthropic", "note": "Sign-in required. Fills in your question; you press send.", "urlTemplate": "https://claude.ai/new?q={q}", "bangs": ["claude"]},
+        "lumo": {"name": "Lumo", "by": "Proton", "note": "No account needed. Your question stays out of server logs.", "urlTemplate": "https://lumo.proton.me/guest#q={q}", "bangs": ["lumo"]},
+        "duckai": {"name": "Duck.ai", "by": "DuckDuckGo", "note": "No account needed. Chats are anonymized. Fills in your question; you press send.", "urlTemplate": "https://duckduckgo.com/?q={q}&ia=chat&bang=true", "bangs": ["duckai"]},
+        "brave": {"name": "Brave Ask", "by": "Brave", "note": "No account needed. Answers cite their sources.", "urlTemplate": "https://search.brave.com/ask?q={q}", "bangs": ["braveai", "askbrave"]},
+        "chatgpt": {"name": "ChatGPT", "by": "OpenAI", "note": "Works signed out; signed in, it's saved to your history.", "urlTemplate": "https://chatgpt.com/?q={q}", "bangs": ["chatgpt", "gpt"]},
+        "lechat": {"name": "Le Chat", "by": "Mistral AI", "note": "Sign-in required; your question carries through the login.", "urlTemplate": "https://chat.mistral.ai/chat?q={q}", "bangs": ["lechat", "mistral"]},
+        "gemini": {"name": "Google AI Mode", "by": "Google", "note": "Gemini answers in Google Search. The Gemini app can't take a question from a link.", "urlTemplate": "https://www.google.com/search?udm=50&q={q}", "bangs": ["gemini", "aimode"]},
+        "grok": {"name": "Grok", "by": "xAI", "note": "Works signed out.", "urlTemplate": "https://grok.com/?q={q}", "bangs": ["grok"]},
+        "perplexity": {"name": "Perplexity", "by": "Perplexity", "note": "Works signed out. Answers cite their sources.", "urlTemplate": "https://www.perplexity.ai/search?q={q}", "bangs": ["perplexity", "pplx"]},
+        "kagi": {"name": "Kagi Assistant", "by": "Kagi", "note": "Kagi subscription required. No ads, no training on your chats.", "urlTemplate": "https://kagi.com/assistant?q={q}", "bangs": ["kagiai"]}
+      }
+    },
+    "x": {
+      "short": "News",
+      "label": "News & opinions",
+      "blurb": "Breaking news, live events and what people are saying.",
+      "options": {
+        "x": {"name": "X", "by": "X Corp.", "note": "Live posts and reactions. Sign-in required to search.", "urlTemplate": "https://x.com/search?q={q}&src=typed_query", "bangs": ["x", "tw", "twitter"]},
+        "reddit": {"name": "Reddit", "by": "Reddit", "note": "Threads and discussion. Works signed out.", "urlTemplate": "https://www.reddit.com/search/?q={q}", "bangs": ["r", "reddit"]},
+        "bluesky": {"name": "Bluesky", "by": "Bluesky", "note": "Live posts and reactions. Sign-in required to search.", "urlTemplate": "https://bsky.app/search?q={q}", "bangs": ["bsky", "bluesky"]},
+        "threads": {"name": "Threads", "by": "Meta", "note": "Live posts and reactions. Sign-in required to search.", "urlTemplate": "https://www.threads.com/search?q={q}", "bangs": ["threads"]},
+        "googlenews": {"name": "Google News", "by": "Google", "note": "Headlines from news outlets.", "urlTemplate": "https://news.google.com/search?q={q}", "bangs": ["gn", "gnews"]},
+        "apnews": {"name": "AP News", "by": "Associated Press", "note": "Straight wire-service reporting.", "urlTemplate": "https://apnews.com/search?q={q}", "bangs": ["ap", "apnews"]},
+        "ddgnews": {"name": "DuckDuckGo News", "by": "DuckDuckGo", "note": "Headlines from news outlets, no tracking.", "urlTemplate": "https://duckduckgo.com/?q={q}&iar=news&ia=news", "bangs": ["ddgn"]},
+        "bravenews": {"name": "Brave News", "by": "Brave", "note": "Headlines from news outlets, no tracking.", "urlTemplate": "https://search.brave.com/news?q={q}", "bangs": ["bnews"]}
+      }
+    },
+    "ddg": {
+      "short": "Web",
+      "label": "Web search",
+      "blurb": "Facts, sites, how-tos and everything else.",
+      "options": {
+        "ddglite": {"name": "DuckDuckGo (html)", "by": "DuckDuckGo", "note": "No tracking. The fast, plain, script-free version.", "urlTemplate": "https://html.duckduckgo.com/html/?q={q}", "bangs": ["d", "ddg"]},
+        "ddgfull": {"name": "DuckDuckGo", "by": "DuckDuckGo", "note": "No tracking. The full page with instant answers.", "urlTemplate": "https://duckduckgo.com/?q={q}", "bangs": ["duck"]},
+        "brave": {"name": "Brave Search", "by": "Brave", "note": "No tracking. Its own independent index.", "urlTemplate": "https://search.brave.com/search?q={q}", "bangs": ["brave"]},
+        "startpage": {"name": "Startpage", "by": "Startpage", "note": "Google's results without the tracking.", "urlTemplate": "https://www.startpage.com/sp/search?query={q}", "bangs": ["sp", "startpage"]},
+        "kagi": {"name": "Kagi", "by": "Kagi", "note": "Kagi subscription required. No ads, no tracking.", "urlTemplate": "https://kagi.com/search?q={q}", "bangs": ["kagi"]},
+        "ecosia": {"name": "Ecosia", "by": "Ecosia", "note": "Ad revenue plants trees.", "urlTemplate": "https://www.ecosia.org/search?q={q}", "bangs": ["ecosia"]},
+        "mojeek": {"name": "Mojeek", "by": "Mojeek", "note": "No tracking. A small, independent index.", "urlTemplate": "https://www.mojeek.com/search?q={q}", "bangs": ["mojeek"]},
+        "google": {"name": "Google", "by": "Google", "note": "Plain web results, without AI Overviews. Google tracks searches.", "urlTemplate": "https://www.google.com/search?q={q}&udm=14", "bangs": ["google", "goog"]},
+        "bing": {"name": "Bing", "by": "Microsoft", "note": "Microsoft tracks searches.", "urlTemplate": "https://www.bing.com/search?q={q}", "bangs": ["bing"]}
+      }
+    },
+    "maps": {
+      "short": "Maps",
+      "label": "Maps",
+      "blurb": "Places, directions and anything near you.",
+      "options": {
+        "google": {"name": "Google Maps", "by": "Google", "note": "Opens the Google Maps app if you have it.", "urlTemplate": "https://maps.google.com/maps?q={q}", "bangs": ["gm", "gmaps"]},
+        "apple": {"name": "Apple Maps", "by": "Apple", "note": "Opens the Maps app on iPhone, iPad and Mac.", "urlTemplate": "https://maps.apple.com/?q={q}", "bangs": ["am", "applemaps"]},
+        "ddgmaps": {"name": "DuckDuckGo Maps", "by": "DuckDuckGo", "note": "Apple Maps data, no tracking.", "urlTemplate": "https://duckduckgo.com/?q={q}&iaxm=maps&ia=maps", "bangs": ["ddgm"]},
+        "osm": {"name": "OpenStreetMap", "by": "OpenStreetMap", "note": "Open, community-made map. No tracking.", "urlTemplate": "https://www.openstreetmap.org/search?query={q}", "bangs": ["osm"]},
+        "bing": {"name": "Bing Maps", "by": "Microsoft", "note": "Microsoft's maps.", "urlTemplate": "https://www.bing.com/maps?q={q}", "bangs": ["bm", "bmaps"]}
+      }
+    },
+    "images": {
+      "short": "Images",
+      "label": "Images",
+      "blurb": "Pictures, wallpapers and inspiration.",
+      "options": {
+        "bing": {"name": "Bing Images", "by": "Microsoft", "note": "Big index with handy filters.", "urlTemplate": "https://www.bing.com/images/search?q={q}", "bangs": ["bimg"]},
+        "ddg": {"name": "DuckDuckGo Images", "by": "DuckDuckGo", "note": "No tracking.", "urlTemplate": "https://duckduckgo.com/?q={q}&iax=images&ia=images", "bangs": ["ddgi"]},
+        "google": {"name": "Google Images", "by": "Google", "note": "Google tracks searches.", "urlTemplate": "https://www.google.com/search?q={q}&udm=2", "bangs": ["gi", "gimg"]},
+        "brave": {"name": "Brave Images", "by": "Brave", "note": "No tracking.", "urlTemplate": "https://search.brave.com/images?q={q}", "bangs": ["bri"]},
+        "startpage": {"name": "Startpage Images", "by": "Startpage", "note": "No tracking. Images are previewed through a proxy.", "urlTemplate": "https://www.startpage.com/sp/search?query={q}&cat=images", "bangs": ["spi"]},
+        "unsplash": {"name": "Unsplash", "by": "Unsplash", "note": "Free, high-quality photos.", "urlTemplate": "https://unsplash.com/s/photos/{q}", "bangs": ["unsplash"]},
+        "openverse": {"name": "Openverse", "by": "WordPress.org", "note": "Openly licensed images, free to reuse.", "urlTemplate": "https://openverse.org/search/?q={q}", "bangs": ["openverse"]},
+        "pinterest": {"name": "Pinterest", "by": "Pinterest", "note": "Ideas and inspiration. Asks you to sign in.", "urlTemplate": "https://www.pinterest.com/search/pins/?q={q}", "bangs": ["pin", "pinterest"]}
+      }
+    },
+    "youtube": {
+      "short": "Video",
+      "label": "Video & music",
+      "blurb": "Videos, music, tutorials and streams.",
+      "options": {
+        "youtube": {"name": "YouTube", "by": "Google", "note": "Opens the YouTube app if you have it.", "urlTemplate": "https://www.youtube.com/results?search_query={q}", "bangs": ["y", "yt", "youtube"]},
+        "ddg": {"name": "DuckDuckGo Videos", "by": "DuckDuckGo", "note": "No tracking. Asks before playing YouTube videos.", "urlTemplate": "https://duckduckgo.com/?q={q}&iax=videos&ia=videos", "bangs": ["ddgv"]},
+        "bing": {"name": "Bing Videos", "by": "Microsoft", "note": "Searches across video sites.", "urlTemplate": "https://www.bing.com/videos/search?q={q}", "bangs": ["bv"]},
+        "vimeo": {"name": "Vimeo", "by": "Vimeo", "note": "Films and creative work.", "urlTemplate": "https://vimeo.com/search?q={q}", "bangs": ["vimeo"]},
+        "dailymotion": {"name": "Dailymotion", "by": "Dailymotion", "note": "News clips, sports and shows.", "urlTemplate": "https://www.dailymotion.com/search/{q}", "bangs": ["dm", "dailymotion"]},
+        "peertube": {"name": "PeerTube", "by": "Sepia Search", "note": "Decentralized video, no ads.", "urlTemplate": "https://sepiasearch.org/search?search={q}", "bangs": ["peertube", "sepia"]},
+        "tiktok": {"name": "TikTok", "by": "TikTok", "note": "Short videos.", "urlTemplate": "https://www.tiktok.com/search?q={q}", "bangs": ["tt", "tiktok"]}
+      }
+    },
+    "ebay": {
+      "short": "Shop",
+      "label": "Shopping",
+      "blurb": "Buying things: new, used, vintage, parts and collectibles.",
+      "options": {
+        "ebay": {"name": "eBay", "by": "eBay", "note": "New, used and collectible. Auctions and Buy It Now.", "urlTemplate": "https://www.ebay.com/sch/i.html?_nkw={q}", "bangs": ["eb", "ebay"]},
+        "amazon": {"name": "Amazon", "by": "Amazon", "note": "Opens the Amazon app if you have it.", "urlTemplate": "https://www.amazon.com/s?k={q}", "bangs": ["a", "amazon", "amz"]},
+        "walmart": {"name": "Walmart", "by": "Walmart", "note": "Everyday goods, pickup or delivery (US).", "urlTemplate": "https://www.walmart.com/search?q={q}", "bangs": ["walmart", "wm"]},
+        "target": {"name": "Target", "by": "Target", "note": "Pickup, delivery and same-day (US).", "urlTemplate": "https://www.target.com/s?searchTerm={q}", "bangs": ["target"]},
+        "bestbuy": {"name": "Best Buy", "by": "Best Buy", "note": "Electronics and appliances (US).", "urlTemplate": "https://www.bestbuy.com/site/searchpage.jsp?st={q}", "bangs": ["bestbuy", "bb"]},
+        "costco": {"name": "Costco", "by": "Costco", "note": "Bulk buys. Membership needed to check out (US).", "urlTemplate": "https://www.costco.com/s?keyword={q}", "bangs": ["costco"]},
+        "googleshopping": {"name": "Google Shopping", "by": "Google", "note": "Compares prices across stores. Google tracks searches.", "urlTemplate": "https://www.google.com/search?q={q}&udm=28", "bangs": ["gs", "gshop"]},
+        "etsy": {"name": "Etsy", "by": "Etsy", "note": "Handmade, vintage and gifts.", "urlTemplate": "https://www.etsy.com/search?q={q}", "bangs": ["etsy"]},
+        "marketplace": {"name": "Facebook Marketplace", "by": "Meta", "note": "Local pickup. Sign-in required.", "urlTemplate": "https://www.facebook.com/marketplace/search/?query={q}", "bangs": ["fbm", "marketplace"]},
+        "mercari": {"name": "Mercari", "by": "Mercari", "note": "Second-hand, shipped to you (US).", "urlTemplate": "https://www.mercari.com/search/?keyword={q}", "bangs": ["mercari"]},
+        "offerup": {"name": "OfferUp", "by": "OfferUp", "note": "Local listings (US).", "urlTemplate": "https://offerup.com/search?q={q}", "bangs": ["offerup"]},
+        "vinted": {"name": "Vinted", "by": "Vinted", "note": "Second-hand clothing and more.", "urlTemplate": "https://www.vinted.com/catalog?search_text={q}", "bangs": ["vinted"]},
+        "backmarket": {"name": "Back Market", "by": "Back Market", "note": "Refurbished phones, laptops and tech (US).", "urlTemplate": "https://www.backmarket.com/en-us/search?q={q}", "bangs": ["backmarket"]}
+      }
+    }
   },
   "keywordRules": [
     { "engine": "ddg", "weight": 5, "kw": ["login", "sign in", "signin", "weather", "recipe", "recipe for", "tracking number", "track my package", "stock price", "share price", "exchange rate", "time zone", "time in", "convert", "translate", "definition of", "define", "synonym", "antonym", "how do you spell", "showtimes", "tour dates", "winning numbers", "lottery", "score last night", "scores tonight", "standings", "flights to", "flights from", "cheap flights"] },
@@ -36,19 +146,19 @@
     { "engine": "images", "weight": 3, "kw": ["wallpaper", "wallpapers", "lockscreen", "background image", "desktop background", "phone wallpaper", "png", "svg icon", "vector art", "ideas pictures", "ideas photos", "before and after photos", "drawing reference", "reference photos", "tattoo ideas", "tattoo design", "haircut ideas", "paintings", "background for", "high resolution", "high res"] },
     { "engine": "images", "weight": 2, "kw": ["images", "photos", "pictures", "pics"] },
     { "engine": "images", "weight": 1, "kw": ["image", "photo", "picture", "gif", "meme", "diagram", "illustration", "icon", "logo", "poster"] },
-    { "engine": "lumo", "weight": 5, "kw": ["pros and cons", "tradeoffs between", "difference between", "comparison of", "detailed comparison", "literature review", "research the", "in depth analysis", "overview of", "history of", "what caused", "explain like", "explain how", "explain why", "explain the", "what would happen if", "arguments for", "for and against", "movies like", "movies similar to", "books like", "books similar to", "best way to learn", "is it better to", "should i rent or buy"] },
+    { "engine": "ai", "weight": 5, "kw": ["pros and cons", "tradeoffs between", "difference between", "comparison of", "detailed comparison", "literature review", "research the", "in depth analysis", "overview of", "history of", "what caused", "explain like", "explain how", "explain why", "explain the", "what would happen if", "arguments for", "for and against", "movies like", "movies similar to", "books like", "books similar to", "best way to learn", "is it better to", "should i rent or buy"] },
     { "engine": "x", "weight": 5, "kw": ["what do people think", "what are people saying", "public opinion", "public reaction"] },
-    { "engine": "lumo", "weight": 3, "kw": ["explain", "summarize", "tldr", "tl;dr", "compare", "compared to", "how does", "how do", "why does", "why do", "why is", "walk me through", "breakdown of", "should i", "is it safe", "is it true", "what's the difference", "whats the difference", "similar to", "ideas for", "ideas to", "suggestions for", "evidence for", "research on", "studies on", "analyze", "what did", "tell me about", "tell me something"] },
+    { "engine": "ai", "weight": 3, "kw": ["explain", "summarize", "tldr", "tl;dr", "compare", "compared to", "how does", "how do", "why does", "why do", "why is", "walk me through", "breakdown of", "should i", "is it safe", "is it true", "what's the difference", "whats the difference", "similar to", "ideas for", "ideas to", "suggestions for", "evidence for", "research on", "studies on", "analyze", "what did", "tell me about", "tell me something"] },
     { "engine": "x", "weight": 5, "kw": ["trending on x", "trending on twitter", "latest news on x", "breaking news live", "current public opinion", "twitter trends", "what's trending", "whats trending", "sentiment around", "sentiment about", "controversy with", "controversy about", "live updates on"] },
     { "engine": "x", "weight": 2, "kw": ["twitter"] },
     { "engine": "x", "weight": 3, "kw": ["news trends", "viral video", "social sentiment", "what people think", "hot take"] },
-    { "engine": "lumo", "weight": 3, "kw": ["write a", "write me", "write an", "draft a", "draft an", "compose a", "craft a", "help me craft", "generate a", "brainstorm", "tell me a joke", "tell me a riddle", "pretend you are", "act as", "roleplay", "make up a story", "caption for", "caption ideas", "name ideas", "name suggestions", "tagline for", "slogan for", "rewrite this", "rewrite my", "make this sound", "help me word", "help me write", "icebreaker", "conversation starters", "debate me", "play a game"] },
+    { "engine": "ai", "weight": 3, "kw": ["write a", "write me", "write an", "draft a", "draft an", "compose a", "craft a", "help me craft", "generate a", "brainstorm", "tell me a joke", "tell me a riddle", "pretend you are", "act as", "roleplay", "make up a story", "caption for", "caption ideas", "name ideas", "name suggestions", "tagline for", "slogan for", "rewrite this", "rewrite my", "make this sound", "help me word", "help me write", "icebreaker", "conversation starters", "debate me", "play a game"] },
     { "engine": "ebay", "weight": 5, "kw": ["buy vintage", "used listing", "buy replacement parts", "bids on", "bid on", "auction for", "hard to find collectible", "rare item for sale", "replacement part", "replacement parts", "replacement battery", "replacement remote", "replacement screen", "replacement blade", "spare part", "spare parts", "oem part", "parts for", "part for", "sold listings", "completed listings", "sold prices", "sell for used", "worth used", "new old stock", "first edition", "out of print", "graded card", "graded cards", "psa 10", "estate sale", "salvage"] },
     { "engine": "ebay", "weight": 3, "kw": ["ebay", "used price", "second hand", "secondhand", "refurbished", "cheap used", "for parts", "vintage", "antique", "collectible", "collectibles", "discontinued", "memorabilia", "pre-owned", "preowned", "thrifted", "for sale", "sealed", "boxed", "original print", "carburetor", "alternator", "typewriter", "film camera", "graded", "door seal", "side mirror", "tail light"] },
     { "engine": "ebay", "weight": 2, "kw": ["used", "replacement", "prints"] },
     { "engine": "ebay", "weight": 1, "kw": ["spare", "repair", "rare", "auction", "vinyl", "salvage"] },
-    { "engine": "lumo", "weight": 5, "kw": ["itinerary for", "trip itinerary", "help me plan", "day trip to", "meal plan", "workout plan", "plan a trip", "plan a week", "plan my", "fix the grammar", "fix my grammar", "proofread", "what led to", "why did the", "is it cheaper to", "word game", "going to crash", "under the hood"] },
-    { "engine": "lumo", "weight": 3, "kw": ["worth it", "is it worth", "plan a", "is it bad", "is it healthy", "is it good for", "best way to", "how should i", "how much should i", "itinerary", "why did", "how does a", "how do i handle", "tips for"] },
+    { "engine": "ai", "weight": 5, "kw": ["itinerary for", "trip itinerary", "help me plan", "day trip to", "meal plan", "workout plan", "plan a trip", "plan a week", "plan my", "fix the grammar", "fix my grammar", "proofread", "what led to", "why did the", "is it cheaper to", "word game", "going to crash", "under the hood"] },
+    { "engine": "ai", "weight": 3, "kw": ["worth it", "is it worth", "plan a", "is it bad", "is it healthy", "is it good for", "best way to", "how should i", "how much should i", "itinerary", "why did", "how does a", "how do i handle", "tips for"] },
     { "engine": "maps", "weight": 5, "kw": ["car wash", "post office", "atm near", "avoiding tolls", "avoid tolls", "avoiding highways", "hiking trails", "trails around", "trails near", "vet clinic", "on main street", "on main st", "scenic drive"] },
     { "engine": "maps", "weight": 2, "kw": ["atm"] },
     { "engine": "youtube", "weight": 5, "kw": ["ted talk", "live aid", "music for studying", "piano for studying", "jazz for studying", "music for sleep", "asmr", "mr beast", "mrbeast", "mkbhd", "hiit workout", "lofi"] },
@@ -58,26 +168,27 @@
     { "engine": "images", "weight": 3, "kw": ["inspiration", "decor", "tattoo designs"] },
     { "engine": "ebay", "weight": 5, "kw": ["baseball card", "trading card", "pokemon cards", "retired set", "retired lego", "action figures", "action figure", "headlight assembly", "first edition"] },
     { "engine": "ebay", "weight": 3, "kw": ["retro console", "console with games", "console bundle", "nintendo 64", "headlight", "polaroid", "used golf", "textbooks", "kenner", "autographed", "signed jersey"] },
-    { "engine": "lumo", "weight": 5, "kw": ["shows like", "series like", "games like", "anime like", "podcasts like", "benefits of", "study schedule", "study plan", "plan a road trip", "road trip itinerary"] },
+    { "engine": "ai", "weight": 5, "kw": ["shows like", "series like", "games like", "anime like", "podcasts like", "benefits of", "study schedule", "study plan", "plan a road trip", "road trip itinerary"] },
     { "engine": "maps", "weight": 3, "kw": ["bookstores in", "stores in", "shops in", "bars in", "on broadway"] },
     { "engine": "youtube", "weight": 5, "kw": ["live performance", "bloopers", "piano cover", "guitar cover", "yoga for beginners", "workout for beginners"] },
     { "engine": "images", "weight": 5, "kw": ["design ideas", "art ideas", "cake designs"] },
     { "engine": "images", "weight": 3, "kw": ["designs", "map of the", "anatomy of", "diagram"] },
     { "engine": "ebay", "weight": 5, "kw": ["original pressing", "first pressing", "magic the gathering", "mtg cards", "super nintendo", "snes console"] },
-    { "engine": "lumo", "weight": 5, "kw": ["honest review", "user reviews", "owners say", "advice for", "advice on"] },
+    { "engine": "ai", "weight": 5, "kw": ["honest review", "user reviews", "owners say", "advice for", "advice on"] },
     { "engine": "x", "weight": 5, "kw": ["breaking news", "latest news", "what just happened", "live updates", "public reactions to", "fan reactions to", "internet reactions to", "twitter reactions to", "people's reactions to", "public reaction to", "fan reaction to", "internet reaction to", "people saying", "everyone saying", "honest opinions", "real opinions", "hot takes", "what do developers think", "what do engineers think", "thoughts on"] },
-    { "engine": "lumo", "weight": 3, "kw": ["reviews", "review of", "advice", "recommend", "recommendations", "gift ideas", "gifts for", "debate"] },
+    { "engine": "ai", "weight": 3, "kw": ["reviews", "review of", "advice", "recommend", "recommendations", "gift ideas", "gifts for", "debate"] },
     { "engine": "x", "weight": 3, "kw": ["opinions on", "opinions about", "celebrity drama", "drama between", "drama with", "drama around"] },
-    { "engine": "lumo", "weight": 5, "kw": ["worth upgrading", "worth learning"] },
+    { "engine": "ai", "weight": 5, "kw": ["worth upgrading", "worth learning"] },
     { "engine": "x", "weight": 5, "kw": ["what's going on with", "whats going on with", "what's happening with", "whats happening with", "what developers think", "what engineers think"] },
     { "engine": "ddg", "weight": 5, "kw": ["documentation", "docs", "npm install", "pip install", "download", "latest version"] },
     { "engine": "ddg", "weight": 8, "kw": ["allergic reaction", "allergic reactions", "skin reaction", "chemical reaction", "chemical reactions", "drug reaction", "second opinion", "legal opinion", "medical opinion", "k drama", "kdrama", "korean drama", "drama series", "drama movie", "drama movies", "trending down", "trending up", "trending downward", "trending upward", "trending lower", "trending higher"] },
     { "engine": "ddg", "weight": 5, "priority": true, "kw": ["create an account", "create account", "create a new account", "make an account", "open an account", "create a * account", "create an * account", "create my * account", "make a * account", "make an * account", "open a * account", "open an * account", "sign up for a * account", "sign up for an * account", "register a * account"] },
-    { "engine": "lumo", "weight": 3, "priority": true, "kw": ["write a", "create a", "create an", "write me", "write an", "draft a", "draft an", "compose a", "craft a", "help me craft", "generate a", "help me write", "help me word"] },
+    { "engine": "ai", "weight": 3, "priority": true, "kw": ["write a", "create a", "create an", "write me", "write an", "draft a", "draft an", "compose a", "craft a", "help me craft", "generate a", "help me write", "help me word"] },
     { "engine": "ddg", "weight": 5, "priority": true, "kw": ["login", "log in", "log into", "sign in", "signin", "sign up", "signup", "sign into", "password reset", "reset password", "reset my password", "forgot password", "delete my account", "delete account", "deactivate my account", "delete my twitter account", "twitter account suspended", "twitter account locked", "twitter account hacked", "recover twitter account", "recover my twitter account", "deactivate twitter account", "x account suspended", "recover x account", "twitter password", "twitter help", "x help center", "change username", "change twitter username"] },
-    { "engine": "lumo", "weight": 3, "priority": true, "kw": ["recommend", "recommend a", "recommendations for", "suggest a", "suggestions for", "advice for", "advice on", "review of", "reviews of", "honest review", "user reviews"], "unless": ["near me", "nearby", "near my", "around here", "closest", "nearest"] },
+    { "engine": "ai", "weight": 3, "priority": true, "kw": ["recommend", "recommend a", "recommendations for", "suggest a", "suggestions for", "advice for", "advice on", "review of", "reviews of", "honest review", "user reviews"], "unless": ["near me", "nearby", "near my", "around here", "closest", "nearest"] },
     { "engine": "x", "weight": 5, "kw": ["winning the debate", "debate tonight", "debate right now", "tweet today", "tweeted today", "tweets today", "tweet yesterday", "tweeted yesterday", "on twitter", "search twitter", "search x for", "tweets about", "tweets from", "tweet from", "tweeted", "posts on x", "posting on x", "saying on x", "people on x", "twitter thread", "going viral", "went viral", "viral post", "viral tweet", "community notes", "fans react", "fans reacting", "fans saying", "critics saying", "internet reacts", "live reactions", "live coverage", "developing story", "top headlines", "headlines today", "news headlines", "today's headlines", "todays headlines", "latest headlines", "morning headlines", "news right now", "latest on the war", "latest on the election", "latest on the storm", "latest updates on the", "latest updates from the", "why is everyone talking", "trending on", "trending now", "trending today", "trending right now", "trending topics", "trending hashtags", "currently trending", "what is trending", "why is it trending", "why is this trending"] },
-    { "engine": "x", "weight": 3, "kw": ["controversy over", "controversy around", "outrage over", "public outrage", "backlash over", "backlash against", "public backlash", "rumors about", "rumors of", "latest rumors"] }
+    { "engine": "x", "weight": 3, "kw": ["controversy over", "controversy around", "outrage over", "public outrage", "backlash over", "backlash against", "public backlash", "rumors about", "rumors of", "latest rumors"] },
+    {"engine": "ebay", "weight": 5, "kw": ["buy a", "buy an", "buy new", "where to buy", "order online", "on sale", "deals on", "deal on", "best price on", "lowest price", "cheapest price", "in stock", "add to cart", "discount code", "promo code", "coupon code", "coupon for", "free shipping", "black friday deals", "cyber monday deals", "prime day deals", "shop for"], "unless": ["house", "home", "condo", "land", "buy stock", "buy stocks", "stock market", "stock price", "stock in", "shares", "bitcoin", "crypto", "ethereum", "flights", "flight", "tickets", "domain", "should i", "is it cheaper", "rent or buy"]}
   ],
   "_routes": [
     {
@@ -317,7 +428,6 @@
         "good cheap earbuds that sound great",
         "reliable budget printer for home",
         "screen protector for new iphone",
-        "where to buy a good mattress",
         "how tall is lebron james",
         "how old is keanu reeves",
         "when was barack obama born",
@@ -353,7 +463,9 @@
         "rust std docs",
         "react documentation",
         "golang download",
-        "node js latest version"
+        "node js latest version",
+        "buy bitcoin with a credit card",
+        "how to buy shares of apple stock"
       ]
     },
     {
@@ -454,8 +566,8 @@
       ]
     },
     {
-      "key": "lumo",
-      "label": "Lumo (AI answers, research, reviews, advice)",
+      "key": "ai",
+      "label": "AI answers (explainers, research, writing, reviews, advice)",
       "phrases": [
         "explain quantum entanglement in simple terms",
         "summarize the plot of dune",
@@ -1053,7 +1165,7 @@
     },
     {
       "key": "ebay",
-      "label": "eBay (hard-to-find products, vintage, parts, collectibles)",
+      "label": "Shopping (buying things: new, used, vintage, parts, collectibles)",
       "phrases": [
         "buy vintage camera lens",
         "film camera canon ae-1",
@@ -1149,7 +1261,43 @@
         "vintage star wars kenner figures",
         "headlight assembly for toyota camry",
         "used college textbooks cheap",
-        "replacement glass carafe for coffee maker"
+        "replacement glass carafe for coffee maker",
+        "buy a new phone case",
+        "order paper towels online",
+        "buy airpods pro",
+        "add wireless mouse to cart",
+        "cheapest price on printer paper",
+        "lowest price on a kindle",
+        "deals on bluetooth speakers",
+        "deals on laptops this week",
+        "running shoes on sale",
+        "promo code for sneakers",
+        "buy printer ink cartridges",
+        "buy diapers in bulk",
+        "order groceries for delivery",
+        "where to buy lego sets",
+        "buy a gift card online",
+        "nintendo switch 2 in stock",
+        "buy a new vacuum cleaner",
+        "shop for winter boots",
+        "buy a kitchen knife set",
+        "order a phone charger online",
+        "buy laundry detergent",
+        "price drop on headphones",
+        "buy an apple watch band",
+        "where to buy a good mattress",
+        "weekend deals on headphones",
+        "prime day deals",
+        "buy a desk chair online",
+        "order contact lenses online",
+        "buy noise cancelling headphones",
+        "buy a cordless vacuum online",
+        "deals on air purifiers",
+        "buy a pair of running shoes",
+        "sale on bluetooth earbuds",
+        "order a new mattress online",
+        "buy a 65 inch tv",
+        "discount on espresso machines"
       ]
     }
   ]

@@ -47,11 +47,11 @@ async function freezeRouteTimer(page: Page) {
   });
 }
 
-/** Answer x.com navigations with a stub page. X serves signed-out
- *  visitors a login redirect and refuses headless browsers outright, so
- *  the X specs check the URL we built instead of X's response. */
+/** Answer x.com and claude.ai navigations with a stub page. Both sit
+ *  behind sign-in and refuse headless browsers (X outright, Claude with a
+ *  bot challenge), so these specs check the URL we built instead. */
 async function stubX(page: Page) {
-  await page.route(/^https:\/\/x\.com\//, (route: Route) =>
+  await page.route(/^https:\/\/(x\.com|claude\.ai)\//, (route: Route) =>
     route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>x stub</title>' }));
 }
 
@@ -120,23 +120,26 @@ test.describe('search router — bang shortcuts', () => {
     qParam: string;
     qFragment: string;
   }[] = [
-    { input: '!yt lofi hip hop',   engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
-    { input: '!gr election news',  engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'election' },
+    { input: '!yt lofi hip hop',   engine: 'youtube:youtube', host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'lofi' },
+    { input: '!gr election news',  engine: 'ai',          host: /^claude\.ai$/,           qParam: 'q',            qFragment: 'election' },
     // Note: Google Maps may redirect to consent.google.com in EU regions,
     // causing this test to time out. The router itself is correct; the
     // destination's interstitial is outside our control.
     // { input: '!m coffee shops',    engine: 'maps',        host: /(^|\.)google\.com$/,       qParam: 'q',            qFragment: 'coffee' },
     { input: '!i black hole',      engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'black' },
-    { input: '!p quantum gravity', engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'quantum' },
+    { input: '!p quantum gravity', engine: 'ai',          host: /^claude\.ai$/,           qParam: 'q',            qFragment: 'quantum' },
     // Aliases (different prefix → same engine):
-    { input: '!y dancing dog',     engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
+    { input: '!y dancing dog',     engine: 'youtube:youtube', host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'dancing' },
     { input: '!img nebula',        engine: 'images',      host: /(^|\.)bing\.com$/,         qParam: 'q',            qFragment: 'nebula' },
-    { input: '!ddg climate news',  engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
-    { input: '!g trending on x',   engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'trending' },
-    { input: '!x election night',  engine: 'x',           host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'election' },
-    { input: '!tw world cup',      engine: 'x',           host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'world' },
-    { input: '!lumo rust vs go',   engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'rust' },
-    { input: '!eb vintage lens',   engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
+    { input: '!ddg climate news',  engine: 'ddg:ddglite', host: /(^|\.)duckduckgo\.com$/,   qParam: 'q',            qFragment: 'climate' },
+    { input: '!g trending on x',   engine: 'ai',          host: /^claude\.ai$/,           qParam: 'q',            qFragment: 'trending' },
+    { input: '!x election night',  engine: 'x:x',         host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'election' },
+    { input: '!tw world cup',      engine: 'x:x',         host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'world' },
+    { input: '!lumo rust vs go',   engine: 'ai:lumo',     host: /(^|\.)lumo\.proton\.me$/, qParam: 'q',            qFragment: 'rust' },
+    { input: '!eb vintage lens',   engine: 'ebay:ebay',   host: /(^|\.)ebay\.com$/,         qParam: '_nkw',         qFragment: 'vintage' },
+    // Route bangs follow the user's destination pick (defaults here).
+    { input: '!v cat videos',      engine: 'youtube',     host: /(^|\.)youtube\.com$/,      qParam: 'search_query', qFragment: 'cat' },
+    { input: '!news election',     engine: 'x',           host: /(^|\.)x\.com$/,           qParam: 'q',            qFragment: 'election' },
   ];
 
   for (const c of cases) {
@@ -151,7 +154,8 @@ test.describe('search router — bang shortcuts', () => {
       // once and shows the routing overlay`.
       test.skip(isMobile, 'bang routing covered on desktop projects; mobile overlay covered separately');
 
-      if (c.engine === 'x') await stubX(page);
+      // Only answers x.com / claude.ai; other destinations load for real.
+      await stubX(page);
       await page.goto(PATH);
       // Bangs short-circuit the model entirely, so no need to wait for it.
       const search = page.locator('#search');
@@ -177,7 +181,7 @@ test.describe('search router — bang shortcuts', () => {
     await page.goto(PATH);
     const search = page.locator('#search');
     await search.fill('!yt');
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube:youtube');
 
     // waitUntil:'commit' matches as soon as the URL changes — we don't
     // need to wait for the destination page to finish loading. Headless
@@ -254,7 +258,7 @@ test.describe('search router — query parameter redirect', () => {
     const btns = page.locator('#override-engines .override-btn');
     await expect(btns).toHaveCount(7, { timeout: 5_000 });
     // The selected engine should be highlighted.
-    await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube');
+    await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube:youtube');
   });
 
   test('?q=!yt+lofi cancel keeps user on page', async ({ page }) => {
@@ -459,7 +463,7 @@ test.describe('search router — semantic routing', () => {
   // benchmark accuracy floors) is tests/unit/test_routing.py.
   const semanticCases: { query: string; engine: string }[] = [
     { query: 'thai food near me',                engine: 'maps' },
-    { query: 'explain how a heat pump works',    engine: 'lumo' },
+    { query: 'explain how a heat pump works',    engine: 'ai' },
     { query: 'taylor swift official music video', engine: 'youtube' },
     { query: 'pictures of snow leopards',        engine: 'images' },
     { query: 'latest news on the mars mission',  engine: 'x' },
@@ -508,8 +512,8 @@ test.describe('search router — semantic routing', () => {
     const first = await page.locator('body').getAttribute('data-engine');
 
     await search.fill('!eb transformers.js');
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay');
-    expect(first).not.toBe('ebay');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay:ebay');
+    expect(first).not.toBe('ebay:ebay');
   });
 
   test('rapid-fire keystrokes settle on the latest query (hintSeq race fix)', async ({ page, isMobile }) => {
@@ -525,7 +529,7 @@ test.describe('search router — semantic routing', () => {
     await search.fill('dogs');
     await search.fill('pizza');
     await search.fill('!eb transformers.js');     // unambiguous final state
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay', { timeout: 5_000 });
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ebay:ebay', { timeout: 5_000 });
     await expect(page.locator('#hint')).toHaveText('eBay');
   });
 });
@@ -954,7 +958,7 @@ test.describe('search router — click-to-route', () => {
 
     const search = page.locator('#search');
     await search.fill('!yt lofi');
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube:youtube');
 
     const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
     await page.locator('#hint').click();
@@ -1134,12 +1138,13 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     { query: 'breaking news in chicago',      engine: 'x',           host: /(^|\.)x\.com$/,           qFragment: 'chicago' },
     { query: 'best wireless headphones',      engine: 'ddg',         host: /(^|\.)duckduckgo\.com$/,  qFragment: 'wireless' },
     { query: 'pictures of golden retrievers', engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'golden' },
-    { query: 'itinerary for a weekend in lisbon', engine: 'lumo',    host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'lisbon' },
+    { query: 'itinerary for a weekend in lisbon', engine: 'ai',      host: /^claude\.ai$/,            qFragment: 'lisbon' },
     { query: 'coffee shops near me',          engine: 'maps',        host: /(^|\.)google\.com$/,       qFragment: 'coffee' },
     { query: 'image of saturn',               engine: 'images',      host: /(^|\.)bing\.com$/,         qFragment: 'saturn' },
-    { query: 'explain quantum mechanics',     engine: 'lumo',        host: /(^|\.)lumo\.proton\.me$/,  qFragment: 'quantum' },
+    { query: 'explain quantum mechanics',     engine: 'ai',          host: /^claude\.ai$/,            qFragment: 'quantum' },
     { query: 'trending on x',                 engine: 'x',           host: /(^|\.)x\.com$/,           qFragment: 'trending' },
     { query: 'buy vintage camera lens',       engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'vintage' },
+    { query: 'deals on air fryers',           engine: 'ebay',        host: /(^|\.)ebay\.com$/,         qFragment: 'fryers' },
   ];
 
   for (const c of cases) {
@@ -1148,7 +1153,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
       // a click step that compounds with third-party destination flake. The
       // keyword classifier is platform-agnostic; desktop coverage is enough.
       test.skip(isMobile, 'keyword routing logic covered on desktop projects');
-      if (c.engine === 'x') await stubX(page);
+      if (c.engine === 'x' || c.engine === 'ai') await stubX(page);
       await bootKeywordMode(page);
 
       const search = page.locator('#search');
@@ -1186,7 +1191,7 @@ test.describe('search router — keyword mode (low-memory fallback)', () => {
     // YouTube. That makes it unambiguous that the bang is what's driving
     // the engine selection (not coincident keyword matching).
     await search.fill('!yt cake recipe');
-    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'youtube:youtube');
 
     const navPromise = page.waitForURL(/youtube\.com/, { timeout: 15_000, waitUntil: 'commit' });
     await search.press('Enter');
@@ -1468,5 +1473,212 @@ test.describe('search router — arrow-key destination selection', () => {
     }, { timeout: 15_000, waitUntil: 'commit' });
     await page.keyboard.press('Enter');
     await navPromise;
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Destinations: a picker per route, saved in localStorage
+// ───────────────────────────────────────────────────────────────────────
+test.describe('destinations picker', () => {
+  /** Answer the picked sites with a stub page: several need sign-in or
+   *  block headless browsers, and we only care about the URL we built. */
+  async function stubSites(page: Page) {
+    await page.route(/^https:\/\/(chatgpt\.com|claude\.ai|bsky\.app|www\.openstreetmap\.org|www\.perplexity\.ai)\//, (route: Route) =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
+  }
+
+  /** Wait for search-config.json to load (it fills in the picker). */
+  async function waitForPicker(page: Page) {
+    await expect(page.locator('#dest-pick')).not.toHaveAttribute('hidden', /.*/, { timeout: MODEL_TIMEOUT });
+  }
+
+  const stored = (page: Page) => page.evaluate(() => localStorage.getItem('divid3-destinations'));
+
+  test('lists every route with its default picked, and stores nothing', async ({ page }) => {
+    await page.goto(PATH);
+    await waitForPicker(page);
+    await page.locator('#dest-pick').click();
+    await expect(page.locator('#dest-dialog')).toBeVisible();
+    const defaults: Record<string, string> = {
+      ai: 'claude', x: 'x', ddg: 'ddglite', maps: 'google', images: 'bing', youtube: 'youtube', ebay: 'ebay',
+    };
+    for (const [route, id] of Object.entries(defaults)) {
+      await expect(page.locator(`.dest-section[data-route="${route}"] input:checked`)).toHaveValue(id);
+    }
+    await expect(page.locator('#dest-reset')).toBeDisabled();
+    expect(await stored(page)).toBeNull();
+    await expect(page.locator('#dest-pick')).not.toHaveAttribute('data-custom', /.*/);
+  });
+
+  test('picks persist across reloads and drive their routes', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile Enter shows the overlay; overlay routing is covered below');
+    await stubSites(page);
+    await page.goto(PATH);
+    await waitForPicker(page);
+
+    // `D` opens the panel, but not while typing in the search box.
+    await page.locator('#search').press('d');
+    await expect(page.locator('#dest-dialog')).toBeHidden();
+    await page.locator('#search').fill('');
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    // `D` opens the panel, but never while typing in the search box.
+    await page.locator('#search').press('d');
+    await expect(page.locator('#dest-dialog')).toBeHidden();
+    await page.locator('#search').fill('');
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('d');
+    await expect(page.locator('#dest-dialog')).toBeVisible();
+    await page.getByRole('radio', { name: 'ChatGPT' }).check();
+    await page.getByRole('radio', { name: 'OpenStreetMap' }).check();
+    await expect(page.locator('.dest-section[data-route="ai"] .dest-current')).toHaveText('ChatGPT');
+    await expect(page.locator('.dest-section[data-route="ai"] .dest-note')).toContainText('!chatgpt');
+    await page.locator('#dest-dialog .dest-done').click();
+    await expect(page.locator('#dest-dialog')).toBeHidden();
+    expect(JSON.parse((await stored(page))!)).toEqual({ ai: 'chatgpt', maps: 'osm' });
+    await expect(page.locator('#dest-pick')).toHaveAttribute('data-custom', '2');
+
+    await page.reload();
+    await waitForPicker(page);
+    const search = page.locator('#search');
+    await search.fill('!m coffee in lisbon');
+    await expect(page.locator('#hint')).toHaveText('OpenStreetMap');
+    await search.fill('!ai why is the sky blue');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ai');
+    await expect(page.locator('#hint')).toHaveText('ChatGPT');
+    // The category ("AI · ChatGPT") is drawn from data-category.
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI');
+    const nav = page.waitForURL(url => {
+      const u = new URL(url.toString());
+      return u.hostname === 'chatgpt.com' && (u.searchParams.get('q') ?? '').includes('sky');
+    }, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await nav;
+  });
+
+  test('reset clears every pick and the stored value', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('divid3-destinations', JSON.stringify({ ai: 'grok', x: 'bluesky' })));
+    await page.goto(PATH);
+    await waitForPicker(page);
+    await expect(page.locator('#dest-pick')).toHaveAttribute('data-custom', '2');
+    await page.locator('#dest-pick').click();
+    await expect(page.locator('.dest-section[data-route="x"] input:checked')).toHaveValue('bluesky');
+    await page.locator('#dest-reset').click();
+    await expect(page.locator('.dest-section[data-route="x"] input:checked')).toHaveValue('x');
+    await expect(page.locator('.dest-section[data-route="ai"] input:checked')).toHaveValue('claude');
+    expect(await stored(page)).toBeNull();
+  });
+
+  test('picking every default again leaves storage empty', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('divid3-destinations', JSON.stringify({ images: 'google' })));
+    await page.goto(PATH);
+    await waitForPicker(page);
+    await page.locator('#dest-pick').click();
+    await page.getByRole('radio', { name: 'Bing Images' }).check();
+    expect(await stored(page)).toBeNull();
+  });
+
+  test('unknown or malformed stored picks fall back to the defaults', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('divid3-destinations',
+      JSON.stringify({ ai: 'constructor', x: 42, nope: 'x', ['__proto__']: { ai: 'grok' } })));
+    await page.goto(PATH);
+    await waitForPicker(page);
+    await expect(page.locator('#dest-pick')).not.toHaveAttribute('data-custom', /.*/);
+    await page.locator('#search').fill('!ai test');
+    await expect(page.locator('#hint')).toHaveText('Claude');
+  });
+
+  test('brand bangs reach their site whatever the pick', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'mobile Enter shows the overlay; overlay routing is covered below');
+    await stubSites(page);
+    await page.addInitScript(() =>
+      localStorage.setItem('divid3-destinations', JSON.stringify({ ai: 'perplexity' })));
+    await page.goto(PATH);
+    await waitForPicker(page);
+    const search = page.locator('#search');
+    await search.fill('!claude draft a haiku');
+    await expect(page.locator('body')).toHaveAttribute('data-engine', 'ai:claude');
+    await expect(page.locator('#hint')).toHaveText('Claude');
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI');
+    const nav = page.waitForURL(url => {
+      const u = new URL(url.toString());
+      return u.hostname === 'claude.ai' && u.pathname === '/new'
+        && (u.searchParams.get('q') ?? '') === 'draft a haiku';
+    }, { timeout: 15_000, waitUntil: 'commit' });
+    await search.press('Enter');
+    await nav;
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem('divid3-destinations')))!))
+      .toEqual({ ai: 'perplexity' });
+  });
+
+  test('?q= overlay shows the picks, and can change them in place', async ({ page }) => {
+    // A short phone screen: the overlay scrolls instead of squeezing the
+    // query line to nothing.
+    await page.setViewportSize({ width: 375, height: 600 });
+    await stubSites(page);
+    await page.addInitScript(() =>
+      localStorage.setItem('divid3-destinations', JSON.stringify({ ai: 'perplexity' })));
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=explain+how+a+heat+pump+works`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#query-display')).toBeVisible();
+    const aiBtn = page.locator('#override-engines .override-btn[data-engine="ai"] .override-label');
+    await expect(aiBtn).toHaveText('Perplexity');
+    await expect(page.locator('#override-engines .override-btn[data-engine="ai"] .override-cat')).toHaveText('AI');
+    await expect(page.locator('#override-engines .override-btn[data-engine="maps"] .override-cat')).toHaveText('Maps');
+    // Per-site engines never crowd the overlay.
+    await expect(page.locator('#override-engines .override-btn[data-engine*=":"]')).toHaveCount(0);
+
+    await page.locator('#overlay-settings').click();
+    await expect(page.locator('#dest-dialog')).toBeVisible();
+    await page.getByRole('radio', { name: 'Claude' }).check();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#dest-dialog')).toBeHidden();
+    // Esc closed the panel, not the overlay.
+    await expect(page.locator('#overlay')).toBeVisible();
+    await expect(aiBtn).toHaveText('Claude');
+  });
+
+  test('changing picks relabels the live hint and score rows in place', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live hint and score rows are desktop-only');
+    await page.goto(PATH);
+    await waitForModelReady(page);
+    await page.locator('#search').fill('explain how a heat pump works');
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI', { timeout: 15_000 });
+    await expect(page.locator('#hint')).toHaveText('Claude');
+
+    // Two picks in quick succession: neither may be lost to the
+    // single-flight inference guard.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('d');
+    await page.getByRole('radio', { name: 'ChatGPT' }).check();
+    await page.getByRole('radio', { name: 'Perplexity' }).check();
+    await page.keyboard.press('Escape');
+
+    await expect(page.locator('#hint')).toHaveText('Perplexity');
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI');
+    await expect(page.locator('#scores .score-row[data-engine="ai"] .score-label')).toHaveText('Perplexity');
+    await expect(page.locator('#scores .score-row[data-engine="ai"]')).toHaveAttribute('aria-label', /^Route to AI: Perplexity \(\d+% match\)$/);
+  });
+
+  test('a site bang keeps a different picked destination on the overlay', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('divid3-destinations', JSON.stringify({ youtube: 'vimeo' })));
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=!yt+cats`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube:youtube');
+    // Vimeo is the Video pick, not a duplicate of YouTube: it stays.
+    await expect(page.locator('#override-engines .override-btn[data-engine="youtube"] .override-label')).toHaveText('Vimeo');
+  });
+
+  test('without a config there is no picker to open, anywhere', async ({ page }) => {
+    await page.route('**/search-config.json*', (route: Route) => route.fulfill({ status: 404, body: 'nope' }));
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=hello+world`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#overlay-settings')).toBeHidden();
+    await expect(page.locator('#dest-pick')).toBeHidden();
   });
 });

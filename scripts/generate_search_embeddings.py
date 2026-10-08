@@ -95,6 +95,9 @@ def main() -> int:
     engines = cfg.get("engines")
     bangs = cfg.get("bangs")
     keyword_rules = cfg.get("keywordRules")
+    # The per-route destination pickers; validated in depth by
+    # validate_config.py.
+    destinations = cfg.get("destinations")
 
     if not isinstance(engines, dict) or not engines:
         raise SystemExit("scripts/search_phrases.json: 'engines' must be a non-empty object")
@@ -102,6 +105,8 @@ def main() -> int:
         raise SystemExit("scripts/search_phrases.json: 'bangs' must be a non-empty object")
     if not isinstance(keyword_rules, list) or not keyword_rules:
         raise SystemExit("scripts/search_phrases.json: 'keywordRules' must be a non-empty list")
+    if not isinstance(destinations, dict) or not destinations:
+        raise SystemExit("scripts/search_phrases.json: 'destinations' must be a non-empty object")
 
     # Validate per-engine shape: name + urlTemplate are required; nothing else
     # is consumed by the runtime, so flag stray keys early.
@@ -215,6 +220,7 @@ def main() -> int:
     config_out = {
         "engines": engines,
         "bangs": bangs,
+        "destinations": destinations,
         "keywordRules": keyword_rules
     }
     print(f"writing {OUT_CONFIG_FILE.relative_to(REPO_ROOT)}")
