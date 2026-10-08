@@ -74,24 +74,13 @@ The router decides what *kind* of search a query is. **Destinations** (footer li
 |-------|----------|---------|--------------------------------|
 | `ai`      | Explainers, research, writing, reviews, advice | Claude | `!ai`, `!l`, `!g`, `!gr`, `!p`, `!px` |
 | `x`       | Breaking news, live events, opinions, "what are people saying" | X | `!news`, `!n` |
-| `ddg`     | Generic web search, quick facts, product shopping; fallback for anything ambiguous | DuckDuckGo (html) | `!web` |
+| `ddg`     | Generic web search, quick facts, "best X" product research; fallback for anything ambiguous | DuckDuckGo (html) | `!web` |
 | `maps`    | Locations, "near me", directions | Google Maps | `!m`, `!map` |
 | `images`  | Image queries | Bing Images | `!i`, `!img` |
 | `youtube` | Music, video, tutorials | YouTube | `!v`, `!video` |
 | `ebay`    | Shopping: buying something ("buy a…", "deals on…", "where to buy"), plus used / vintage / parts / collectibles | eBay | `!shop`, `!used` |
 
 Every site also has its own bang that reaches it whatever you picked: `!yt`, `!eb`, `!x`, `!ddg`, `!lumo`, `!claude`, `!gpt`, `!pplx`, `!osm`, `!reddit`, `!kagi` and so on. The panel shows each site's bangs.
-
-Plus the `direct` virtual engine, which opens a typed URL (`github.com`) literally instead of searching for it.
-
----------------|--------------------------------------------|--------------------|
-| DuckDuckGo    | Generic web search, quick facts, product shopping; fallback for anything ambiguous | `!d`, `!ddg`       |
-| Bing Images   | Image queries                              | `!i`, `!img`       |
-| Lumo (Proton) | Explainers, research, writing, reviews, advice | `!l`, `!lumo`, `!g`, `!gr`, `!p`, `!px` |
-| X             | Breaking news, live events, opinions, hot takes, "what are people saying" | `!x`, `!tw`, `!twitter` |
-| Google Maps   | Locations, "near me", directions           | `!m`, `!map`       |
-| YouTube       | Music, video, tutorials                    | `!y`, `!yt`        |
-| eBay          | Used / vintage / parts / hard-to-find items | `!eb`, `!ebay`     |
 
 Plus the `direct` virtual engine, which opens a typed URL (`github.com`) literally instead of searching for it.
 

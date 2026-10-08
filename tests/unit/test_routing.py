@@ -139,6 +139,7 @@ KEYWORD_CASES: list[tuple[str, str]] = [
     ("where to buy a dutch oven", "ebay"),
     ("promo code for adidas", "ebay"),
     ("deals on air fryers", "ebay"),
+    ("ps5 pro in stock", "ebay"),  # "in stock" is shopping; only investment phrasings are excluded
     ("pizza near me", "maps"),
     ("directions to the airport", "maps"),
     ("car wash open now", "maps"),
@@ -238,6 +239,8 @@ KEYWORD_FALSE_POSITIVES: list[tuple[str, str | None]] = [
     ("buy a house in denver", None),
     ("should i buy a used car", "ai"),
     ("how shopify scaled black friday", None),
+    ("buy stock in nvidia", None),
+    ("best time to buy stocks", None),
     ("street fighter 6", None),         # not a maps address
     ("wall street journal", None),
     ("healthy chicken recipes", "ddg"),  # 'healthy' is not an ai signal; recipes → web
