@@ -2786,8 +2786,11 @@
     }
 
     // A site bang (`!yt` → `youtube:youtube`) stands in for its route's
-    // button, so the overlay doesn't offer YouTube twice.
-    const replacedRoute = engines[selectedKey]?.hidden ? selectedKey.split(':')[0] : null;
+    // button when that site is also the route's pick, so the overlay
+    // doesn't offer YouTube twice. With Vimeo picked, both stay.
+    const [bangRoute, bangSite] = String(selectedKey).split(':');
+    const replacedRoute = engines[selectedKey]?.hidden && bangSite && readChoices()[bangRoute] === bangSite
+      ? bangRoute : null;
 
     for (const key of rankedKeys) {
       const engine = engines[key];

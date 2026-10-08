@@ -1662,6 +1662,17 @@ test.describe('destinations picker', () => {
     await expect(page.locator('#scores .score-row[data-engine="ai"]')).toHaveAttribute('aria-label', /^Route to AI: Perplexity \(\d+% match\)$/);
   });
 
+  test('a site bang keeps a different picked destination on the overlay', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('divid3-destinations', JSON.stringify({ youtube: 'vimeo' })));
+    await freezeRouteTimer(page);
+    await page.goto(`${PATH}?q=!yt+cats`);
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: MODEL_TIMEOUT });
+    await expect(page.locator('#override-engines .override-btn.selected')).toHaveAttribute('data-engine', 'youtube:youtube');
+    // Vimeo is the Video pick, not a duplicate of YouTube: it stays.
+    await expect(page.locator('#override-engines .override-btn[data-engine="youtube"] .override-label')).toHaveText('Vimeo');
+  });
+
   test('without a config there is no picker to open, anywhere', async ({ page }) => {
     await page.route('**/search-config.json*', (route: Route) => route.fulfill({ status: 404, body: 'nope' }));
     await freezeRouteTimer(page);
