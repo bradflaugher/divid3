@@ -1640,6 +1640,28 @@ test.describe('destinations picker', () => {
     await expect(aiBtn).toHaveText('Claude');
   });
 
+  test('changing picks relabels the live hint and score rows in place', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'live hint and score rows are desktop-only');
+    await page.goto(PATH);
+    await waitForModelReady(page);
+    await page.locator('#search').fill('explain how a heat pump works');
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI', { timeout: 15_000 });
+    await expect(page.locator('#hint')).toHaveText('Claude');
+
+    // Two picks in quick succession: neither may be lost to the
+    // single-flight inference guard.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('d');
+    await page.getByRole('radio', { name: 'ChatGPT' }).check();
+    await page.getByRole('radio', { name: 'Perplexity' }).check();
+    await page.keyboard.press('Escape');
+
+    await expect(page.locator('#hint')).toHaveText('Perplexity');
+    await expect(page.locator('#hint')).toHaveAttribute('data-category', 'AI');
+    await expect(page.locator('#scores .score-row[data-engine="ai"] .score-label')).toHaveText('Perplexity');
+    await expect(page.locator('#scores .score-row[data-engine="ai"]')).toHaveAttribute('aria-label', /^Route to AI: Perplexity \(\d+% match\)$/);
+  });
+
   test('without a config there is no picker to open, anywhere', async ({ page }) => {
     await page.route('**/search-config.json*', (route: Route) => route.fulfill({ status: 404, body: 'nope' }));
     await freezeRouteTimer(page);

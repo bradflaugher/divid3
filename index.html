@@ -2030,13 +2030,26 @@
     target?.closest('.dest-section')?.scrollIntoView({ block: 'nearest' });
   }
 
-  /** Re-render anything that names a destination. */
+  /** Re-render anything that names a destination. A pick changes names,
+   *  never which route won, so this relabels in place instead of
+   *  re-classifying: a fresh inference could be dropped by the
+   *  single-flight guard and leave the old name showing. */
   function refreshAfterChoice() {
     if (overlay.classList.contains('active') && lastOverlay && engines[lastOverlay.key]) {
       display.textContent = engines[lastOverlay.key].name;
       renderOverrideButtons(lastOverlay.key, lastOverlay.scores);
-    } else if (search.value.trim()) {
-      updateHint();
+      return;
+    }
+    const key = hint.dataset.routeKey;
+    if (hint.classList.contains('active') && key && engines[key]) showHint(key);
+    for (const row of scoresPanel.querySelectorAll('.score-row')) {
+      const engine = engines[row.dataset.engine];
+      const label = row.querySelector('.score-label');
+      if (!engine || !label) continue;
+      label.textContent = engine.name;
+      const cat = categoryOf(row.dataset.engine);
+      const pct = row.querySelector('.score-val')?.textContent ?? '';
+      row.setAttribute('aria-label', `Route to ${cat ? `${cat}: ` : ''}${engine.name} (${pct.replace('%', '')}% match)`);
     }
   }
 
