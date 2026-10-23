@@ -21,6 +21,9 @@ multi-ecosystem-groups:
       interval: quarterly
 
 updates:
+  # GitHub's advisories don't cover SHA-pinned Actions, so no security
+  # update will ever come for these: the quarterly PR is what moves them.
+  # The pins themselves are the defence against a hijacked tag.
   - package-ecosystem: github-actions
     directory: /
     patterns: ['*']
