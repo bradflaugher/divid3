@@ -1,32 +1,52 @@
 version: 2
+
+# divid3 ships static files (index.html + assets) to Cloudflare Pages. Every
+# dependency below is build/test tooling: Playwright, ESLint, TypeScript,
+# serve, the CI actions, and the Python eval scripts. None of it runs in the
+# product, so routine releases don't need chasing.
+#
+# Policy: patch vulnerabilities fast, refresh everything else rarely.
+#
+# - Security fixes come from Dependabot *security updates* (a repo setting,
+#   not this file). They open a PR as soon as an advisory affects us. The schedule and cooldown below
+#   only govern version updates, so they never delay a security fix.
+# - Version updates: one combined PR per quarter across all ecosystems,
+#   instead of a stream of weekly patch bumps.
+# - Releases must be 30 days old before a version update picks them up, so
+#   broken or malicious releases are usually caught and yanked by then.
+
+multi-ecosystem-groups:
+  quarterly-refresh:
+    schedule:
+      interval: quarterly
+
 updates:
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
+    patterns: ['*']
+    multi-ecosystem-group: quarterly-refresh
     cooldown:
-      default-days: 7
-    groups:
-      actions:
-        patterns: ['*']
+      default-days: 30
 
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: weekly
-    # Let new releases age a week before proposing them (supply-chain buffer).
+    patterns: ['*']
+    multi-ecosystem-group: quarterly-refresh
     cooldown:
-      default-days: 7
+      default-days: 30
+    # If several advisories land at once, fix them in one PR.
     groups:
-      dev-dependencies:
+      npm-security:
+        applies-to: security-updates
         patterns: ['*']
 
   - package-ecosystem: pip
     directory: /scripts
-    schedule:
-      interval: weekly
+    patterns: ['*']
+    multi-ecosystem-group: quarterly-refresh
     cooldown:
-      default-days: 7
+      default-days: 30
     groups:
-      python:
+      pip-security:
+        applies-to: security-updates
         patterns: ['*']
