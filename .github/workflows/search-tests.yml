@@ -48,7 +48,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Tests take ~4-6 min per engine. The headroom is for the capped,
+    # retried system-deps install below, so a slow apt mirror doesn't eat the
+    # test budget.
+    timeout-minutes: 25
 
     # Each Playwright project (chromium / firefox / webkit / mobile-safari)
     # runs in its own job. Sharding by browser keeps each shard well under
@@ -81,10 +84,34 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
           restore-keys: ${{ runner.os }}-playwright-
 
-      - name: Install Playwright Browsers
+      # System packages come from the runner's Ubuntu apt mirror, which is
+      # sometimes very slow (we've seen a 5 MB .deb take ~2 min). That used to
+      # stall `install --with-deps` until the whole job timed out without
+      # running a test. Cap each attempt and retry instead: apt keeps finished
+      # downloads in /var/cache/apt/archives, so a retry resumes, not restarts.
+      - name: Install Playwright system dependencies
+        timeout-minutes: 14
         env:
           BROWSER: ${{ matrix.project == 'mobile-safari' && 'webkit' || matrix.project }}
-        run: npx playwright install --with-deps "$BROWSER"
+        run: |
+          for attempt in 1 2 3; do
+            if timeout --kill-after=30s 4m npx playwright install-deps "$BROWSER"; then
+              exit 0
+            fi
+            echo "::warning::System deps for $BROWSER: attempt $attempt failed or ran past 4 min."
+            # A kill mid-install can leave dpkg half-configured; repair before retrying.
+            sudo dpkg --configure -a || true
+            [ "$attempt" -lt 3 ] && sleep 10
+          done
+          echo "::error::Could not install system deps for $BROWSER after 3 attempts (usually a slow Ubuntu apt mirror; re-run the job)."
+          exit 1
+
+      # Browser binaries come from Playwright's CDN and are cached above.
+      - name: Install Playwright browsers
+        timeout-minutes: 5
+        env:
+          BROWSER: ${{ matrix.project == 'mobile-safari' && 'webkit' || matrix.project }}
+        run: npx playwright install "$BROWSER"
 
       - name: Run Playwright tests
         env:
