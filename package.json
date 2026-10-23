@@ -39,5 +39,10 @@
   "bugs": {
     "url": "https://github.com/bradflaugher/divid3/issues"
   },
-  "homepage": "https://divid3.com/"
+  "homepage": "https://divid3.com/",
+  "overrides": {
+    "serve": {
+      "compression": "^1.8.2"
+    }
+  }
 }
