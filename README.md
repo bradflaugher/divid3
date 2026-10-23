@@ -214,7 +214,7 @@ Every PR runs:
 
 - Zero runtime npm dependencies. `package.json` is dev tooling only, and `npm audit signatures` verifies every package's registry signature in CI.
 - Every GitHub Action is pinned to a full commit SHA with least-privilege `permissions`. Python deps are pinned too.
-- Dependabot proposes grouped weekly updates after a 7-day cooldown. OpenSSF Scorecard grades the setup weekly.
+- Dependabot opens security fixes as soon as an advisory lands, plus one combined toolchain refresh per quarter (30-day cooldown). OpenSSF Scorecard grades the setup weekly.
 - Deploys publish only the files the site serves (`_site/`), from a `production` environment.
 - `_headers` sets HSTS, `frame-ancestors 'none'`, `nosniff`, `no-referrer` and a restrictive `Permissions-Policy`.
 

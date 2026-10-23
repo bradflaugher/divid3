@@ -46,15 +46,52 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The test job runs in Playwright's official image, which ships every
+  # browser plus the system libraries they need. The image tag has to match
+  # the installed Playwright exactly, so read it from the lockfile here.
+  # Dependabot bumps @playwright/test and the image follows automatically.
+  playwright-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Read Playwright version from package-lock.json
+        id: read
+        run: |
+          v=$(jq -r '.packages["node_modules/playwright-core"].version // empty' package-lock.json)
+          if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Could not read a Playwright version from package-lock.json (got '$v')."
+            exit 1
+          fi
+          echo "Playwright $v -> mcr.microsoft.com/playwright:v$v-noble"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
   test:
+    needs: playwright-version
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    # No apt or browser downloads at test time: the old
+    # `playwright install --with-deps` pulled .debs from the runner's Ubuntu
+    # mirror, which was sometimes slow enough to hit the job timeout before a
+    # single test ran. The image also keeps the browsers' OS fixed when the
+    # ubuntu-latest runner moves to a new Ubuntu release.
+    # --user 1001 matches the runner's workspace owner and avoids running
+    # Firefox as root (both per Playwright's CI docs).
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
+      options: --user 1001
 
     # Each Playwright project (chromium / firefox / webkit / mobile-safari)
     # runs in its own job. Sharding by browser keeps each shard well under
     # the timeout and lets failures be diagnosed per-engine.
-    # mobile-safari rides on the webkit binary, so the install step picks
-    # the right binary based on the project name.
     strategy:
       fail-fast: false
       matrix:
@@ -73,18 +110,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-          restore-keys: ${{ runner.os }}-playwright-
-
-      - name: Install Playwright Browsers
-        env:
-          BROWSER: ${{ matrix.project == 'mobile-safari' && 'webkit' || matrix.project }}
-        run: npx playwright install --with-deps "$BROWSER"
 
       - name: Run Playwright tests
         env:
