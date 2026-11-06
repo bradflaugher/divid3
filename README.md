@@ -8,6 +8,13 @@
 
 **Private, on-device search routing.**
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/routing-light.gif">
+    <img src="docs/routing-dark.gif" width="100%" alt="Queries typed into divid3. Each one is embedded in the browser and scored against every destination: ramen near me goes to Maps, why is the sky blue to AI answers, used thinkpad x230 to Shopping. The Destinations panel then swaps the AI pick from Brave Ask to Claude.">
+  </picture>
+</p>
+
 divid3 is a meta-search router that runs entirely in your browser. It uses a small local ML model to read your intent, then sends you to whichever search engine you've decided handles that kind of query best — without a server, an account, or a middleman.
 
 [**Try the hosted instance at divid3.com**](https://divid3.com)
